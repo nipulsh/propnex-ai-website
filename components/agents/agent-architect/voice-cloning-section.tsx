@@ -2,7 +2,7 @@
 
 import { CloudUpload } from "lucide-react";
 
-import { WaveformVisualizer } from "@/components/agent-architect/waveform-visualizer";
+import { WaveformVisualizer } from "@/components/agents/agent-architect/waveform-visualizer";
 
 export function VoiceCloningSection() {
   return (

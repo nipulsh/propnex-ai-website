@@ -2,8 +2,8 @@
 
 import { CloudUpload, Plus } from "lucide-react";
 
-import { AgentArchitectPanel } from "@/components/agent-architect/agent-architect-panel";
-import { AgentCard } from "@/components/agent-card";
+import { AgentArchitectPanel } from "@/components/agents/agent-architect/agent-architect-panel";
+import { AgentCard } from "@/components/agents/agent-card";
 import { Button } from "@/components/ui/button";
 import { agents } from "@/lib/agents-data";
 import { cn } from "@/lib/utils";
@@ -14,13 +14,13 @@ export function AgentsPageContent() {
   const openNew = useAgentArchitectStore((state) => state.openNew);
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
       <AgentArchitectPanel />
 
       <div
         className={cn(
-          "flex min-w-0 flex-1 flex-col gap-8 overflow-y-auto p-6 transition-all duration-300",
-          isOpen && "xl:gap-6 xl:p-5"
+          "propnex-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-8 overflow-y-auto overscroll-contain p-6 transition-all duration-300",
+          isOpen && "xl:gap-6 xl:p-5",
         )}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -28,7 +28,7 @@ export function AgentsPageContent() {
             <h1
               className={cn(
                 "font-semibold tracking-tight text-foreground transition-all duration-300",
-                isOpen ? "text-xl" : "text-2xl"
+                isOpen ? "text-xl" : "text-2xl",
               )}
             >
               Active Agents
@@ -36,7 +36,7 @@ export function AgentsPageContent() {
             <p
               className={cn(
                 "mt-1 text-propnex-muted transition-all duration-300",
-                isOpen ? "text-xs" : "text-sm"
+                isOpen ? "text-xs" : "text-sm",
               )}
             >
               Manage and deploy your high-fidelity voice architectures.
@@ -48,7 +48,7 @@ export function AgentsPageContent() {
               variant="outline"
               className={cn(
                 "gap-2 border-propnex-border bg-propnex-panel",
-                isOpen ? "h-8 px-3 text-xs" : "h-9 px-4"
+                isOpen ? "h-8 px-3 text-xs" : "h-9 px-4",
               )}
             >
               <CloudUpload className={isOpen ? "size-3.5" : "size-4"} />
@@ -58,7 +58,7 @@ export function AgentsPageContent() {
               onClick={openNew}
               className={cn(
                 "gap-2 shadow-[0_0_20px_color-mix(in_srgb,var(--propnex-accent)_35%,transparent)]",
-                isOpen ? "h-8 px-3 text-xs" : "h-9 px-4"
+                isOpen ? "h-8 px-3 text-xs" : "h-9 px-4",
               )}
             >
               <Plus className={isOpen ? "size-3.5" : "size-4"} />
@@ -72,7 +72,7 @@ export function AgentsPageContent() {
             "grid gap-4 transition-all duration-300",
             isOpen
               ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-2"
-              : "grid-cols-1 xl:grid-cols-2"
+              : "grid-cols-1 xl:grid-cols-2",
           )}
         >
           {agents.map((agent) => (

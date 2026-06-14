@@ -22,3 +22,5 @@ colorPalette = [
 ];
 
 use this colors and other filler colors of your choice to make the website
+
+if you are making a new component put in the correct component based on the page they are used on and if they are used in multiple pages then put in a common folder

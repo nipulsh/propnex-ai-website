@@ -78,6 +78,10 @@
   --propnex-muted: #71717a;
   --propnex-border: color-mix(in srgb, var(--propnex-muted) 28%, var(--propnex-panel));
 
+  --scrollbar-track: var(--propnex-panel);
+  --scrollbar-thumb: color-mix(in srgb, var(--propnex-muted) 50%, var(--propnex-panel));
+  --scrollbar-thumb-hover: var(--propnex-accent);
+
   --background: var(--propnex-bg);
   --foreground: #e4e4e7;
   --card: var(--propnex-panel);
@@ -149,10 +153,46 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
+    color-scheme: dark;
+  }
+}
+
+@utility propnex-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border: 2px solid var(--scrollbar-track);
+    border-radius: 9999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  &::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
   }
 }

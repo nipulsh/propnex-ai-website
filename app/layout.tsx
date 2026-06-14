@@ -20,7 +20,7 @@ export default function RootLayout({
       lang="en"
       className={`${roboto.variable} ${robotoMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full">
+      <body className="h-full overflow-hidden">
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>

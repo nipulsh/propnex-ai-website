@@ -2,10 +2,10 @@
 
 import { ChevronDown, X } from "lucide-react";
 
-import { AgentIdentitySection } from "@/components/agent-architect/agent-identity-section";
-import { LanguageTagsInput } from "@/components/agent-architect/language-tags-input";
-import { VoiceCloningSection } from "@/components/agent-architect/voice-cloning-section";
-import { VoiceGenderToggle } from "@/components/agent-architect/voice-gender-toggle";
+import { AgentIdentitySection } from "@/components/agents/agent-architect/agent-identity-section";
+import { LanguageTagsInput } from "@/components/agents/agent-architect/language-tags-input";
+import { VoiceCloningSection } from "@/components/agents/agent-architect/voice-cloning-section";
+import { VoiceGenderToggle } from "@/components/agents/agent-architect/voice-gender-toggle";
 import { AGENT_CATEGORIES, ACCENT_OPTIONS } from "@/lib/agents-data";
 import { cn } from "@/lib/utils";
 import { useAgentArchitectStore } from "@/stores/agent-architect-store";
@@ -19,19 +19,23 @@ export function AgentArchitectPanel() {
   const close = useAgentArchitectStore((state) => state.close);
   const updateConfig = useAgentArchitectStore((state) => state.updateConfig);
   const addLanguage = useAgentArchitectStore((state) => state.addLanguage);
-  const removeLanguage = useAgentArchitectStore((state) => state.removeLanguage);
+  const removeLanguage = useAgentArchitectStore(
+    (state) => state.removeLanguage,
+  );
 
   return (
     <aside
       aria-hidden={!isOpen}
       className={cn(
-        "shrink-0 overflow-hidden border-r border-propnex-border bg-propnex-panel transition-[width] duration-300 ease-in-out",
-        isOpen ? "w-[min(100%,420px)]" : "w-0 border-r-0"
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-propnex-border bg-propnex-panel transition-[width] duration-300 ease-in-out",
+        isOpen ? "w-[min(100%,420px)]" : "w-0 border-r-0",
       )}
     >
-      <div className="flex h-full w-[420px] flex-col">
-        <header className="flex items-center justify-between border-b border-propnex-border px-5 py-4">
-          <h2 className="text-base font-semibold text-foreground">Agent Architect</h2>
+      <div className="flex min-h-0 w-[420px] flex-1 flex-col">
+        <header className="flex shrink-0 items-center justify-between border-b border-propnex-border px-5 py-4">
+          <h2 className="text-base font-semibold text-foreground">
+            Agent Architect
+          </h2>
           <button
             type="button"
             onClick={close}
@@ -42,7 +46,7 @@ export function AgentArchitectPanel() {
           </button>
         </header>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+        <div className="propnex-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-5">
           <AgentIdentitySection
             agentName={config.agentName}
             avatarGradient={config.avatarGradient}
@@ -54,7 +58,9 @@ export function AgentArchitectPanel() {
             <div className="relative">
               <select
                 value={config.category}
-                onChange={(event) => updateConfig({ category: event.target.value })}
+                onChange={(event) =>
+                  updateConfig({ category: event.target.value })
+                }
                 className={fieldClassName}
               >
                 {AGENT_CATEGORIES.map((category) => (
@@ -68,7 +74,9 @@ export function AgentArchitectPanel() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs text-propnex-muted">Supported Languages</label>
+            <label className="text-xs text-propnex-muted">
+              Supported Languages
+            </label>
             <LanguageTagsInput
               languages={config.languages}
               onAdd={addLanguage}
@@ -90,7 +98,9 @@ export function AgentArchitectPanel() {
               <div className="relative">
                 <select
                   value={config.accent}
-                  onChange={(event) => updateConfig({ accent: event.target.value })}
+                  onChange={(event) =>
+                    updateConfig({ accent: event.target.value })
+                  }
                   className={fieldClassName}
                 >
                   {ACCENT_OPTIONS.map((accent) => (
@@ -107,7 +117,9 @@ export function AgentArchitectPanel() {
           <VoiceCloningSection />
 
           <div className="space-y-2">
-            <label className="text-xs text-propnex-muted">Personality Prompt</label>
+            <label className="text-xs text-propnex-muted">
+              Personality Prompt
+            </label>
             <textarea
               value={config.personalityPrompt}
               onChange={(event) =>
