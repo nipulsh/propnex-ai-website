@@ -1,0 +1,7 @@
+full_name,phone_e164,email,agent_id
+John Smith,+15550123456,john.smith@example.com,
+Jane Doe,+15550987654,jane.doe@example.com,agent-001
+K-2SO,999-999-invalid,invalid@example.com,
+Alex Rivera,+447911123456,alex.rivera@example.com,agent-002
+Maria Chen,+61412345678,maria.chen@example.com,
+Sam Wilson,+15551234567,sam.wilson@example.com,agent-001

@@ -1,12 +1,5 @@
-import { PageHeader } from "@/components/common/page-header";
+import { CallLogsPageContent } from "@/components/call-logs/call-logs-page-content";
 
 export default function CallLogsPage() {
-  return (
-    <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6">
-      <PageHeader
-        title="Call Logs"
-        description="View and search your call history."
-      />
-    </div>
-  );
+  return <CallLogsPageContent />;
 }
