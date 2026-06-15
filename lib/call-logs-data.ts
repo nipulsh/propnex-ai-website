@@ -50,6 +50,8 @@ const LINE_LABELS = [
   "VIP Concierge",
 ];
 
+const DIRECTIONS: CallDirection[] = ["inbound", "outbound"];
+
 const STATUSES: CallStatus[] = ["completed", "missed", "voicemail", "failed"];
 
 function randomItem<T>(items: T[]): T {
@@ -75,7 +77,7 @@ function generateCallLogs(count: number): CallLog[] {
     return {
       id: `call-${index + 1}`,
       timestamp,
-      direction: Math.random() > 0.45 ? "outbound" : "inbound",
+      direction: randomItem(DIRECTIONS),
       phoneNumber: randomItem(PHONE_NUMBERS),
       lineLabel: randomItem(LINE_LABELS),
       agentId: agent.id,
