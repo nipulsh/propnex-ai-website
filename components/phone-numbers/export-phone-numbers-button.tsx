@@ -21,11 +21,18 @@ export function ExportPhoneNumbersButton({
 }: ExportPhoneNumbersButtonProps) {
   const numbers = usePhoneNumbersStore((state) => state.numbers);
   const searchQuery = usePhoneNumbersStore((state) => state.searchQuery);
-  const agentId = usePhoneNumbersStore((state) => state.agentId);
-  const label = usePhoneNumbersStore((state) => state.label);
+  const direction = usePhoneNumbersStore((state) => state.direction);
+  const status = usePhoneNumbersStore((state) => state.status);
+  const provider = usePhoneNumbersStore((state) => state.provider);
 
   const handleExport = () => {
-    const filtered = filterPhoneNumbers(numbers, searchQuery, agentId, label);
+    const filtered = filterPhoneNumbers(
+      numbers,
+      searchQuery,
+      direction,
+      status,
+      provider,
+    );
     const csv = phoneNumbersToCsv(filtered);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);

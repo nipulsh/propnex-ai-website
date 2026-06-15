@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import {
   type DateRangeOption,
+  type LeadTypeFilter,
   type StatusFilter,
 } from "@/lib/call-logs-data";
 
@@ -11,10 +12,12 @@ type CallLogsStore = {
   dateRange: DateRangeOption;
   agentId: string;
   status: StatusFilter;
+  leadType: LeadTypeFilter;
   currentPage: number;
   setDateRange: (value: DateRangeOption) => void;
   setAgentId: (value: string) => void;
   setStatus: (value: StatusFilter) => void;
+  setLeadType: (value: LeadTypeFilter) => void;
   setPage: (page: number) => void;
 };
 
@@ -22,11 +25,13 @@ export const useCallLogsStore = create<CallLogsStore>((set) => ({
   dateRange: "last-7-days",
   agentId: "all",
   status: "all",
+  leadType: "all",
   currentPage: 1,
 
   setDateRange: (value) => set({ dateRange: value, currentPage: 1 }),
   setAgentId: (value) => set({ agentId: value, currentPage: 1 }),
   setStatus: (value) => set({ status: value, currentPage: 1 }),
+  setLeadType: (value) => set({ leadType: value, currentPage: 1 }),
   setPage: (page) => set({ currentPage: Math.max(1, page) }),
 }));
 

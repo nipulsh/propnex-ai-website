@@ -10,9 +10,16 @@ export function ExportCsvButton() {
   const dateRange = useCallLogsStore((state) => state.dateRange);
   const agentId = useCallLogsStore((state) => state.agentId);
   const status = useCallLogsStore((state) => state.status);
+  const leadType = useCallLogsStore((state) => state.leadType);
 
   const handleExport = () => {
-    const logs = filterCallLogs(callLogs, dateRange, agentId, status);
+    const logs = filterCallLogs(
+      callLogs,
+      dateRange,
+      agentId,
+      status,
+      leadType,
+    );
     const csv = callLogsToCsv(logs);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);

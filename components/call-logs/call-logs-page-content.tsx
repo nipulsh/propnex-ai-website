@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import { Bot } from "lucide-react";
 
 import { CallLogsFilters } from "@/components/call-logs/call-logs-filters";
@@ -19,14 +20,45 @@ import {
 } from "@/stores/call-logs-store";
 
 export function CallLogsPageContent() {
+  const searchParams = useSearchParams();
   const currentPage = useCallLogsStore((state) => state.currentPage);
   const dateRange = useCallLogsStore((state) => state.dateRange);
   const agentId = useCallLogsStore((state) => state.agentId);
   const status = useCallLogsStore((state) => state.status);
+  const leadType = useCallLogsStore((state) => state.leadType);
   const setPage = useCallLogsStore((state) => state.setPage);
+  const setLeadType = useCallLogsStore((state) => state.setLeadType);
+  const setStatus = useCallLogsStore((state) => state.setStatus);
+
+  useEffect(() => {
+    const leadTypeParam = searchParams.get("leadType");
+    if (
+      leadTypeParam === "hot" ||
+      leadTypeParam === "warm" ||
+      leadTypeParam === "cold"
+    ) {
+      setLeadType(leadTypeParam);
+    }
+
+    const statusParam = searchParams.get("status");
+    if (
+      statusParam === "completed" ||
+      statusParam === "missed" ||
+      statusParam === "voicemail" ||
+      statusParam === "failed"
+    ) {
+      setStatus(statusParam);
+    }
+  }, [searchParams, setLeadType, setStatus]);
 
   const { logs, totalPages, totalCount } = useMemo(() => {
-    const filtered = filterCallLogs(callLogs, dateRange, agentId, status);
+    const filtered = filterCallLogs(
+      callLogs,
+      dateRange,
+      agentId,
+      status,
+      leadType,
+    );
     const total = filtered.length;
     const pages = Math.max(1, Math.ceil(total / CALL_LOGS_PAGE_SIZE));
     const start = (currentPage - 1) * CALL_LOGS_PAGE_SIZE;
@@ -36,7 +68,7 @@ export function CallLogsPageContent() {
       totalPages: pages,
       totalCount: total,
     };
-  }, [currentPage, dateRange, agentId, status]);
+  }, [currentPage, dateRange, agentId, status, leadType]);
 
   return (
     <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">

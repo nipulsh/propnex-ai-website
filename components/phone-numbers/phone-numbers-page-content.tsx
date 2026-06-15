@@ -20,14 +20,21 @@ import {
 export function PhoneNumbersPageContent() {
   const numbers = usePhoneNumbersStore((state) => state.numbers);
   const searchQuery = usePhoneNumbersStore((state) => state.searchQuery);
-  const agentId = usePhoneNumbersStore((state) => state.agentId);
-  const label = usePhoneNumbersStore((state) => state.label);
+  const direction = usePhoneNumbersStore((state) => state.direction);
+  const status = usePhoneNumbersStore((state) => state.status);
+  const provider = usePhoneNumbersStore((state) => state.provider);
   const showFilters = usePhoneNumbersStore((state) => state.showFilters);
   const currentPage = usePhoneNumbersStore((state) => state.currentPage);
   const setPage = usePhoneNumbersStore((state) => state.setPage);
 
-  const { pageNumbers, totalPages, totalCount, startIndex } = useMemo(() => {
-    const filtered = filterPhoneNumbers(numbers, searchQuery, agentId, label);
+  const { pageNumbers, totalPages, totalCount } = useMemo(() => {
+    const filtered = filterPhoneNumbers(
+      numbers,
+      searchQuery,
+      direction,
+      status,
+      provider,
+    );
     const total = filtered.length;
     const pages = Math.max(1, Math.ceil(total / PHONE_NUMBERS_PAGE_SIZE));
     const safePage = Math.min(currentPage, pages);
@@ -37,9 +44,8 @@ export function PhoneNumbersPageContent() {
       pageNumbers: filtered.slice(start, start + PHONE_NUMBERS_PAGE_SIZE),
       totalPages: pages,
       totalCount: total,
-      startIndex: start,
     };
-  }, [numbers, searchQuery, agentId, label, currentPage]);
+  }, [numbers, searchQuery, direction, status, provider, currentPage]);
 
   return (
     <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
@@ -47,7 +53,7 @@ export function PhoneNumbersPageContent() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <PageHeader
             title="Phone Numbers"
-            description="Manage your global telecommunication gateways."
+            description="Manage call routing, agent assignments, and number performance."
           />
           <div className="flex shrink-0 items-center gap-3">
             <AddNumberButton />
@@ -64,7 +70,7 @@ export function PhoneNumbersPageContent() {
       {showFilters ? <PhoneNumbersFilters /> : null}
 
       <div className="rounded-xl border border-propnex-border bg-propnex-panel">
-        <PhoneNumbersTable numbers={pageNumbers} startIndex={startIndex} />
+        <PhoneNumbersTable numbers={pageNumbers} />
         <PhoneNumbersPagination
           currentPage={Math.min(currentPage, totalPages)}
           totalPages={totalPages}

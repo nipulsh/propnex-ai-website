@@ -1,13 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
+import { LeadTemperatureBadge } from "@/components/call-details/lead-temperature-badge";
 import {
   formatCallDate,
   formatCallTime,
-  formatDuration,
   type CallLog,
 } from "@/lib/call-logs-data";
+import { getLeadTemperatureForCall } from "@/lib/call-detail-data";
 import { cn } from "@/lib/utils";
 
 type CallLogsTableProps = {
@@ -62,7 +64,7 @@ export function CallLogsTable({ logs }: CallLogsTableProps) {
                 Agent
               </th>
               <th className="hidden px-5 py-3 font-medium lg:table-cell">
-                Duration
+                Lead Type
               </th>
               <th className="px-5 py-3 font-medium">Status</th>
             </tr>
@@ -81,18 +83,27 @@ export function CallLogsTable({ logs }: CallLogsTableProps) {
               logs.map((log) => (
                 <tr
                   key={log.id}
-                  className="border-b border-propnex-border/70 last:border-b-0"
+                  className="group border-b border-propnex-border/70 transition-colors last:border-b-0 hover:bg-propnex-accent/5"
                 >
                   <td className="px-5 py-4">
-                    <p className="font-medium text-foreground">
+                    <Link
+                      href={`/call-logs/${log.id}`}
+                      className="block font-medium text-foreground"
+                    >
                       {formatCallDate(log.timestamp)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-propnex-muted">
+                    </Link>
+                    <Link
+                      href={`/call-logs/${log.id}`}
+                      className="mt-0.5 block text-xs text-propnex-muted"
+                    >
                       {formatCallTime(log.timestamp)}
-                    </p>
+                    </Link>
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex items-start gap-3">
+                    <Link
+                      href={`/call-logs/${log.id}`}
+                      className="flex items-start gap-3"
+                    >
                       <DirectionIcon direction={log.direction} />
                       <div className="min-w-0">
                         <p className="font-medium text-foreground">
@@ -102,16 +113,27 @@ export function CallLogsTable({ logs }: CallLogsTableProps) {
                           {log.lineLabel}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   </td>
-                  <td className="hidden px-5 py-4 text-foreground md:table-cell">
-                    {log.agentName}
+                  <td className="hidden px-5 py-4 md:table-cell">
+                    <Link
+                      href={`/call-logs/${log.id}`}
+                      className="block text-foreground"
+                    >
+                      {log.agentName}
+                    </Link>
                   </td>
-                  <td className="hidden px-5 py-4 text-propnex-muted lg:table-cell">
-                    {formatDuration(log.durationSeconds)}
+                  <td className="hidden px-5 py-4 lg:table-cell">
+                    <Link href={`/call-logs/${log.id}`}>
+                      <LeadTemperatureBadge
+                        temperature={getLeadTemperatureForCall(log.id)}
+                      />
+                    </Link>
                   </td>
                   <td className="px-5 py-4">
-                    <StatusBadge status={log.status} />
+                    <Link href={`/call-logs/${log.id}`}>
+                      <StatusBadge status={log.status} />
+                    </Link>
                   </td>
                 </tr>
               ))

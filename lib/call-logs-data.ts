@@ -1,4 +1,12 @@
 import { agents } from "@/lib/agents-data";
+import {
+  getLeadTemperatureForCall,
+  type LeadTemperature,
+} from "@/lib/call-detail-data";
+import {
+  formatPhoneDisplay,
+  initialPhoneNumbers,
+} from "@/lib/phone-numbers-data";
 
 export type CallDirection = "inbound" | "outbound";
 
@@ -8,22 +16,55 @@ export type CallLog = {
   id: string;
   timestamp: number;
   direction: CallDirection;
+  phoneNumberId: string;
   phoneNumber: string;
   lineLabel: string;
+  leadName: string;
   agentId: string;
   agentName: string;
   status: CallStatus;
   durationSeconds: number;
 };
 
-export type DateRangeOption = "last-7-days" | "last-30-days" | "last-90-days";
+export type DateRangeOption =
+  | "today"
+  | "last-7-days"
+  | "last-30-days"
+  | "last-90-days"
+  | "custom";
+
+export type CallHistoryDateRange =
+  | "today"
+  | "last-7-days"
+  | "last-30-days"
+  | "custom";
+
+export type DirectionFilter = "all" | CallDirection;
 
 export type StatusFilter = "all" | CallStatus;
+
+export type LeadTypeFilter = "all" | LeadTemperature;
 
 export const DATE_RANGE_OPTIONS: { value: DateRangeOption; label: string }[] = [
   { value: "last-7-days", label: "Last 7 Days" },
   { value: "last-30-days", label: "Last 30 Days" },
   { value: "last-90-days", label: "Last 90 Days" },
+];
+
+export const CALL_HISTORY_DATE_RANGE_OPTIONS: {
+  value: CallHistoryDateRange;
+  label: string;
+}[] = [
+  { value: "today", label: "Today" },
+  { value: "last-7-days", label: "Last 7 Days" },
+  { value: "last-30-days", label: "Last 30 Days" },
+  { value: "custom", label: "Custom Range" },
+];
+
+export const DIRECTION_OPTIONS: { value: DirectionFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "inbound", label: "Inbound" },
+  { value: "outbound", label: "Outbound" },
 ];
 
 export const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
@@ -34,12 +75,33 @@ export const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "failed", label: "Failed" },
 ];
 
-const PHONE_NUMBERS = [
-  "+1 (555) 123-4567",
-  "+1 (555) 987-6543",
-  "+1 (555) 246-8135",
-  "+1 (555) 369-2580",
-  "+1 (555) 741-8529",
+export const LEAD_TYPE_OPTIONS: { value: LeadTypeFilter; label: string }[] = [
+  { value: "all", label: "All Lead Types" },
+  { value: "hot", label: "Hot" },
+  { value: "warm", label: "Warm" },
+  { value: "cold", label: "Cold" },
+];
+
+const LEAD_TEMPERATURE_ORDER: Record<LeadTemperature, number> = {
+  hot: 0,
+  warm: 1,
+  cold: 2,
+};
+
+const LEAD_NAMES = [
+  "Sarah Mitchell",
+  "James Chen",
+  "Priya Sharma",
+  "Michael Torres",
+  "Emily Watson",
+  "David Okonkwo",
+  "Lisa Park",
+  "Robert Kim",
+  "Amanda Foster",
+  "Carlos Rivera",
+  "Jennifer Liu",
+  "Thomas Anderson",
+  "Unknown Caller",
 ];
 
 const LINE_LABELS = [
@@ -51,22 +113,45 @@ const LINE_LABELS = [
 ];
 
 const DIRECTIONS: CallDirection[] = ["inbound", "outbound"];
-
 const STATUSES: CallStatus[] = ["completed", "missed", "voicemail", "failed"];
 
 function randomItem<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)]!;
 }
 
+function seededRandom(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
 function generateCallLogs(count: number): CallLog[] {
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;
+  const phoneEntries = initialPhoneNumbers.map((pn) => ({
+    id: pn.id,
+    display: formatPhoneDisplay(pn.number),
+    inboundAgentId: pn.inboundAgentId,
+    inboundAgentName: pn.inboundAgentName,
+    outboundAgentId: pn.outboundAgentId,
+    outboundAgentName: pn.outboundAgentName,
+  }));
 
   return Array.from({ length: count }, (_, index) => {
-    const agent = randomItem(agents);
-    const daysAgo = Math.floor(Math.random() * 90);
-    const hour = Math.floor(Math.random() * 12) + 8;
-    const minute = Math.floor(Math.random() * 60);
+    const rand = seededRandom(index + 42);
+    const phoneEntry = phoneEntries[Math.floor(rand() * phoneEntries.length)]!;
+    const direction: CallDirection = rand() > 0.45 ? "inbound" : "outbound";
+    const agentId =
+      direction === "inbound"
+        ? phoneEntry.inboundAgentId || randomItem(agents).id
+        : phoneEntry.outboundAgentId || randomItem(agents).id;
+    const agent =
+      agents.find((a) => a.id === agentId) ?? randomItem(agents);
+    const daysAgo = Math.floor(rand() * 90);
+    const hour = Math.floor(rand() * 12) + 8;
+    const minute = Math.floor(rand() * 60);
     const timestamp =
       now -
       daysAgo * dayMs -
@@ -77,13 +162,15 @@ function generateCallLogs(count: number): CallLog[] {
     return {
       id: `call-${index + 1}`,
       timestamp,
-      direction: randomItem(DIRECTIONS),
-      phoneNumber: randomItem(PHONE_NUMBERS),
+      direction,
+      phoneNumberId: phoneEntry.id,
+      phoneNumber: phoneEntry.display,
       lineLabel: randomItem(LINE_LABELS),
+      leadName: randomItem(LEAD_NAMES),
       agentId: agent.id,
       agentName: agent.name,
       status: randomItem(STATUSES),
-      durationSeconds: Math.floor(Math.random() * 540) + 30,
+      durationSeconds: Math.floor(rand() * 540) + 30,
     };
   }).sort((a, b) => b.timestamp - a.timestamp);
 }
@@ -114,12 +201,77 @@ export function formatDuration(seconds: number): string {
 
 export function getDateRangeStart(option: DateRangeOption): number {
   const dayMs = 24 * 60 * 60 * 1000;
-  const offsets: Record<DateRangeOption, number> = {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const offsets: Record<Exclude<DateRangeOption, "custom">, number> = {
+    today: 0,
     "last-7-days": 7,
     "last-30-days": 30,
     "last-90-days": 90,
   };
+
+  if (option === "custom") {
+    return Date.now() - 30 * dayMs;
+  }
+
+  if (option === "today") {
+    return now.getTime();
+  }
+
   return Date.now() - offsets[option] * dayMs;
+}
+
+export function getCallHistoryRangeStart(
+  option: CallHistoryDateRange,
+  customFrom?: string,
+): number {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  if (option === "custom") {
+    if (customFrom) {
+      const parsed = new Date(customFrom);
+      parsed.setHours(0, 0, 0, 0);
+      return parsed.getTime();
+    }
+    return Date.now() - 30 * dayMs;
+  }
+
+  if (option === "today") {
+    return todayStart.getTime();
+  }
+
+  const offsets: Record<"last-7-days" | "last-30-days", number> = {
+    "last-7-days": 7,
+    "last-30-days": 30,
+  };
+
+  return Date.now() - offsets[option] * dayMs;
+}
+
+export function getCallHistoryRangeEnd(
+  option: CallHistoryDateRange,
+  customTo?: string,
+): number {
+  if (option === "custom" && customTo) {
+    const parsed = new Date(customTo);
+    parsed.setHours(23, 59, 59, 999);
+    return parsed.getTime();
+  }
+
+  return Date.now();
+}
+
+export function sortCallLogsByLeadType(logs: CallLog[]): CallLog[] {
+  return [...logs].sort((a, b) => {
+    const orderDiff =
+      LEAD_TEMPERATURE_ORDER[getLeadTemperatureForCall(a.id)] -
+      LEAD_TEMPERATURE_ORDER[getLeadTemperatureForCall(b.id)];
+    if (orderDiff !== 0) return orderDiff;
+    return b.timestamp - a.timestamp;
+  });
 }
 
 export function filterCallLogs(
@@ -127,15 +279,71 @@ export function filterCallLogs(
   dateRange: DateRangeOption,
   agentId: string,
   status: StatusFilter,
+  leadType: LeadTypeFilter = "all",
 ): CallLog[] {
   const rangeStart = getDateRangeStart(dateRange);
 
-  return logs.filter((log) => {
+  const filtered = logs.filter((log) => {
     if (log.timestamp < rangeStart) return false;
     if (agentId !== "all" && log.agentId !== agentId) return false;
     if (status !== "all" && log.status !== status) return false;
+    if (
+      leadType !== "all" &&
+      getLeadTemperatureForCall(log.id) !== leadType
+    ) {
+      return false;
+    }
     return true;
   });
+
+  return sortCallLogsByLeadType(filtered);
+}
+
+export type PhoneNumberCallHistoryFilters = {
+  direction: DirectionFilter;
+  status: StatusFilter;
+  dateRange: CallHistoryDateRange;
+  customFrom: string;
+  customTo: string;
+  agentId: string;
+};
+
+export function filterCallsByPhoneNumber(
+  logs: CallLog[],
+  phoneNumberId: string,
+  filters: PhoneNumberCallHistoryFilters,
+): CallLog[] {
+  const rangeStart = getCallHistoryRangeStart(
+    filters.dateRange,
+    filters.customFrom,
+  );
+  const rangeEnd = getCallHistoryRangeEnd(
+    filters.dateRange,
+    filters.customTo,
+  );
+
+  return logs
+    .filter((log) => {
+      if (log.phoneNumberId !== phoneNumberId) return false;
+      if (log.timestamp < rangeStart || log.timestamp > rangeEnd) return false;
+      if (filters.direction !== "all" && log.direction !== filters.direction) {
+        return false;
+      }
+      if (filters.status !== "all" && log.status !== filters.status) {
+        return false;
+      }
+      if (filters.agentId !== "all" && log.agentId !== filters.agentId) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export function getCallsForPhoneNumber(phoneNumberId: string): CallLog[] {
+  return callLogs
+    .filter((log) => log.phoneNumberId === phoneNumberId)
+    .sort((a, b) => b.timestamp - a.timestamp);
 }
 
 export function callLogsToCsv(logs: CallLog[]): string {
@@ -144,6 +352,7 @@ export function callLogsToCsv(logs: CallLog[]): string {
     "Time",
     "Direction",
     "Phone Number",
+    "Lead Name",
     "Line",
     "Agent",
     "Status",
@@ -155,6 +364,7 @@ export function callLogsToCsv(logs: CallLog[]): string {
     formatCallTime(log.timestamp),
     log.direction,
     log.phoneNumber,
+    log.leadName,
     log.lineLabel,
     log.agentName,
     log.status,

@@ -1,42 +1,53 @@
 "use client";
 
-import { Headset, Tag } from "lucide-react";
+import { ArrowDownLeft, CheckCircle2, Server } from "lucide-react";
 
 import { FilterSelectField } from "@/components/call-logs/filter-select-field";
-import { agents } from "@/lib/agents-data";
-import { LABEL_OPTIONS, type LabelFilter } from "@/lib/phone-numbers-data";
+import {
+  DIRECTION_FILTER_OPTIONS,
+  PROVIDER_FILTER_OPTIONS,
+  STATUS_FILTER_OPTIONS,
+} from "@/lib/phone-numbers-data";
 import { usePhoneNumbersStore } from "@/stores/phone-numbers-store";
 
-const agentOptions = [
-  { value: "all", label: "All Agents" },
-  ...agents.map((agent) => ({ value: agent.id, label: agent.name })),
-];
-
 export function PhoneNumbersFilters() {
-  const agentId = usePhoneNumbersStore((state) => state.agentId);
-  const label = usePhoneNumbersStore((state) => state.label);
-  const setAgentId = usePhoneNumbersStore((state) => state.setAgentId);
-  const setLabel = usePhoneNumbersStore((state) => state.setLabel);
+  const direction = usePhoneNumbersStore((state) => state.direction);
+  const status = usePhoneNumbersStore((state) => state.status);
+  const provider = usePhoneNumbersStore((state) => state.provider);
+  const setDirection = usePhoneNumbersStore((state) => state.setDirection);
+  const setStatus = usePhoneNumbersStore((state) => state.setStatus);
+  const setProvider = usePhoneNumbersStore((state) => state.setProvider);
 
   return (
     <section className="rounded-xl border border-propnex-border bg-propnex-panel p-5">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <FilterSelectField
-          id="phone-numbers-agent"
-          label="Agent"
-          icon={Headset}
-          value={agentId}
-          onChange={setAgentId}
-          options={agentOptions}
+          id="phone-numbers-direction"
+          label="Direction"
+          icon={ArrowDownLeft}
+          value={direction}
+          onChange={(value) =>
+            setDirection(value as typeof direction)
+          }
+          options={DIRECTION_FILTER_OPTIONS}
         />
 
         <FilterSelectField
-          id="phone-numbers-label"
-          label="Label"
-          icon={Tag}
-          value={label}
-          onChange={(value) => setLabel(value as LabelFilter)}
-          options={LABEL_OPTIONS}
+          id="phone-numbers-status"
+          label="Status"
+          icon={CheckCircle2}
+          value={status}
+          onChange={(value) => setStatus(value as typeof status)}
+          options={STATUS_FILTER_OPTIONS}
+        />
+
+        <FilterSelectField
+          id="phone-numbers-provider"
+          label="Provider"
+          icon={Server}
+          value={provider}
+          onChange={(value) => setProvider(value as typeof provider)}
+          options={PROVIDER_FILTER_OPTIONS}
         />
       </div>
     </section>

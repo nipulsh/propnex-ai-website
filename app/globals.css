@@ -58,18 +58,61 @@
 }
 
 /*
- * PropNex design palette (from session instructions)
- * --propnex-bg:           #0F1115  primary background
- * --propnex-sidebar:      #1A1C22  secondary background / containers
- * --propnex-panel:        #1A1C22  cards / panels
- * --propnex-accent:       #B9B8FF  accent / interactive elements
- * --propnex-muted:        #71717A  secondary typography / dimmed elements
- * --foreground:           #E4E4E7  primary typography
- * --propnex-border:       derived  borders / strokes
- * --success:              #34C759  active / online states (filler)
+ * PropNex design palette
+ * Light and dark tokens are defined per theme below.
+ * Brand accent: #B9B8FF (dark) / #5C5BFF (light, higher contrast)
  */
 
 :root {
+  --propnex-bg: #f8f8fa;
+  --propnex-sidebar: #ffffff;
+  --propnex-panel: #ffffff;
+  --propnex-accent: #5c5bff;
+  --propnex-accent-secondary: #7c7bff;
+  --propnex-muted: #71717a;
+  --propnex-border: color-mix(in srgb, var(--propnex-muted) 22%, var(--propnex-panel));
+
+  --scrollbar-track: #f0f0f3;
+  --scrollbar-thumb: color-mix(in srgb, var(--propnex-muted) 35%, #f0f0f3);
+  --scrollbar-thumb-hover: var(--propnex-accent);
+
+  --background: var(--propnex-bg);
+  --foreground: #18181b;
+  --card: var(--propnex-panel);
+  --card-foreground: #18181b;
+  --popover: var(--propnex-panel);
+  --popover-foreground: #18181b;
+  --primary: var(--propnex-accent);
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: var(--propnex-muted);
+  --accent: color-mix(in srgb, var(--propnex-accent) 10%, #f4f4f5);
+  --accent-foreground: #18181b;
+  --destructive: #dc2626;
+  --border: var(--propnex-border);
+  --input: color-mix(in srgb, var(--propnex-muted) 18%, var(--propnex-panel));
+  --ring: var(--propnex-accent);
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --chart-1: var(--propnex-accent);
+  --chart-2: var(--propnex-accent-secondary);
+  --chart-3: var(--success);
+  --chart-4: #8b5cf6;
+  --chart-5: #ec4899;
+  --radius: 0.75rem;
+  --sidebar: var(--propnex-sidebar);
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: var(--propnex-accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: color-mix(in srgb, var(--propnex-accent) 8%, var(--propnex-sidebar));
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: var(--propnex-border);
+  --sidebar-ring: var(--propnex-accent);
+}
+
+.dark {
   --propnex-bg: #0f1115;
   --propnex-sidebar: #1a1c22;
   --propnex-panel: #1a1c22;
@@ -107,38 +150,6 @@
   --chart-3: var(--success);
   --chart-4: #a78bfa;
   --chart-5: #f472b6;
-  --radius: 0.75rem;
-  --sidebar: var(--propnex-sidebar);
-  --sidebar-foreground: #e4e4e7;
-  --sidebar-primary: var(--propnex-accent);
-  --sidebar-primary-foreground: var(--propnex-bg);
-  --sidebar-accent: color-mix(in srgb, var(--propnex-accent) 10%, var(--propnex-sidebar));
-  --sidebar-accent-foreground: #e4e4e7;
-  --sidebar-border: var(--propnex-border);
-  --sidebar-ring: var(--propnex-accent);
-}
-
-.dark {
-  --background: var(--propnex-bg);
-  --foreground: #e4e4e7;
-  --card: var(--propnex-panel);
-  --card-foreground: #e4e4e7;
-  --popover: var(--propnex-panel);
-  --popover-foreground: #e4e4e7;
-  --primary: var(--propnex-accent);
-  --primary-foreground: var(--propnex-bg);
-  --secondary: var(--propnex-panel);
-  --secondary-foreground: #e4e4e7;
-  --muted: var(--propnex-panel);
-  --muted-foreground: var(--propnex-muted);
-  --accent: color-mix(in srgb, var(--propnex-accent) 12%, var(--propnex-sidebar));
-  --accent-foreground: #e4e4e7;
-  --destructive: #f87171;
-  --border: var(--propnex-border);
-  --input: var(--propnex-border);
-  --ring: var(--propnex-accent);
-  --success: #34c759;
-  --success-foreground: var(--propnex-bg);
   --sidebar: var(--propnex-sidebar);
   --sidebar-foreground: #e4e4e7;
   --sidebar-primary: var(--propnex-accent);
@@ -159,6 +170,10 @@
   }
   html {
     @apply font-sans;
+    color-scheme: light;
+  }
+
+  html.dark {
     color-scheme: dark;
   }
 }

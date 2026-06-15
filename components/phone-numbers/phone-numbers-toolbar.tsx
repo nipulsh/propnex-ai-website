@@ -34,7 +34,7 @@ export function PhoneNumbersToolbar() {
           type="search"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search by number or label..."
+          placeholder="Search by number or agent name..."
           className="h-11 w-full border-propnex-border bg-propnex-panel pl-10 text-foreground placeholder:text-propnex-muted focus-visible:border-propnex-accent focus-visible:ring-propnex-accent/30"
         />
       </div>
