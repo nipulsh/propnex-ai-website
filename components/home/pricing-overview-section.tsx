@@ -27,9 +27,9 @@ export function PricingOverviewSection() {
 
   const usage = useMemo(() => {
     const channelsAssigned =
-      channelUsage.totalAssigned || INITIAL_RESOURCE_USAGE.channelsAssigned;
+      channelUsage.totalChannels || INITIAL_RESOURCE_USAGE.channelsAssigned;
     const channelsActive =
-      channelUsage.active || INITIAL_RESOURCE_USAGE.channelsActive;
+      INITIAL_RESOURCE_USAGE.channelsActive;
     const virtualNumbers =
       phoneNumbers.length || INITIAL_RESOURCE_USAGE.virtualNumbers;
 

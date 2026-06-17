@@ -123,7 +123,7 @@ export function PhoneNumberDetailPageContent({
           </p>
           <Button
             nativeButton={false}
-            render={<Link href="/phone-numbers" />}
+            render={<Link href="/setup#phone-numbers" />}
             className="mt-2"
           >
             Back to Phone Numbers

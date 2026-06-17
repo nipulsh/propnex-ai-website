@@ -32,8 +32,11 @@ export function UsageOverviewSection() {
   );
 
   const usage = useMemo(() => {
-    const assigned = channelUsage.totalAssigned || INITIAL_RESOURCE_USAGE.channelsAssigned;
-    const active = channelUsage.active || INITIAL_RESOURCE_USAGE.channelsActive;
+    const assigned = channelUsage.totalChannels || INITIAL_RESOURCE_USAGE.channelsAssigned;
+    const active = Math.min(
+      assigned,
+      INITIAL_RESOURCE_USAGE.channelsActive,
+    );
     const available = Math.max(0, assigned - active);
     const virtualNumbers =
       phoneNumbers.length || INITIAL_RESOURCE_USAGE.virtualNumbers;

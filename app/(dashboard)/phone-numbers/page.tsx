@@ -1,5 +1,5 @@
-import { PhoneNumbersPageContent } from "@/components/phone-numbers/phone-numbers-page-content";
+import { redirect } from "next/navigation";
 
 export default function PhoneNumbersPage() {
-  return <PhoneNumbersPageContent />;
+  redirect("/setup#phone-numbers");
 }

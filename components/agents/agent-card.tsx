@@ -1,28 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Bot,
-  Eye,
-  Pencil,
-  Phone,
-} from "lucide-react";
+import { Bot } from "lucide-react";
 
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { DisableAgentDialog } from "@/components/agents/disable-agent-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  formatLastActivity,
-  getAgentListMetrics,
-  getPhoneNumbersForAgent,
-} from "@/lib/agent-detail-data";
+import { HearAgentButton } from "@/components/agents/hear-agent-button";
+import { getAgentLeadSummary } from "@/lib/agent-detail-data";
 import type { Agent } from "@/lib/agents-data";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/agents-store";
-import { usePhoneNumbersStore } from "@/stores/phone-numbers-store";
 
 type AgentCardProps = {
   agent: Agent;
@@ -56,13 +43,36 @@ function AgentToggle({
   );
 }
 
+function LeadSummaryCard({ agentId }: { agentId: string }) {
+  const summary = getAgentLeadSummary(agentId);
+
+  return (
+    <div className="rounded-lg border border-propnex-border bg-propnex-bg/50 p-3">
+      <p className="text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
+        Lead Summary
+      </p>
+      <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-lg font-semibold text-orange-400">{summary.hot}</p>
+          <p className="text-[10px] text-propnex-muted">Hot</p>
+        </div>
+        <div>
+          <p className="text-lg font-semibold text-amber-400">{summary.warm}</p>
+          <p className="text-[10px] text-propnex-muted">Warm</p>
+        </div>
+        <div>
+          <p className="text-lg font-semibold text-sky-400">{summary.cold}</p>
+          <p className="text-[10px] text-propnex-muted">Cold</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AgentCard({ agent }: AgentCardProps) {
   const setAgentEnabled = useAgentsStore((s) => s.setAgentEnabled);
-  const phoneNumbers = usePhoneNumbersStore((s) => s.numbers);
   const [disableDialogOpen, setDisableDialogOpen] = useState(false);
 
-  const metrics = getAgentListMetrics(agent.id);
-  const assignedNumbers = getPhoneNumbersForAgent(phoneNumbers, agent.id);
   const isActive = agent.enabled && agent.status === "active";
 
   function handleToggle(next: boolean) {
@@ -105,9 +115,7 @@ export function AgentCard({ agent }: AgentCardProps) {
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <AgentToggle enabled={agent.enabled} onChange={handleToggle} />
-            </div>
+            <AgentToggle enabled={agent.enabled} onChange={handleToggle} />
           </div>
 
           <div className="space-y-1">
@@ -117,89 +125,14 @@ export function AgentCard({ agent }: AgentCardProps) {
               </h3>
               <AgentStatusBadge agent={agent} />
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-propnex-muted">
-              <span className="rounded-md border border-propnex-border bg-propnex-bg px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase">
-                {agent.type}
-              </span>
-              <span>{agent.category}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-sm text-propnex-muted">
-            <Phone className="size-3.5 shrink-0" />
-            <span>
-              {assignedNumbers.length} phone number
-              {assignedNumbers.length !== 1 ? "s" : ""} assigned
+            <span className="inline-block rounded-md border border-propnex-border bg-propnex-bg px-2 py-0.5 text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
+              {agent.type}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 rounded-lg border border-propnex-border bg-propnex-bg/50 p-3 sm:grid-cols-3">
-            <div>
-              <p className="text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
-                Total Calls
-              </p>
-              <p className="mt-0.5 text-sm font-semibold text-foreground">
-                {metrics.totalCalls.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
-                Inbound
-              </p>
-              <p className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-foreground">
-                <ArrowDownLeft className="size-3 text-propnex-accent" />
-                {metrics.inboundCalls}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
-                Outbound
-              </p>
-              <p className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-foreground">
-                <ArrowUpRight className="size-3 text-propnex-accent" />
-                {metrics.outboundCalls}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
-                Last Activity
-              </p>
-              <p className="mt-0.5 text-sm text-foreground">
-                {formatLastActivity(metrics.lastActivity)}
-              </p>
-            </div>
-            <div className="sm:col-span-2">
-              <p className="text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
-                Conversion
-              </p>
-              <p className="mt-0.5 text-sm font-semibold text-foreground">
-                {metrics.conversionRate}% · {metrics.hotLeads} hot leads
-              </p>
-            </div>
-          </div>
-        </div>
+          <LeadSummaryCard agentId={agent.id} />
 
-        <div className="flex items-center gap-2 border-t border-propnex-border bg-propnex-bg/30 p-3">
-          <Button
-            nativeButton={false}
-            render={<Link href={`/agents/${agent.id}`} />}
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5 border-propnex-border bg-propnex-panel text-xs"
-          >
-            <Eye className="size-3.5" />
-            View Details
-          </Button>
-          <Button
-            nativeButton={false}
-            render={<Link href={`/agents/${agent.id}?edit=config`} />}
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5 border-propnex-border bg-propnex-panel text-xs"
-          >
-            <Pencil className="size-3.5" />
-            Edit
-          </Button>
+          <HearAgentButton agent={agent} className="w-full" />
         </div>
       </article>
 

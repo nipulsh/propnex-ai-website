@@ -21,6 +21,7 @@ export type PhoneNumber = {
   lastActivityAt: number | null;
   createdAt: number;
   updatedAt: number;
+  channelCount: number;
 };
 
 export const DIRECTION_FILTER_OPTIONS: {
@@ -244,6 +245,7 @@ function buildPhoneNumber(entry: SeedEntry, index: number): PhoneNumber {
     lastActivityAt,
     createdAt,
     updatedAt: lastActivityAt ?? createdAt,
+    channelCount: (index % 3) + 1,
   };
 }
 

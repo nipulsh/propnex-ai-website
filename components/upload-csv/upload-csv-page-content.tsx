@@ -1,206 +1,177 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   CheckCircle2,
-  ChevronDown,
   CloudUpload,
   Download,
-  Filter,
+  Loader2,
 } from "lucide-react";
 
+import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  buildPreviewRows,
-  countValidRecords,
-  CSV_FIELD_LABELS,
+  autoProcessCsv,
   downloadSampleCsv,
-  guessColumnMapping,
-  parseCsv,
-  type ColumnMapping,
-  type CsvFieldKey,
-  type ParsedCsv,
+  type CategorizedLeadImport,
 } from "@/lib/csv-import";
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
-const PREVIEW_ROW_LIMIT = 10;
 
-const MAPPING_FIELDS: CsvFieldKey[] = ["contactName", "phoneNumber", "agentId"];
+function LeadCategoryCard({
+  label,
+  count,
+  colorClass,
+}: {
+  label: string;
+  count: number;
+  colorClass: string;
+}) {
+  return (
+    <div className="rounded-xl border border-propnex-border bg-propnex-panel p-5 text-center">
+      <p className={cn("text-3xl font-bold", colorClass)}>{count}</p>
+      <p className="mt-1 text-sm text-propnex-muted">{label}</p>
+    </div>
+  );
+}
+
+function ImportResults({ results }: { results: CategorizedLeadImport }) {
+  return (
+    <div className="space-y-4 rounded-xl border border-propnex-border bg-propnex-panel p-6">
+      <div className="flex items-center gap-2 text-success">
+        <CheckCircle2 className="size-5" />
+        <h3 className="font-semibold text-foreground">
+          {results.total} leads imported and categorized
+        </h3>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <LeadCategoryCard label="Hot Leads" count={results.hot} colorClass="text-orange-400" />
+        <LeadCategoryCard label="Warm Leads" count={results.warm} colorClass="text-amber-400" />
+        <LeadCategoryCard label="Cold Leads" count={results.cold} colorClass="text-sky-400" />
+      </div>
+      {results.invalid > 0 ? (
+        <p className="text-sm text-propnex-muted">
+          {results.invalid} row{results.invalid !== 1 ? "s" : ""} skipped due to
+          invalid phone numbers.
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 export function UploadCsvPageContent() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [parsedCsv, setParsedCsv] = useState<ParsedCsv | null>(null);
-  const [mapping, setMapping] = useState<ColumnMapping>({
-    contactName: null,
-    phoneNumber: null,
-    agentId: null,
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [importStatus, setImportStatus] = useState<string | null>(null);
-
-  const previewRows = useMemo(() => {
-    if (!parsedCsv) {
-      return [];
-    }
-    return buildPreviewRows(parsedCsv, mapping, PREVIEW_ROW_LIMIT);
-  }, [parsedCsv, mapping]);
-
-  const validRecordCount = useMemo(() => {
-    if (!parsedCsv) {
-      return 0;
-    }
-    return countValidRecords(parsedCsv, mapping);
-  }, [parsedCsv, mapping]);
-
-  const previewHeaders = parsedCsv?.headers ?? [];
+  const [results, setResults] = useState<CategorizedLeadImport | null>(null);
 
   const processFile = useCallback(async (file: File) => {
     setError(null);
-    setImportStatus(null);
+    setResults(null);
 
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Please upload a CSV file.");
+      setError("Please upload a .csv file.");
       return;
     }
-
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      setError("File exceeds the 50MB size limit.");
-      return;
-    }
-
-    const text = await file.text();
-    const parsed = parseCsv(text);
-
-    if (parsed.headers.length === 0) {
-      setError("The CSV file appears to be empty.");
+      setError("File exceeds the 50 MB limit.");
       return;
     }
 
     setFileName(file.name);
-    setParsedCsv(parsed);
-    setMapping(guessColumnMapping(parsed.headers));
+    setIsProcessing(true);
+
+    try {
+      const text = await file.text();
+      await new Promise((r) => setTimeout(r, 800));
+      const { categories } = autoProcessCsv(text);
+      setResults(categories);
+    } catch {
+      setError("Unable to process this file. Please check the format and try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   }, []);
 
-  const handleFiles = useCallback(
-    (files: FileList | null) => {
-      const file = files?.[0];
-      if (file) {
-        void processFile(file);
-      }
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      setIsDragging(false);
+      const file = event.dataTransfer.files[0];
+      if (file) void processFile(file);
     },
     [processFile],
   );
 
-  const handleDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      setIsDragging(false);
-      handleFiles(event.dataTransfer.files);
-    },
-    [handleFiles],
-  );
-
-  const handleMappingChange = (field: CsvFieldKey, value: string) => {
-    setMapping((current) => ({
-      ...current,
-      [field]: value === "" ? null : value,
-    }));
-    setImportStatus(null);
-  };
-
-  const handleConfirmImport = () => {
-    if (!parsedCsv || !mapping.phoneNumber) {
-      setError("Map at least the Phone Number column before importing.");
-      return;
-    }
-
-    setError(null);
-    setImportStatus(
-      `Validated ${validRecordCount.toLocaleString()} of ${parsedCsv.rows.length.toLocaleString()} records. Import queued for outbound campaigns.`,
-    );
-  };
-
-  const canImport = Boolean(parsedCsv && mapping.phoneNumber);
-
   return (
-    <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Data Integration Terminal
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm text-propnex-muted">
-          Upload your contact lists to initialize outbound agent campaigns.
-          Supported format: CSV (UTF-8).
-        </p>
+    <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <PageHeader
+          title="Upload Leads"
+          description="Upload a CSV file and PropNex AI will automatically categorize your leads."
+        />
+        <Button
+          variant="outline"
+          className="gap-2 border-propnex-border"
+          onClick={downloadSampleCsv}
+        >
+          <Download className="size-4" />
+          Sample CSV
+        </Button>
       </div>
 
-      <section
-        role="button"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            inputRef.current?.click();
-          }
-        }}
-        onClick={() => inputRef.current?.click()}
-        onDragEnter={(event) => {
-          event.preventDefault();
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
           setIsDragging(true);
         }}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          setIsDragging(false);
-        }}
-        onDrop={handleDrop}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={onDrop}
         className={cn(
-          "cursor-pointer rounded-xl border-2 border-dashed px-6 py-10 transition-colors",
+          "flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-16 text-center transition-colors",
           isDragging
-            ? "border-propnex-accent bg-propnex-accent/10"
-            : "border-propnex-accent/70 bg-propnex-panel/40 hover:border-propnex-accent hover:bg-propnex-panel/70",
+            ? "border-propnex-accent bg-propnex-accent/5"
+            : "border-propnex-border bg-propnex-panel/40",
         )}
       >
+        <CloudUpload className="size-10 text-propnex-accent" />
+        <p className="mt-4 text-base font-medium text-foreground">
+          Drag and drop your CSV file here
+        </p>
+        <p className="mt-1 text-sm text-propnex-muted">
+          Leads are automatically mapped and categorized — no configuration needed
+        </p>
         <input
           ref={inputRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv"
           className="hidden"
-          onChange={(event) => handleFiles(event.target.files)}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void processFile(file);
+          }}
         />
+        <Button
+          className="mt-6"
+          onClick={() => inputRef.current?.click()}
+          disabled={isProcessing}
+        >
+          Choose File
+        </Button>
+        {fileName ? (
+          <p className="mt-3 text-xs text-propnex-muted">{fileName}</p>
+        ) : null}
+      </div>
 
-        <div className="flex flex-col items-center text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-full border border-propnex-border bg-propnex-panel">
-            <CloudUpload className="size-6 text-propnex-accent" />
-          </div>
-          <p className="text-base font-semibold text-foreground">
-            {fileName ? fileName : "Drop your CSV here"}
-          </p>
-          <p className="mt-1 text-sm text-propnex-muted">
-            or click to browse local files
-          </p>
+      {isProcessing ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-propnex-border bg-propnex-panel py-8 text-propnex-muted">
+          <Loader2 className="size-5 animate-spin" />
+          Processing and categorizing leads…
         </div>
-
-        <div className="mt-8 flex flex-col gap-3 border-t border-propnex-border/60 pt-4 text-xs tracking-wide text-propnex-muted uppercase sm:flex-row sm:items-center sm:justify-between">
-          <span>Max size: 50MB</span>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              downloadSampleCsv();
-            }}
-            className="inline-flex items-center justify-center gap-1.5 text-propnex-accent transition-colors hover:text-propnex-accent-secondary"
-          >
-            Download sample CSV
-            <Download className="size-3.5" />
-          </button>
-        </div>
-      </section>
+      ) : null}
 
       {error ? (
         <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -208,154 +179,7 @@ export function UploadCsvPageContent() {
         </p>
       ) : null}
 
-      <section className="rounded-xl border border-propnex-border bg-propnex-panel">
-        <div className="flex items-center gap-2 border-b border-propnex-border px-5 py-4">
-          <Filter className="size-4 text-propnex-accent" />
-          <h2 className="text-base font-semibold text-foreground">Column Mapping</h2>
-        </div>
-
-        <div className="space-y-4 px-5 py-5">
-          {MAPPING_FIELDS.map((field) => (
-            <div key={field} className="space-y-2">
-              <label
-                htmlFor={`mapping-${field}`}
-                className="text-xs font-medium tracking-wide text-propnex-muted uppercase"
-              >
-                {CSV_FIELD_LABELS[field]}
-              </label>
-              <div className="relative">
-                <select
-                  id={`mapping-${field}`}
-                  value={mapping[field] ?? ""}
-                  onChange={(event) => handleMappingChange(field, event.target.value)}
-                  disabled={!parsedCsv}
-                  className="h-10 w-full appearance-none rounded-lg border border-propnex-border bg-propnex-bg px-3 pr-10 text-sm text-foreground outline-none focus-visible:border-propnex-accent focus-visible:ring-2 focus-visible:ring-propnex-accent/30 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">
-                    {parsedCsv ? "Select field..." : "Upload a CSV to map columns"}
-                  </option>
-                  {previewHeaders.map((header) => (
-                    <option key={header} value={header}>
-                      {header}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-propnex-muted" />
-              </div>
-            </div>
-          ))}
-
-          <Button
-            onClick={handleConfirmImport}
-            disabled={!canImport}
-            className="mt-2 h-11 w-full gap-2 bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50"
-          >
-            <CheckCircle2 className="size-4" />
-            Confirm Import
-          </Button>
-
-          <p className="text-center text-xs text-propnex-muted">
-            {parsedCsv
-              ? `System will validate ${parsedCsv.rows.length.toLocaleString()} records upon confirmation.`
-              : "Upload a CSV file to begin column mapping."}
-          </p>
-
-          {importStatus ? (
-            <p className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
-              {importStatus}
-            </p>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-propnex-border bg-propnex-panel">
-        <div className="flex flex-col gap-3 border-b border-propnex-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-base font-semibold text-foreground">
-            Data Preview (First {PREVIEW_ROW_LIMIT} Rows)
-          </h2>
-          <span className="inline-flex w-fit rounded-full border border-propnex-border bg-propnex-bg px-3 py-1 text-[0.65rem] tracking-[0.12em] text-propnex-muted uppercase">
-            {fileName ? `Scanning: ${fileName}` : "Awaiting upload"}
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          {parsedCsv && previewHeaders.length > 0 ? (
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-propnex-border text-[0.65rem] tracking-[0.12em] text-propnex-muted uppercase">
-                  <th className="px-5 py-3 font-medium">#</th>
-                  {previewHeaders.map((header) => (
-                    <th key={header} className="px-5 py-3 font-medium">
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {previewRows.map((row) => (
-                  <tr
-                    key={row.index}
-                    className="border-b border-propnex-border/70 last:border-b-0"
-                  >
-                    <td className="px-5 py-4 text-propnex-muted">{row.index}</td>
-                    {previewHeaders.map((header) => {
-                      const value = row.cells[header] ?? "";
-                      const isPhoneColumn = header === mapping.phoneNumber;
-
-                      return (
-                        <td
-                          key={header}
-                          className={cn(
-                            "px-5 py-4",
-                            isPhoneColumn && row.phoneInvalid
-                              ? "font-medium text-[#f97316]"
-                              : isPhoneColumn
-                                ? "text-[#67e8f9]"
-                                : "text-foreground",
-                          )}
-                        >
-                          {value || "—"}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="px-5 py-10 text-center text-sm text-propnex-muted">
-              Upload a CSV to preview contact data and validate phone numbers.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <div className="rounded-xl border border-propnex-border bg-propnex-panel/60 px-5 py-4">
-        <h3 className="text-sm font-semibold text-foreground">CSV format</h3>
-        <p className="mt-1 text-sm text-propnex-muted">
-          Include a header row with{" "}
-          <code className="rounded bg-propnex-bg px-1.5 py-0.5 text-propnex-accent">
-            full_name
-          </code>
-          ,{" "}
-          <code className="rounded bg-propnex-bg px-1.5 py-0.5 text-propnex-accent">
-            phone_e164
-          </code>
-          , and{" "}
-          <code className="rounded bg-propnex-bg px-1.5 py-0.5 text-propnex-accent">
-            email
-          </code>
-          . Phone numbers must use E.164 format (e.g.{" "}
-          <code className="rounded bg-propnex-bg px-1.5 py-0.5 text-foreground">
-            +15550123456
-          </code>
-          ). Optionally add{" "}
-          <code className="rounded bg-propnex-bg px-1.5 py-0.5 text-propnex-accent">
-            agent_id
-          </code>{" "}
-          to route contacts to a specific agent.
-        </p>
-      </div>
+      {results && !isProcessing ? <ImportResults results={results} /> : null}
     </div>
   );
 }

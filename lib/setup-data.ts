@@ -35,9 +35,7 @@ export type ProviderConfigs = {
 };
 
 export type ChannelUsage = {
-  totalAssigned: number;
-  active: number;
-  reserved: number;
+  totalChannels: number;
 };
 
 export type ChannelSettings = {
@@ -102,9 +100,7 @@ export const PROPNEX_REGIONS = [
 ] as const;
 
 export const INITIAL_CHANNEL_USAGE: ChannelUsage = {
-  totalAssigned: 24,
-  active: 18,
-  reserved: 4,
+  totalChannels: 24,
 };
 
 export const DEFAULT_CHANNEL_SETTINGS: ChannelSettings = {
@@ -273,7 +269,7 @@ export function buildConfigurationSummary(input: {
   return {
     activeProvider: provider ? PROVIDER_LABELS[provider] : "None selected",
     connectedNumbers: activeNumbers,
-    assignedChannels: input.channelUsage.totalAssigned,
+    assignedChannels: input.channelUsage.totalChannels,
     connectionStatus: provider
       ? input.connectionStatus[provider]
       : "untested",

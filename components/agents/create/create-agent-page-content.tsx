@@ -111,7 +111,7 @@ function CreateAgentWizardInner() {
       </Button>
 
       <PageHeader
-        title={isEdit ? "Edit Agent" : "Create Agent"}
+        title={isEdit ? "Edit Agent" : "Add Agent"}
         description="Full configuration wizard for power users who need complete control."
       />
 
@@ -389,6 +389,16 @@ function CreateAgentWizardInner() {
                 />
               </label>
             ))}
+            <p className="rounded-lg border border-propnex-border bg-propnex-bg px-4 py-3 text-xs text-propnex-muted">
+              For Google Sheets, Google Calendar, and per-agent tool permissions,
+              connect services in{" "}
+              <Link href="/settings" className="text-propnex-accent hover:underline">
+                Settings &gt; Integrations
+              </Link>{" "}
+              and configure tools on the agent&apos;s{" "}
+              <strong className="font-medium text-foreground">Agent Tools</strong>{" "}
+              tab after deployment.
+            </p>
           </div>
         ) : null}
 
@@ -525,7 +535,7 @@ function CreateAgentWizardInner() {
             disabled={!draft.agentName.trim()}
             className="h-11 flex-1"
           >
-            {isEdit ? "Save Agent" : "Create Agent"}
+            {isEdit ? "Save Agent" : "Add Agent"}
           </Button>
         )}
       </div>

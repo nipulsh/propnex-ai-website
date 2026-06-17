@@ -62,12 +62,12 @@ export function AgentsPageContent() {
   ]);
 
   return (
-    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
+    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <PageHeader
             title="Agents"
-            description="Manage, monitor, deploy, and configure all AI voice agents in your workspace."
+            description="Manage your AI calling agents, track leads, and preview voice demos."
           />
           <div className="flex shrink-0 flex-wrap items-center gap-3">
             <Button
@@ -85,7 +85,7 @@ export function AgentsPageContent() {
               className="h-9 gap-2 shadow-[0_0_20px_color-mix(in_srgb,var(--propnex-accent)_35%,transparent)]"
             >
               <Plus className="size-4" />
-              Create Agent
+              Add Agent
             </Button>
           </div>
         </div>

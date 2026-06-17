@@ -93,6 +93,7 @@ export type Agent = {
   monitors: Monitor[];
   knowledgeSources: KnowledgeSource[];
   integrations: Integration[];
+  demoAudioUrl?: string;
 };
 
 /** @deprecated Use Agent instead */
@@ -224,7 +225,7 @@ function buildAgent(
     avatarGradient:
       "bg-gradient-to-br from-violet-500/40 via-indigo-500/30 to-cyan-500/20",
     firstMessage: `Hello, this is ${partial.name}. How can I help you today?`,
-    systemPrompt: `You are ${partial.name}, a professional AI voice agent for PropNex. Be helpful, concise, and empathetic.`,
+    systemPrompt: `You are ${partial.name}, a professional AI voice agent for PropNex AI. Be helpful, concise, and empathetic.`,
     voice: {
       provider: "ElevenLabs",
       model: "eleven_turbo_v2",
@@ -254,6 +255,7 @@ function buildAgent(
     monitors: DEFAULT_MONITORS,
     knowledgeSources: [],
     integrations: [],
+    demoAudioUrl: "/samples/agent-voice-demo.mp3",
     ...partial,
   };
 }

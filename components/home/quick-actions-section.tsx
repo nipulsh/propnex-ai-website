@@ -24,20 +24,20 @@ import {
 
 const ACTIONS = [
   {
-    title: "Create Agent",
-    description: "Build a new AI voice agent",
+    title: "Add Agent",
+    description: "Add a new AI calling agent",
     icon: Bot,
-    href: "/agents",
+    href: "/agents/create",
   },
   {
     title: "Launch Campaign",
     description: "Start outbound outreach",
     icon: Megaphone,
-    href: "/lead-reactivation",
+    href: "/dashboard",
   },
   {
-    title: "Upload Contacts",
-    description: "Import contact lists via CSV",
+    title: "Upload Leads",
+    description: "Import and categorize leads via CSV",
     icon: FileUp,
     href: "/upload-csv",
   },
@@ -49,13 +49,13 @@ const ACTIONS = [
   },
   {
     title: "View Call Logs",
-    description: "Review call history",
+    description: "Review call history and outcomes",
     icon: PhoneCall,
     href: "/call-logs",
   },
   {
-    title: "Manage Billing",
-    description: "Credits and resources",
+    title: "Buy Credits",
+    description: "Top up your calling credits",
     icon: CreditCard,
     href: "/billing",
   },
@@ -96,7 +96,7 @@ export function QuickActionsSection() {
           <SheetHeader>
             <SheetTitle>Schedule Demo</SheetTitle>
             <SheetDescription>
-              Request a product demonstration with the PropNex team.
+              Request a product demonstration with the PropNex AI team.
             </SheetDescription>
           </SheetHeader>
           <form

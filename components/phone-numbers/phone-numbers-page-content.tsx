@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Download, Mic } from "lucide-react";
+import { Download } from "lucide-react";
 
 import { AddNumberButton } from "@/components/phone-numbers/add-number-button";
 import { ExportPhoneNumbersButton } from "@/components/phone-numbers/export-phone-numbers-button";
@@ -48,7 +48,7 @@ export function PhoneNumbersPageContent() {
   }, [numbers, searchQuery, direction, status, provider, currentPage]);
 
   return (
-    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
+    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <PageHeader
@@ -80,14 +80,6 @@ export function PhoneNumbersPageContent() {
       </div>
 
       <PhoneNumbersStats />
-
-      <button
-        type="button"
-        className="fixed right-6 bottom-6 z-20 flex size-14 items-center justify-center rounded-full bg-propnex-accent text-propnex-bg shadow-[0_0_24px_color-mix(in_srgb,var(--propnex-accent)_45%,transparent)] transition-transform hover:scale-105 md:bottom-8"
-        aria-label="Start voice assistant"
-      >
-        <Mic className="size-6" />
-      </button>
     </div>
   );
 }

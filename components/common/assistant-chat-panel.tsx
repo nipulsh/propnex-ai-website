@@ -152,7 +152,7 @@ export function AssistantChatPanel() {
               </div>
               <div className="min-w-0 text-left">
                 <SheetTitle className="text-foreground">
-                  PropNex Assistant
+                  PropNex AI Assistant
                 </SheetTitle>
                 <SheetDescription>
                   Ask anything about your voice AI workspace.

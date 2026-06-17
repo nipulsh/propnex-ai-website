@@ -26,7 +26,7 @@ export function PhoneNumberDetailHeader({
         variant="ghost"
         size="sm"
         nativeButton={false}
-        render={<Link href="/phone-numbers" />}
+            render={<Link href="/setup#phone-numbers" />}
         className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
       >
         <ArrowLeft className="size-4" />

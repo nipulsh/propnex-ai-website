@@ -2,7 +2,6 @@ import {
   Bot,
   HelpCircle,
   Home,
-  Phone,
   Settings,
   PhoneCall,
   type LucideIcon,
@@ -10,6 +9,7 @@ import {
   FileUp,
   RefreshCw,
   ServerCog,
+  Wrench,
 } from "lucide-react";
 
 export type NavItem = {
@@ -19,14 +19,14 @@ export type NavItem = {
 };
 
 export const mainNavItems: NavItem[] = [
-  { title: "Home", href: "/", icon: Home },
+  { title: "Home", href: "/dashboard", icon: Home },
   { title: "Agents", href: "/agents", icon: Bot },
-  { title: "Phone Numbers", href: "/phone-numbers", icon: Phone },
   { title: "Setup", href: "/setup", icon: ServerCog },
   { title: "Call Logs", href: "/call-logs", icon: PhoneCall },
-  { title: "Lead reactivation", href: "/lead-reactivation", icon: RefreshCw },
-  { title: "Billing & Resources", href: "/billing", icon: CreditCard },
-  { title: "upload csv", href: "/upload-csv", icon: FileUp },
+  { title: "Lead Reactivation", href: "/lead-reactivation", icon: RefreshCw },
+  { title: "Billing", href: "/billing", icon: CreditCard },
+  { title: "Upload Leads", href: "/upload-csv", icon: FileUp },
+  { title: "Tools", href: "/tools", icon: Wrench },
 ];
 
 export const footerNavItems: NavItem[] = [

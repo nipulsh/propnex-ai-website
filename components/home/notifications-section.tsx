@@ -23,9 +23,8 @@ export function NotificationsSection() {
 
   const alerts = useMemo(() => {
     const channelsAssigned =
-      channelUsage.totalAssigned || INITIAL_RESOURCE_USAGE.channelsAssigned;
-    const channelsActive =
-      channelUsage.active || INITIAL_RESOURCE_USAGE.channelsActive;
+      channelUsage.totalChannels || INITIAL_RESOURCE_USAGE.channelsAssigned;
+    const channelsActive = INITIAL_RESOURCE_USAGE.channelsActive;
     const virtualNumbers =
       phoneNumbers.length || INITIAL_RESOURCE_USAGE.virtualNumbers;
 

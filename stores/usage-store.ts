@@ -14,8 +14,10 @@ export { updateCreditsAndMoneyUsed } from "@/lib/credit-usage";
 type UsageStore = UsageSnapshot & {
   resetDate: string;
   activePlan: string;
+  totalLifetimeCalls: number;
   recordUsage: (delta: UsageDelta) => void;
   recordCallUsage: (durationSeconds: number) => void;
+  addCredits: (amount: number) => void;
 };
 
 const initialSnapshot: UsageSnapshot = {
@@ -30,6 +32,7 @@ const initialSnapshot: UsageSnapshot = {
 
 export const useUsageStore = create<UsageStore>((set, get) => ({
   ...initialSnapshot,
+  totalLifetimeCalls: 0,
   resetDate: billingSummary.resetDate,
   activePlan: billingSummary.activePlan,
 
@@ -44,4 +47,14 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
     );
     recordUsage(delta);
   },
+
+  addCredits: (amount) =>
+    set((state) => ({
+      totalCredits: state.totalCredits + amount,
+      remainingCredits: state.remainingCredits + amount,
+      availablePercent: Math.round(
+        ((state.remainingCredits + amount) / (state.totalCredits + amount)) *
+          100,
+      ),
+    })),
 }));

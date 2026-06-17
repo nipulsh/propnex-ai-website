@@ -328,6 +328,10 @@ function generateDemoRequests(): DemoRequest[] {
 
 export const demoRequests = generateDemoRequests();
 
+export function getLifetimeTotalCalls(): number {
+  return callLogs.length;
+}
+
 export function getOverviewMetrics(
   dateRange: DateRangeOption,
   activeAgentCount: number,
@@ -757,7 +761,7 @@ export function getDashboardAlerts(input: AlertInput): DashboardAlert[] {
       severity: "warning",
       title: "Virtual Numbers Fully Assigned",
       message: "All virtual number slots are in use.",
-      href: "/phone-numbers",
+      href: "/setup#phone-numbers",
     });
   }
 

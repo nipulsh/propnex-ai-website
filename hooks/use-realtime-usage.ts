@@ -13,7 +13,9 @@ const TICK_INTERVAL_MS = 1000;
  * Mount once inside the dashboard layout so usage metrics update in real time.
  */
 export function useRealtimeUsage() {
-  const activeChannels = useSetupStore((state) => state.channelUsage.active);
+  const activeChannels = useSetupStore(
+    (state) => state.channelUsage.totalChannels,
+  );
   const recordUsage = useUsageStore((state) => state.recordUsage);
 
   useEffect(() => {

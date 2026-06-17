@@ -34,13 +34,13 @@ export function AgentArchitectPanel() {
       <div className="flex min-h-0 w-[420px] flex-1 flex-col">
         <header className="flex shrink-0 items-center justify-between border-b border-propnex-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
-            Agent Architect
+            PropNex AI
           </h2>
           <button
             type="button"
             onClick={close}
             className="rounded-md p-1.5 text-propnex-muted transition-colors hover:bg-propnex-bg hover:text-foreground"
-            aria-label="Close Agent Architect"
+            aria-label="Close PropNex AI"
           >
             <X className="size-4" />
           </button>

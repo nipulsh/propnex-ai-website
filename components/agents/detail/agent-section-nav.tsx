@@ -6,6 +6,7 @@ const SECTIONS = [
   { id: "overview", label: "Overview" },
   { id: "resources", label: "Resources" },
   { id: "configuration", label: "Configuration" },
+  { id: "tools", label: "Agent Tools" },
   { id: "intelligence", label: "Analysis" },
   { id: "calls", label: "Call Activity" },
   { id: "knowledge", label: "Knowledge" },

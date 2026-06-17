@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import { Bot } from "lucide-react";
 
 import { CallLogsFilters } from "@/components/call-logs/call-logs-filters";
 import { CallLogsPagination } from "@/components/call-logs/call-logs-pagination";
@@ -71,7 +69,7 @@ export function CallLogsPageContent() {
   }, [currentPage, dateRange, agentId, status, leadType]);
 
   return (
-    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
+    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageHeader
           title="Call Logs"
@@ -91,14 +89,6 @@ export function CallLogsPageContent() {
           onPageChange={setPage}
         />
       </div>
-
-      <Link
-        href="/agents"
-        className="fixed right-6 bottom-6 z-20 flex size-14 items-center justify-center rounded-full bg-propnex-accent text-propnex-bg shadow-[0_0_24px_color-mix(in_srgb,var(--propnex-accent)_45%,transparent)] transition-transform hover:scale-105 md:bottom-8"
-        aria-label="Open agents"
-      >
-        <Bot className="size-6" />
-      </Link>
     </div>
   );
 }

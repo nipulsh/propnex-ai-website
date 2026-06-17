@@ -85,6 +85,7 @@ export const usePhoneNumbersStore = create<PhoneNumbersStore>((set) => ({
             lastActivityAt: null,
             createdAt: now,
             updatedAt: now,
+            channelCount: 1,
           },
           ...state.numbers,
         ],

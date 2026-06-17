@@ -1,69 +1,31 @@
 "use client";
 
-import { useMemo } from "react";
+import { Clock } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
-import { LeadReactivationFilters } from "@/components/lead-reactivation/lead-reactivation-filters";
-import { LeadReactivationPagination } from "@/components/lead-reactivation/lead-reactivation-pagination";
-import { LeadReactivationStats } from "@/components/lead-reactivation/lead-reactivation-stats";
-import { LeadReactivationTable } from "@/components/lead-reactivation/lead-reactivation-table";
-import { StartCampaignButton } from "@/components/lead-reactivation/start-campaign-button";
-import {
-  dormantLeads,
-  filterDormantLeads,
-} from "@/lib/lead-reactivation-data";
-import {
-  LEAD_REACTIVATION_PAGE_SIZE,
-  useLeadReactivationStore,
-} from "@/stores/lead-reactivation-store";
 
 export function LeadReactivationPageContent() {
-  const status = useLeadReactivationStore((state) => state.status);
-  const agentId = useLeadReactivationStore((state) => state.agentId);
-  const inactivity = useLeadReactivationStore((state) => state.inactivity);
-  const currentPage = useLeadReactivationStore((state) => state.currentPage);
-  const setPage = useLeadReactivationStore((state) => state.setPage);
-
-  const { leads, totalPages, totalCount } = useMemo(() => {
-    const filtered = filterDormantLeads(
-      dormantLeads,
-      status,
-      agentId,
-      inactivity,
-    );
-    const total = filtered.length;
-    const pages = Math.max(1, Math.ceil(total / LEAD_REACTIVATION_PAGE_SIZE));
-    const start = (currentPage - 1) * LEAD_REACTIVATION_PAGE_SIZE;
-
-    return {
-      leads: filtered.slice(start, start + LEAD_REACTIVATION_PAGE_SIZE),
-      totalPages: pages,
-      totalCount: total,
-    };
-  }, [currentPage, status, agentId, inactivity]);
-
   return (
-    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <PageHeader
-          title="Lead Reactivation"
-          description="Re-engage dormant leads with automated AI voice outreach campaigns."
-        />
-        <StartCampaignButton />
-      </div>
+    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
+      <PageHeader
+        title="Lead Reactivation"
+        description="Re-engage dormant leads with automated AI voice outreach."
+      />
 
-      <LeadReactivationStats />
-
-      <LeadReactivationFilters />
-
-      <div className="rounded-xl border border-propnex-border bg-propnex-panel">
-        <LeadReactivationTable leads={leads} />
-        <LeadReactivationPagination
-          currentPage={Math.min(currentPage, totalPages)}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          onPageChange={setPage}
-        />
+      <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-propnex-border bg-propnex-panel/50 px-6 py-20 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-propnex-accent/10">
+          <Clock className="size-8 text-propnex-accent" />
+        </div>
+        <span className="mt-6 inline-flex rounded-full border border-propnex-border bg-propnex-panel px-3 py-1 text-xs font-medium text-propnex-accent">
+          Coming Soon
+        </span>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          Lead reactivation workflows are on the way
+        </h2>
+        <p className="mt-2 max-w-md text-sm text-propnex-muted">
+          Soon you&apos;ll be able to identify dormant leads, launch re-engagement
+          campaigns, and track conversions — all powered by PropNex AI agents.
+        </p>
       </div>
     </div>
   );

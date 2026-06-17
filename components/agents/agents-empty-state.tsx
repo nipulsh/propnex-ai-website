@@ -29,7 +29,7 @@ export function AgentsEmptyState({ hasFilters }: AgentsEmptyStateProps) {
             className="gap-2"
           >
             <Plus className="size-4" />
-            Create Agent
+            Add Agent
           </Button>
           <Button
             nativeButton={false}

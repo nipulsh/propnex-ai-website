@@ -6,6 +6,7 @@ import { AlertCircle } from "lucide-react";
 
 import { AgentCallActivitySection } from "@/components/agents/detail/agent-call-activity-section";
 import { AgentConfigurationSection } from "@/components/agents/detail/agent-configuration-section";
+import { AgentToolsSection } from "@/components/agents/detail/agent-tools-section";
 import { AgentDetailHeader } from "@/components/agents/detail/agent-detail-header";
 import { AgentDetailSkeleton } from "@/components/agents/detail/agent-detail-skeleton";
 import { AgentIntelligenceSection } from "@/components/agents/detail/agent-intelligence-section";
@@ -136,6 +137,7 @@ export function AgentDetailPageContent({
           phoneNumbers={assignedNumbers}
         />
         <AgentConfigurationSection agent={agent} />
+        <AgentToolsSection agent={agent} />
         <AgentIntelligenceSection agent={agent} />
         <AgentCallActivitySection calls={calls} />
         <AgentKnowledgeSection agent={agent} />

@@ -35,7 +35,7 @@ export const agentLibraryTemplates: AgentLibraryTemplate[] = [
     defaultFirstMessage:
       "Thank you for calling. My name is Alex, and I'm here to help you today.",
     defaultVariables: [
-      { key: "companyName", label: "Company Name", placeholder: "PropNex" },
+      { key: "companyName", label: "Company Name", placeholder: "PropNex AI" },
       { key: "supportHours", label: "Support Hours", placeholder: "9 AM - 6 PM EST" },
     ],
     compatibleVoices: [
@@ -145,7 +145,7 @@ export const agentLibraryTemplates: AgentLibraryTemplate[] = [
       "Hello! We noticed you were interested in our services previously. I'd love to share what's new.",
     defaultVariables: [
       { key: "offerSummary", label: "Current Offer", placeholder: "Free property valuation" },
-      { key: "companyName", label: "Company Name", placeholder: "PropNex" },
+      { key: "companyName", label: "Company Name", placeholder: "PropNex AI" },
     ],
     compatibleVoices: [
       { id: "v-energy-n", name: "Energetic Neutral", provider: "ElevenLabs" },

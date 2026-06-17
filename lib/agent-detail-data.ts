@@ -27,6 +27,24 @@ export function getCallsForAgent(agentId: string) {
     .sort((a, b) => b.timestamp - a.timestamp);
 }
 
+export type AgentLeadSummary = {
+  hot: number;
+  warm: number;
+  cold: number;
+};
+
+export function getAgentLeadSummary(agentId: string): AgentLeadSummary {
+  const calls = getCallsForAgent(agentId).filter((c) => c.status === "completed");
+  const summary: AgentLeadSummary = { hot: 0, warm: 0, cold: 0 };
+
+  for (const call of calls) {
+    const temp = getLeadTemperatureForCall(call.id);
+    summary[temp]++;
+  }
+
+  return summary;
+}
+
 export function getAgentListMetrics(agentId: string): AgentListMetrics {
   const calls = getCallsForAgent(agentId);
   const inboundCalls = calls.filter((c) => c.direction === "inbound").length;

@@ -15,6 +15,7 @@ import { DashboardSection } from "@/components/common/dashboard-section";
 import { TrendBadge, formatTrendFooter } from "@/components/home/trend-badge";
 import {
   getActiveAgentCount,
+  getLifetimeTotalCalls,
   getOverviewMetrics,
   getPeriodLabel,
 } from "@/lib/home-dashboard-data";
@@ -28,6 +29,7 @@ export function OverviewSection() {
     [dateRange],
   );
 
+  const lifetimeTotalCalls = useMemo(() => getLifetimeTotalCalls(), []);
   const periodLabel = getPeriodLabel(dateRange);
 
   const trendFooterClass = (percent: number) =>
@@ -41,16 +43,9 @@ export function OverviewSection() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <StatCard
           title="Total Calls"
-          value={metrics.totalCalls.formatted}
+          value={lifetimeTotalCalls.toLocaleString("en-IN")}
           icon={Phone}
-          badge={
-            <TrendBadge
-              percent={metrics.totalCalls.trendPercent}
-              periodLabel={periodLabel}
-            />
-          }
-          footer={formatTrendFooter(metrics.totalCalls.trendPercent, periodLabel)}
-          footerClassName={trendFooterClass(metrics.totalCalls.trendPercent)}
+          footer="Lifetime · all time"
         />
         <StatCard
           title="Active Agents"

@@ -5,18 +5,18 @@ import { Button } from "@/components/ui/button";
 import { creditPacks, subscriptionPlans } from "@/lib/billing-data";
 import { cn } from "@/lib/utils";
 
-function PricingHeader() {
+function PricingHeader({ backHref, backLabel }: { backHref: string; backLabel: string }) {
   return (
     <div className="flex flex-col gap-4">
       <Button
         variant="ghost"
         size="sm"
         nativeButton={false}
-        render={<Link href="/billing" />}
+        render={<Link href={backHref} />}
         className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Back to Billing
+        {backLabel}
       </Button>
 
       <div>
@@ -128,10 +128,23 @@ function CreditPackCard({ credits, price, popular }: (typeof creditPacks)[number
   );
 }
 
-export function PricingPageContent() {
+type PricingPageContentProps = {
+  variant?: "public" | "dashboard";
+};
+
+export function PricingPageContent({ variant = "public" }: PricingPageContentProps) {
+  const backHref = variant === "dashboard" ? "/billing" : "/";
+  const backLabel = variant === "dashboard" ? "Back to Billing" : "Back to Home";
+
   return (
-    <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto overscroll-contain p-6">
-      <PricingHeader />
+    <div
+      className={
+        variant === "dashboard"
+          ? "propnex-scrollbar flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto overscroll-contain p-6"
+          : "mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10"
+      }
+    >
+      <PricingHeader backHref={backHref} backLabel={backLabel} />
 
       <section className="space-y-4">
         <div className="flex items-center gap-2">

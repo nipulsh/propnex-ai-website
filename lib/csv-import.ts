@@ -150,3 +150,83 @@ export function downloadSampleCsv(): void {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export type LeadCategory = "hot" | "warm" | "cold";
+
+export type CategorizedLeadImport = {
+  hot: number;
+  warm: number;
+  cold: number;
+  total: number;
+  invalid: number;
+};
+
+function getCellValue(
+  row: string[],
+  headers: string[],
+  column: string | null,
+): string {
+  if (!column) return "";
+  const index = headers.indexOf(column);
+  return index === -1 ? "" : (row[index] ?? "").trim();
+}
+
+function scoreLeadRow(
+  row: string[],
+  headers: string[],
+  mapping: ColumnMapping,
+): LeadCategory | null {
+  const phone = getCellValue(row, headers, mapping.phoneNumber);
+  if (!phone || !isValidE164Phone(phone)) {
+    return null;
+  }
+
+  const name = getCellValue(row, headers, mapping.contactName);
+  const agentId = getCellValue(row, headers, mapping.agentId);
+  const emailHeader = headers.find((h) => h.toLowerCase().includes("email"));
+  const email = emailHeader ? getCellValue(row, headers, emailHeader) : "";
+
+  if (agentId) {
+    return "hot";
+  }
+  if (name && email.includes("@")) {
+    return "warm";
+  }
+  return "cold";
+}
+
+export function categorizeLeads(
+  parsed: ParsedCsv,
+  mapping: ColumnMapping,
+): CategorizedLeadImport {
+  const result: CategorizedLeadImport = {
+    hot: 0,
+    warm: 0,
+    cold: 0,
+    total: 0,
+    invalid: 0,
+  };
+
+  for (const row of parsed.rows) {
+    const category = scoreLeadRow(row, parsed.headers, mapping);
+    if (!category) {
+      result.invalid++;
+      continue;
+    }
+    result[category]++;
+    result.total++;
+  }
+
+  return result;
+}
+
+export function autoProcessCsv(text: string): {
+  parsed: ParsedCsv;
+  mapping: ColumnMapping;
+  categories: CategorizedLeadImport;
+} {
+  const parsed = parseCsv(text);
+  const mapping = guessColumnMapping(parsed.headers);
+  const categories = categorizeLeads(parsed, mapping);
+  return { parsed, mapping, categories };
+}
