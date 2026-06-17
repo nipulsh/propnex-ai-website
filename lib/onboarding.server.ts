@@ -1,4 +1,5 @@
 import { clerkClient } from "@clerk/nextjs/server";
+import type { JwtPayload } from "@clerk/shared/types";
 
 import type { CallVolumeRange, PrimaryUseCase } from "@/lib/user-metadata";
 
@@ -9,13 +10,9 @@ export type OnboardingInput = {
   callVolume: CallVolumeRange;
 };
 
-type SessionClaims = {
-  metadata?: { onboardingComplete?: boolean };
-};
-
 export async function isOnboardingComplete(
   userId: string,
-  sessionClaims?: SessionClaims,
+  sessionClaims?: JwtPayload,
 ): Promise<boolean> {
   if (sessionClaims?.metadata?.onboardingComplete === true) {
     return true;
