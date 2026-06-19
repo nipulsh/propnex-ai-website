@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 
 import { saveOnboarding, type OnboardingInput } from "@/lib/onboarding.server";
+import { provisionOrganizationForUser } from "@/server/services/clerk-provision.service";
 
 export async function completeOnboarding(input: OnboardingInput) {
   const { userId } = await auth();
@@ -15,4 +16,5 @@ export async function completeOnboarding(input: OnboardingInput) {
   }
 
   await saveOnboarding(userId, input);
+  await provisionOrganizationForUser(userId, input);
 }

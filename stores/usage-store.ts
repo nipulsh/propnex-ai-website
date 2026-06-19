@@ -18,6 +18,7 @@ type UsageStore = UsageSnapshot & {
   recordUsage: (delta: UsageDelta) => void;
   recordCallUsage: (durationSeconds: number) => void;
   addCredits: (amount: number) => void;
+  setFromSnapshot: (snapshot: UsageSnapshot) => void;
 };
 
 const initialSnapshot: UsageSnapshot = {
@@ -56,5 +57,11 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
         ((state.remainingCredits + amount) / (state.totalCredits + amount)) *
           100,
       ),
+    })),
+
+  setFromSnapshot: (snapshot) =>
+    set((state) => ({
+      ...state,
+      ...snapshot,
     })),
 }));

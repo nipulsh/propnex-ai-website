@@ -13,6 +13,7 @@ import { OverviewSection } from "@/components/home/overview-section";
 import { QuickActionsSection } from "@/components/home/quick-actions-section";
 import { ResourceWarningBanner } from "@/components/home/resource-warning-banner";
 import { Button } from "@/components/ui/button";
+import { useHomeDashboardGraphQL } from "@/hooks/use-home-dashboard-graphql";
 import { useHomeDashboardStore } from "@/stores/home-dashboard-store";
 import { useUsageStore } from "@/stores/usage-store";
 
@@ -29,6 +30,7 @@ function ResourceWarningsStrip() {
 }
 
 export function HomePageContent() {
+  useHomeDashboardGraphQL();
   const isLoading = useHomeDashboardStore((s) => s.isLoading);
   const hasError = useHomeDashboardStore((s) => s.hasError);
   const resetError = useHomeDashboardStore((s) => s.resetError);

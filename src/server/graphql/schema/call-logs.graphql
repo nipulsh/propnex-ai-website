@@ -1,0 +1,61 @@
+input CallLogFilter {
+  direction: CallDirection
+  status: CallStatus
+  aiAgentId: ID
+  assignedUserId: ID
+  dateFrom: String
+  dateTo: String
+  search: String
+}
+
+type CallLogsQueries {
+  recent(limit: Int): [CallLog!]!
+  connection(first: Int, after: String, filter: CallLogFilter): CallLogConnection!
+  detail(id: ID!): CallLogDetail
+}
+
+type CallLogsMutations {
+  recordCallCompleted(callLogId: ID!, creditsUsed: Int!): Boolean!
+}
+
+type CallLog {
+  id: ID!
+  direction: CallDirection!
+  status: CallStatus!
+  startedAt: String!
+  durationSeconds: Int!
+  leadId: ID
+  aiAgentId: ID
+  lead: Lead
+  aiAgent: AiAgent
+}
+
+type CallLogDetail {
+  id: ID!
+  direction: CallDirection!
+  status: CallStatus!
+  outcome: String
+  startedAt: String!
+  durationSeconds: Int!
+  recordingUrl: String
+  aiSummary: JSON
+  lead: Lead
+  aiAgent: AiAgent
+  transcript: CallTranscript
+}
+
+type CallTranscript {
+  id: ID!
+  fullText: String
+  segments: JSON
+}
+
+type CallLogEdge {
+  node: CallLog!
+  cursor: String!
+}
+
+type CallLogConnection {
+  edges: [CallLogEdge!]!
+  pageInfo: PageInfo!
+}

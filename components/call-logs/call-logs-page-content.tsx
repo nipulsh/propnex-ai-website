@@ -8,14 +8,35 @@ import { CallLogsPagination } from "@/components/call-logs/call-logs-pagination"
 import { CallLogsTable } from "@/components/call-logs/call-logs-table";
 import { ExportCsvButton } from "@/components/call-logs/export-csv-button";
 import { PageHeader } from "@/components/common/page-header";
+import { BillingBanner } from "@/components/billing/billing-banner";
+import { useCallLogsGraphQL } from "@/hooks/use-call-logs-graphql";
 import {
   callLogs,
   filterCallLogs,
+  type CallLog,
 } from "@/lib/call-logs-data";
 import {
   CALL_LOGS_PAGE_SIZE,
   useCallLogsStore,
 } from "@/stores/call-logs-store";
+
+function mapGraphQLToCallLog(
+  log: ReturnType<typeof useCallLogsGraphQL>["logs"][number],
+): CallLog {
+  return {
+    id: log.id,
+    timestamp: new Date(log.startedAt).getTime(),
+    direction: log.direction as CallLog["direction"],
+    phoneNumberId: "",
+    phoneNumber: log.phoneNumber,
+    lineLabel: log.lineLabel,
+    leadName: log.leadName,
+    agentId: "",
+    agentName: log.agentName,
+    status: log.status as CallLog["status"],
+    durationSeconds: log.durationSeconds,
+  };
+}
 
 export function CallLogsPageContent() {
   const searchParams = useSearchParams();
@@ -27,6 +48,16 @@ export function CallLogsPageContent() {
   const setPage = useCallLogsStore((state) => state.setPage);
   const setLeadType = useCallLogsStore((state) => state.setLeadType);
   const setStatus = useCallLogsStore((state) => state.setStatus);
+
+  const gqlFilter = useMemo(
+    () => ({
+      status: status !== "all" ? status.toUpperCase() : undefined,
+      aiAgentId: agentId !== "all" ? agentId : undefined,
+    }),
+    [status, agentId],
+  );
+
+  const { logs: gqlLogs, isLoading, error } = useCallLogsGraphQL(gqlFilter);
 
   useEffect(() => {
     const leadTypeParam = searchParams.get("leadType");
@@ -50,6 +81,15 @@ export function CallLogsPageContent() {
   }, [searchParams, setLeadType, setStatus]);
 
   const { logs, totalPages, totalCount } = useMemo(() => {
+    if (!error && gqlLogs.length > 0) {
+      const mapped = gqlLogs.map(mapGraphQLToCallLog);
+      return {
+        logs: mapped,
+        totalPages: 1,
+        totalCount: mapped.length,
+      };
+    }
+
     const filtered = filterCallLogs(
       callLogs,
       dateRange,
@@ -66,7 +106,7 @@ export function CallLogsPageContent() {
       totalPages: pages,
       totalCount: total,
     };
-  }, [currentPage, dateRange, agentId, status, leadType]);
+  }, [currentPage, dateRange, agentId, status, leadType, gqlLogs, error]);
 
   return (
     <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
@@ -77,6 +117,17 @@ export function CallLogsPageContent() {
         />
         <ExportCsvButton />
       </div>
+
+      {isLoading ? (
+        <BillingBanner type="info" message="Loading call logs..." />
+      ) : null}
+
+      {error ? (
+        <BillingBanner
+          type="info"
+          message="Showing cached demo data — connect your organization to load live call logs."
+        />
+      ) : null}
 
       <CallLogsFilters />
 

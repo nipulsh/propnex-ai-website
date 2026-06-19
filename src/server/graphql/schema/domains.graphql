@@ -1,0 +1,119 @@
+type AnalyticsQueries {
+  summary(granularity: AnalyticsGranularity): AnalyticsSummary!
+}
+
+type AnalyticsSummary {
+  totalCalls: Int!
+  connectedCalls: Int!
+  conversionRate: Float!
+  generatedLeads: Int!
+  periodStart: String
+  periodEnd: String
+}
+
+type AgentsQueries {
+  statusSummary: AgentStatusSummary!
+  list: [AiAgent!]!
+  byId(id: ID!): AiAgent
+}
+
+type AgentStatusSummary {
+  active: Int!
+  inactive: Int!
+  total: Int!
+}
+
+type AiAgent {
+  id: ID!
+  name: String!
+  type: String!
+  status: AgentStatus!
+  enabled: Boolean!
+  languages: [String!]!
+}
+
+type LeadsQueries {
+  connection(first: Int, after: String): LeadConnection!
+  byId(id: ID!): Lead
+}
+
+type Lead {
+  id: ID!
+  firstName: String
+  lastName: String
+  email: String
+  phone: String
+  temperature: String
+  score: Int!
+}
+
+type LeadEdge {
+  node: Lead!
+  cursor: String!
+}
+
+type LeadConnection {
+  edges: [LeadEdge!]!
+  pageInfo: PageInfo!
+}
+
+type NotificationQueries {
+  list(first: Int, after: String): NotificationConnection!
+}
+
+type Notification {
+  id: ID!
+  type: String!
+  title: String!
+  body: String!
+  readAt: String
+  createdAt: String!
+}
+
+type NotificationEdge {
+  node: Notification!
+  cursor: String!
+}
+
+type NotificationConnection {
+  edges: [NotificationEdge!]!
+  pageInfo: PageInfo!
+}
+
+type IntegrationQueries {
+  list: [Integration!]!
+}
+
+type Integration {
+  id: ID!
+  type: String!
+  status: IntegrationStatus!
+  connectedAccount: String
+  lastSyncAt: String
+}
+
+type SchedulerQueries {
+  upcoming(limit: Int): [SchedulerEvent!]!
+}
+
+type SchedulerEvent {
+  id: ID!
+  type: String!
+  status: String!
+  title: String!
+  startAt: String!
+  endAt: String
+}
+
+type EventQueries {
+  recent(limit: Int): [SystemEvent!]!
+}
+
+type SystemEvent {
+  id: ID!
+  type: SystemEventType!
+  title: String!
+  entityType: String
+  entityId: String
+  createdAt: String!
+}

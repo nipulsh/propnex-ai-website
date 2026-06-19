@@ -1,0 +1,102 @@
+scalar DateTime
+scalar JSON
+
+enum AnalyticsGranularity {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  COMPLETED
+  MISSED
+  VOICEMAIL
+  FAILED
+}
+
+enum BillingStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+enum AgentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  NOT_CONNECTED
+  SYNCING
+  ERROR
+}
+
+enum SystemEventType {
+  CALL_COMPLETED
+  LEAD_CREATED
+  AGENT_DEPLOYED
+  CREDIT_LOW
+  INTEGRATION_SYNC
+  BILLING_ALERT
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+type Viewer {
+  id: ID!
+  email: String!
+  firstName: String
+  lastName: String
+  role: UserRole!
+  company: Company!
+}
+
+type Company {
+  id: ID!
+  name: String!
+  slug: String!
+}
+
+type Query {
+  viewer: Viewer!
+  credits: CreditsQueries!
+  billing: BillingQueries!
+  callLogs: CallLogsQueries!
+  analytics: AnalyticsQueries!
+  agents: AgentsQueries!
+  leads: LeadsQueries!
+  notifications: NotificationQueries!
+  integrations: IntegrationQueries!
+  scheduler: SchedulerQueries!
+  events: EventQueries!
+}
+
+type Mutation {
+  credits: CreditsMutations!
+  callLogs: CallLogsMutations!
+}

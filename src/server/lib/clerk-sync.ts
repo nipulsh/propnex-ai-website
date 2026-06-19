@@ -1,0 +1,29 @@
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+export function companySlugFromName(name: string): string {
+  const base = slugify(name) || "company";
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `${base}-${suffix}`;
+}
+
+export function mapClerkRoleToUserRole(
+  role: string,
+): "OWNER" | "ADMIN" | "MANAGER" | "AGENT" {
+  switch (role) {
+    case "org:admin":
+      return "ADMIN";
+    case "org:member":
+      return "AGENT";
+    default:
+      if (role.includes("admin")) return "ADMIN";
+      if (role.includes("manager")) return "MANAGER";
+      return "AGENT";
+  }
+}

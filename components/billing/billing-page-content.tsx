@@ -6,10 +6,12 @@ import { InvoicesTable } from "@/components/billing/invoices-table";
 import { PurchaseHistoryTable } from "@/components/billing/purchase-history-table";
 import { SimplePurchasePanel } from "@/components/billing/simple-purchase-panel";
 import { PageHeader } from "@/components/common/page-header";
+import { useBillingGraphQL } from "@/hooks/use-billing-graphql";
 import { useBillingStore } from "@/stores/billing-store";
 
 export function BillingPageContent() {
   const banner = useBillingStore((state) => state.banner);
+  const { isLoading, error } = useBillingGraphQL();
 
   return (
     <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
@@ -17,6 +19,14 @@ export function BillingPageContent() {
         title="Billing"
         description="Purchase credits, channels, and phone numbers for your calling operations."
       />
+
+      {error ? (
+        <BillingBanner type="error" message={error} />
+      ) : null}
+
+      {isLoading ? (
+        <BillingBanner type="info" message="Loading billing data..." />
+      ) : null}
 
       {banner ? (
         <BillingBanner type={banner.type} message={banner.message} />
