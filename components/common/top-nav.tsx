@@ -14,12 +14,11 @@ import { AssistantChatPanel } from "@/components/common/assistant-chat-panel";
 import { ModeToggle } from "@/components/common/mode-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { billingSummary } from "@/lib/billing-data";
 import { getUserMetadata } from "@/lib/user-metadata";
-import { useUsageStore } from "@/stores/usage-store";
 
 export function TopNav() {
   const { isLoaded, user } = useUser();
-  const remainingCredits = useUsageStore((state) => state.remainingCredits);
 
   const displayName =
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Account";
@@ -76,7 +75,7 @@ export function TopNav() {
           <Coins className="size-4 shrink-0 text-propnex-accent" />
           <span className="hidden text-propnex-muted sm:inline">Credits</span>
           <span className="font-semibold text-foreground">
-            {remainingCredits.toLocaleString()}
+            {billingSummary.remainingCredits.toLocaleString()}
           </span>
         </Link>
 

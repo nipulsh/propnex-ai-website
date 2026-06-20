@@ -13,13 +13,16 @@ import { AgentsToolbar } from "@/components/agents/agents-toolbar";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { filterAgents } from "@/lib/agents-data";
+import { useAgentsGraphQL } from "@/hooks/use-agents-graphql";
 import {
   AGENTS_PAGE_SIZE,
   useAgentsStore,
 } from "@/stores/agents-store";
 
 export function AgentsPageContent() {
+  useAgentsGraphQL();
   const agents = useAgentsStore((s) => s.agents);
+  const isLoading = useAgentsStore((s) => s.isLoading);
   const searchQuery = useAgentsStore((s) => s.searchQuery);
   const statusFilter = useAgentsStore((s) => s.statusFilter);
   const categoryFilter = useAgentsStore((s) => s.categoryFilter);

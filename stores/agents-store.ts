@@ -6,11 +6,10 @@ import {
   type AgentStatusFilter,
   type AgentTypeFilter,
   createAgentId,
-  initialAgents,
 } from "@/lib/agents-data";
 import {
+  type AgentLibraryTemplate,
   type DeployFromTemplateConfig,
-  findLibraryTemplate,
   templateToAgentDefaults,
 } from "@/lib/agent-library-data";
 
@@ -22,12 +21,18 @@ type CreateAgentInput = Omit<Agent, "id" | "createdAt" | "updatedAt"> & {
 
 type AgentsStore = {
   agents: Agent[];
+  isLoading: boolean;
+  error: string | null;
   searchQuery: string;
   statusFilter: AgentStatusFilter;
   categoryFilter: AgentCategoryFilter;
   typeFilter: AgentTypeFilter;
   showFilters: boolean;
   currentPage: number;
+  setAgents: (agents: Agent[]) => void;
+  upsertAgent: (agent: Agent) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
   setSearchQuery: (value: string) => void;
   setStatusFilter: (value: AgentStatusFilter) => void;
   setCategoryFilter: (value: AgentCategoryFilter) => void;
@@ -38,14 +43,16 @@ type AgentsStore = {
   updateAgent: (id: string, patch: Partial<Agent>) => void;
   createAgent: (input: CreateAgentInput) => Agent;
   deployFromTemplate: (
-    templateId: string,
+    template: AgentLibraryTemplate,
     config: DeployFromTemplateConfig,
-  ) => Agent | null;
+  ) => Agent;
   getAgentById: (id: string) => Agent | undefined;
 };
 
 export const useAgentsStore = create<AgentsStore>((set, get) => ({
-  agents: [...initialAgents],
+  agents: [],
+  isLoading: true,
+  error: null,
   searchQuery: "",
   statusFilter: "all",
   categoryFilter: "all",
@@ -53,6 +60,19 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
   showFilters: false,
   currentPage: 1,
 
+  setAgents: (agents) => set({ agents }),
+  upsertAgent: (agent) =>
+    set((state) => {
+      const idx = state.agents.findIndex((a) => a.id === agent.id);
+      if (idx >= 0) {
+        const agents = [...state.agents];
+        agents[idx] = agent;
+        return { agents };
+      }
+      return { agents: [agent, ...state.agents] };
+    }),
+  setLoading: (isLoading) => set({ isLoading }),
+  setError: (error) => set({ error, isLoading: false }),
   setSearchQuery: (value) => set({ searchQuery: value, currentPage: 1 }),
   setStatusFilter: (value) => set({ statusFilter: value, currentPage: 1 }),
   setCategoryFilter: (value) =>
@@ -100,10 +120,7 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
     return agent;
   },
 
-  deployFromTemplate: (templateId, config) => {
-    const template = findLibraryTemplate(templateId);
-    if (!template) return null;
-
+  deployFromTemplate: (template, config) => {
     const defaults = templateToAgentDefaults(template, config);
     const now = new Date().toISOString();
     const agent: Agent = {
@@ -118,9 +135,12 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
       createdAt: now,
       updatedAt: now,
       avatarGradient:
+        defaults.avatarGradient ??
+        template.avatarGradient ??
         "bg-gradient-to-br from-violet-500/40 via-indigo-500/30 to-cyan-500/20",
       firstMessage: defaults.firstMessage ?? template.defaultFirstMessage,
       systemPrompt: defaults.systemPrompt ?? template.samplePrompt,
+      demoAudioUrl: defaults.demoAudioUrl ?? template.demoAudioUrl,
       voice: defaults.voice ?? {
         provider: "ElevenLabs",
         model: "eleven_turbo_v2",

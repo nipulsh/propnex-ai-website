@@ -1,22 +1,17 @@
 import { NextResponse } from "next/server";
 
-import { requireAuth } from "@/lib/api/auth";
-import { getWorksheets } from "@/lib/api/integration-state";
+import { requireTenantContext } from "@/lib/api/tenant-context";
+import { getWorksheetsDb } from "@/lib/integrations/db-state";
 
 export async function GET(req: Request) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
-  const { searchParams } = new URL(req.url);
-  const spreadsheetId = searchParams.get("spreadsheetId");
+  const spreadsheetId = new URL(req.url).searchParams.get("spreadsheetId");
   if (!spreadsheetId) {
-    return NextResponse.json(
-      { error: "spreadsheetId is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "spreadsheetId required" }, { status: 400 });
   }
 
-  return NextResponse.json({
-    worksheets: getWorksheets(spreadsheetId),
-  });
+  const worksheets = await getWorksheetsDb(ctx, spreadsheetId);
+  return NextResponse.json({ worksheets });
 }

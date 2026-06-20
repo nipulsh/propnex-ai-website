@@ -89,7 +89,9 @@ type Query {
   callLogs: CallLogsQueries!
   analytics: AnalyticsQueries!
   agents: AgentsQueries!
+  phoneNumbers: PhoneNumbersQueries!
   leads: LeadsQueries!
+  campaigns: CampaignsQueries!
   notifications: NotificationQueries!
   integrations: IntegrationQueries!
   scheduler: SchedulerQueries!
@@ -99,4 +101,7 @@ type Query {
 type Mutation {
   credits: CreditsMutations!
   callLogs: CallLogsMutations!
+  agents: AgentsMutations!
+  phoneNumbers: PhoneNumbersMutations!
+  leads: LeadsMutations!
 }

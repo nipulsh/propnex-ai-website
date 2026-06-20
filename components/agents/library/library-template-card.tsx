@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Clock, Eye, Rocket } from "lucide-react";
 
+import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { Button } from "@/components/ui/button";
 import type { AgentLibraryTemplate } from "@/lib/agent-library-data";
 
@@ -28,7 +29,7 @@ export function LibraryTemplateCard({
         </div>
 
         <p className="line-clamp-2 text-sm text-propnex-muted">
-          {template.description}
+          {template.profile}
         </p>
 
         <div className="flex flex-wrap gap-1.5">
@@ -47,9 +48,20 @@ export function LibraryTemplateCard({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-propnex-muted">
-          <Clock className="size-3.5 text-propnex-accent" />
-          ~{template.estimatedSetupMinutes} min setup
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-propnex-muted">
+            <Clock className="size-3.5 text-propnex-accent" />
+            ~{template.estimatedSetupMinutes} min setup
+          </div>
+          <HearAgentButton
+            agent={{
+              id: template.id,
+              name: template.name,
+              demoAudioUrl: template.demoAudioUrl,
+              firstMessage: template.defaultFirstMessage,
+            } as never}
+            className="h-8 px-2.5"
+          />
         </div>
       </div>
 

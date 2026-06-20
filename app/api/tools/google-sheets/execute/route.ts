@@ -1,30 +1,28 @@
 import { NextResponse } from "next/server";
 
-import { requireAuth } from "@/lib/api/auth";
-import { readSheetRow, writeSheetRow } from "@/lib/api/integration-state";
+import { requireTenantContext } from "@/lib/api/tenant-context";
+import { readSheetRowDb, writeSheetRowDb } from "@/lib/integrations/db-state";
+import type { SheetRow } from "@/lib/integrations/types";
 
 export async function POST(req: Request) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
   const body = (await req.json()) as {
     action: "read" | "write";
-    phone?: string;
-    name?: string;
-    data?: Record<string, string>;
+    rowIndex: number;
+    data?: SheetRow;
   };
 
   if (body.action === "read") {
-    const row = readSheetRow({ phone: body.phone, name: body.name });
-    if (!row) {
-      return NextResponse.json({ error: "Record not found" }, { status: 404 });
-    }
+    const row = await readSheetRowDb(ctx, body.rowIndex);
     return NextResponse.json({ row });
   }
 
-  const row = writeSheetRow(body.data ?? {}, {
-    phone: body.phone,
-    name: body.name,
-  });
-  return NextResponse.json({ row });
+  if (body.action === "write" && body.data) {
+    const row = await writeSheetRowDb(ctx, body.rowIndex, body.data);
+    return NextResponse.json({ row });
+  }
+
+  return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 }

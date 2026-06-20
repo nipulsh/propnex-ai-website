@@ -17,11 +17,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { OVERFLOW_OPTIONS } from "@/lib/setup-data";
 import {
+  formatCallVolumeRange,
   formatPrimaryUseCase,
   getUserMetadata,
 } from "@/lib/user-metadata";
 import { cn } from "@/lib/utils";
+import { useSettingsGraphQL } from "@/hooks/use-settings-graphql";
 import { useSetupStore } from "@/stores/setup-store";
+import { useSettingsStore } from "@/stores/settings-store";
 
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: User },
@@ -35,8 +38,10 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function SettingsPageContent() {
+  useSettingsGraphQL();
   const [activeSection, setActiveSection] = useState<SectionId>("profile");
   const { user } = useUser();
+  const viewer = useSettingsStore((s) => s.viewer);
   const metadata = getUserMetadata(
     user?.unsafeMetadata as Record<string, unknown> | undefined,
   );
@@ -99,7 +104,7 @@ export function SettingsPageContent() {
                 <div>
                   <label className="text-xs text-propnex-muted">Company</label>
                   <p className="mt-1 text-sm text-foreground">
-                    {metadata.companyName ?? "Not set"}
+                    {viewer?.company.name ?? metadata.companyName ?? "Not set"}
                   </p>
                 </div>
               </div>
@@ -155,6 +160,14 @@ export function SettingsPageContent() {
               <h2 className="text-lg font-semibold text-foreground">
                 Workspace Settings
               </h2>
+              {viewer ? (
+                <div className="rounded-lg border border-propnex-border bg-propnex-bg/50 px-4 py-3 text-sm">
+                  <p className="font-medium text-foreground">{viewer.company.name}</p>
+                  <p className="text-propnex-muted">
+                    Role: {viewer.role} · {viewer.email}
+                  </p>
+                </div>
+              ) : null}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="text-xs text-propnex-muted">
@@ -167,7 +180,7 @@ export function SettingsPageContent() {
                 <div>
                   <label className="text-xs text-propnex-muted">Call volume</label>
                   <p className="mt-1 text-sm text-foreground">
-                    {metadata.callVolume ?? "Not set"}
+                    {formatCallVolumeRange(metadata.callVolume) || "Not set"}
                   </p>
                 </div>
               </div>

@@ -125,6 +125,17 @@ export const PROPNEX_FIELD_PRESETS: {
   { id: "temperature", label: "Hot/Warm/Cold" },
 ];
 
+export const SHEET_COLUMN_PRESETS = [
+  "Column A",
+  "Column B",
+  "Column C",
+  "Column D",
+  "Column E",
+  "Column F",
+  "Column G",
+  "Column H",
+];
+
 export const DEFAULT_WORKING_HOURS: WorkingHours = {
   monday: { enabled: true, start: "09:00", end: "17:00" },
   tuesday: { enabled: true, start: "09:00", end: "17:00" },

@@ -2,6 +2,7 @@ input CallLogFilter {
   direction: CallDirection
   status: CallStatus
   aiAgentId: ID
+  phoneNumberId: ID
   assignedUserId: ID
   dateFrom: String
   dateTo: String
@@ -22,12 +23,19 @@ type CallLog {
   id: ID!
   direction: CallDirection!
   status: CallStatus!
+  outcome: String
   startedAt: String!
   durationSeconds: Int!
+  recordingUrl: String
+  cost: Float
+  provider: String
+  aiSummary: JSON
   leadId: ID
   aiAgentId: ID
+  phoneNumberId: ID
   lead: Lead
   aiAgent: AiAgent
+  phoneNumber: PhoneNumber
 }
 
 type CallLogDetail {
@@ -38,9 +46,14 @@ type CallLogDetail {
   startedAt: String!
   durationSeconds: Int!
   recordingUrl: String
+  cost: Float
+  provider: String
   aiSummary: JSON
+  sentiment: JSON
+  engagement: JSON
   lead: Lead
   aiAgent: AiAgent
+  phoneNumber: PhoneNumber
   transcript: CallTranscript
 }
 

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { requireAuth } from "@/lib/api/auth";
-import { getCalendars } from "@/lib/api/integration-state";
+import { requireTenantContext } from "@/lib/api/tenant-context";
+import { getCalendarsDb } from "@/lib/integrations/db-state";
 
 export async function GET() {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
-  return NextResponse.json({ calendars: getCalendars() });
+  const calendars = await getCalendarsDb(ctx);
+  return NextResponse.json({ calendars });
 }

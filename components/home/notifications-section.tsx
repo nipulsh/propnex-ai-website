@@ -5,40 +5,47 @@ import { useMemo } from "react";
 import { DashboardSection } from "@/components/common/dashboard-section";
 import { NotificationItem } from "@/components/home/notification-item";
 import { DashboardEmptyState } from "@/components/home/dashboard-empty-state";
-import { getDashboardAlerts } from "@/lib/home-dashboard-data";
-import { INITIAL_RESOURCE_USAGE } from "@/lib/billing-resources-data";
+import type { DashboardAlert } from "@/lib/home-dashboard-data";
 import { useHomeDashboardStore } from "@/stores/home-dashboard-store";
-import { usePhoneNumbersStore } from "@/stores/phone-numbers-store";
-import { useSetupStore } from "@/stores/setup-store";
 import { useUsageStore } from "@/stores/usage-store";
 
 export function NotificationsSection() {
   const dismissedAlertIds = useHomeDashboardStore((s) => s.dismissedAlertIds);
   const dismissAlert = useHomeDashboardStore((s) => s.dismissAlert);
-
-  const channelUsage = useSetupStore((s) => s.channelUsage);
-  const phoneNumbers = usePhoneNumbersStore((s) => s.numbers);
+  const notifications = useHomeDashboardStore((s) => s.notifications);
   const remainingCredits = useUsageStore((s) => s.remainingCredits);
   const totalCredits = useUsageStore((s) => s.totalCredits);
 
   const alerts = useMemo(() => {
-    const channelsAssigned =
-      channelUsage.totalChannels || INITIAL_RESOURCE_USAGE.channelsAssigned;
-    const channelsActive = INITIAL_RESOURCE_USAGE.channelsActive;
-    const virtualNumbers =
-      phoneNumbers.length || INITIAL_RESOURCE_USAGE.virtualNumbers;
+    const items: DashboardAlert[] = notifications.map((n) => ({
+      id: n.id,
+      severity:
+        n.type.toLowerCase().includes("critical") ||
+        n.type.toLowerCase().includes("error")
+          ? "critical"
+          : n.type.toLowerCase().includes("warning")
+            ? "warning"
+            : "info",
+      title: n.title,
+      message: n.body,
+      href: "/dashboard",
+    }));
 
-    return getDashboardAlerts({
-      remainingCredits,
-      totalCredits,
-      channelsActive,
-      channelsAssigned,
-      virtualNumbers,
-      virtualNumberCapacity: Math.max(virtualNumbers, 10),
-    }).filter((a) => !dismissedAlertIds.includes(a.id));
+    const creditPercent =
+      totalCredits > 0 ? (remainingCredits / totalCredits) * 100 : 100;
+    if (creditPercent < 20 && !items.some((a) => a.id === "low-credits")) {
+      items.unshift({
+        id: "low-credits",
+        severity: creditPercent < 10 ? "critical" : "warning",
+        title: "Credits running low",
+        message: `${remainingCredits.toLocaleString()} credits remaining (${Math.round(creditPercent)}%).`,
+        href: "/billing",
+      });
+    }
+
+    return items.filter((a) => !dismissedAlertIds.includes(a.id));
   }, [
-    channelUsage,
-    phoneNumbers.length,
+    notifications,
     remainingCredits,
     totalCredits,
     dismissedAlertIds,
@@ -51,16 +58,16 @@ export function NotificationsSection() {
     >
       {alerts.length === 0 ? (
         <DashboardEmptyState
-          title="All clear"
-          description="No active alerts. Your AI calling operation is running smoothly."
+          title="All caught up"
+          description="No notifications or alerts right now."
         />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {alerts.map((alert) => (
             <NotificationItem
               key={alert.id}
               alert={alert}
-              onDismiss={dismissAlert}
+              onDismiss={() => dismissAlert(alert.id)}
             />
           ))}
         </div>

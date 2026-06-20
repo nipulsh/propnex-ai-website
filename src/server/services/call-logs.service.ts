@@ -81,9 +81,21 @@ export class CallLogsService {
     return {
       ...log,
       startedAt: log.startedAt.toISOString(),
+      outcome: log.outcome,
       aiSummary: log.aiSummary,
+      sentiment: log.sentiment,
+      engagement: log.engagement,
       recordingUrl: log.recordingUrl,
+      cost: log.cost,
+      provider: log.provider,
       transcript: log.transcript,
+      phoneNumber: log.phoneNumber
+        ? {
+            id: log.phoneNumber.id,
+            number: log.phoneNumber.number,
+            label: log.phoneNumber.label,
+          }
+        : null,
     };
   }
 

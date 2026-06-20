@@ -1,5 +1,5 @@
-import { UploadCsvPageContent } from "@/components/upload-csv/upload-csv-page-content";
+import { redirect } from "next/navigation";
 
 export default function UploadCsvPage() {
-  return <UploadCsvPageContent />;
+  redirect("/call-logs");
 }

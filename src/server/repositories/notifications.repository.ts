@@ -1,3 +1,5 @@
+import type { IntegrationType } from "@prisma/client";
+
 import { BaseRepository } from "@/server/repositories/base.repository";
 import { decodeIdCursor } from "@/server/lib/pagination";
 
@@ -24,6 +26,12 @@ export class IntegrationsRepository extends BaseRepository {
     return this.prisma.integration.findMany({
       where: this.scope(companyId),
       orderBy: { type: "asc" },
+    });
+  }
+
+  findByType(companyId: string, type: IntegrationType) {
+    return this.prisma.integration.findFirst({
+      where: { companyId, type },
     });
   }
 }

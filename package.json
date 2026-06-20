@@ -8,9 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "dotenv -e .env.local -- prisma generate",
-    "db:push": "dotenv -e .env.local -- prisma db push",
+    "db:push": "dotenv -e .env.local -- prisma db push --skip-generate",
     "db:studio": "dotenv -e .env.local -- prisma studio",
     "db:validate": "dotenv -e .env.local -- prisma validate",
+    "db:seed:agent-library": "dotenv -e .env.local -- node scripts/seed-agent-library.mjs",
     "test": "npx tsx --test src/server/__tests__/**/*.test.ts",
     "postinstall": "prisma generate"
   },

@@ -1,9 +1,6 @@
 import { create } from "zustand";
 
-import type {
-  CallVolumeRange,
-  PrimaryUseCase,
-} from "@/lib/user-metadata";
+import type { CallVolumeRange, PrimaryUseCase } from "@prisma/client";
 
 export type OnboardingState = {
   step: number;

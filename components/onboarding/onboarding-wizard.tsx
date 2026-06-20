@@ -9,20 +9,20 @@ import { completeOnboarding } from "@/actions/onboarding";
 import { BrandLogo } from "@/components/common/brand-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { CallVolumeRange, PrimaryUseCase } from "@/lib/user-metadata";
+import { CallVolumeRange, PrimaryUseCase } from "@/lib/user-metadata";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 
 const USE_CASE_OPTIONS: { value: PrimaryUseCase; label: string }[] = [
-  { value: "lead_qualification", label: "Lead Qualification" },
-  { value: "customer_support", label: "Customer Support" },
-  { value: "appointment_booking", label: "Appointment Booking" },
+  { value: PrimaryUseCase.LEAD_QUALIFICATION, label: "Lead Qualification" },
+  { value: PrimaryUseCase.CUSTOMER_SUPPORT, label: "Customer Support" },
+  { value: PrimaryUseCase.APPOINTMENT_BOOKING, label: "Appointment Booking" },
 ];
 
 const CALL_VOLUME_OPTIONS: { value: CallVolumeRange; label: string }[] = [
-  { value: "1-100", label: "1–100" },
-  { value: "100-500", label: "100–500" },
-  { value: "500-1000", label: "500–1000" },
-  { value: "1000+", label: "1000+" },
+  { value: CallVolumeRange.RANGE_1_100, label: "1–100" },
+  { value: CallVolumeRange.RANGE_100_500, label: "100–500" },
+  { value: CallVolumeRange.RANGE_500_1000, label: "500–1000" },
+  { value: CallVolumeRange.RANGE_1000_PLUS, label: "1000+" },
 ];
 
 const STEPS = [

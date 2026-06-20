@@ -5,16 +5,71 @@ import { useMemo } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 import { DashboardSection } from "@/components/common/dashboard-section";
-import { getAIInsights } from "@/lib/home-dashboard-data";
 import { useHomeDashboardStore } from "@/stores/home-dashboard-store";
 
 export function AIInsightsSection() {
-  const dateRange = useHomeDashboardStore((s) => s.dateRange);
+  const analytics = useHomeDashboardStore((s) => s.analytics);
+  const campaigns = useHomeDashboardStore((s) => s.campaigns);
+  const leadBreakdown = useHomeDashboardStore((s) => s.leadBreakdown);
 
-  const insights = useMemo(
-    () => getAIInsights(dateRange),
-    [dateRange],
-  );
+  const insights = useMemo(() => {
+    const items: {
+      id: string;
+      headline: string;
+      description: string;
+      actionLabel: string;
+      actionHref: string;
+    }[] = [];
+
+    if (analytics && analytics.conversionRate < 15 && analytics.totalCalls > 10) {
+      items.push({
+        id: "conversion",
+        headline: "Conversion rate below target",
+        description: `Your conversion rate is ${analytics.conversionRate}%. Review call outcomes and agent scripts to improve lead qualification.`,
+        actionLabel: "View call logs",
+        actionHref: "/call-logs",
+      });
+    }
+
+    const hotLeads = leadBreakdown?.hot ?? 0;
+    if (hotLeads > 0) {
+      items.push({
+        id: "hot-leads",
+        headline: `${hotLeads} hot leads ready for follow-up`,
+        description:
+          "Prioritize outbound calls to hot leads while engagement is highest.",
+        actionLabel: "View leads",
+        actionHref: "/call-logs?leadType=hot",
+      });
+    }
+
+    const activeCampaigns = campaigns.filter(
+      (c) => c.status.toLowerCase() === "active",
+    );
+    if (activeCampaigns.length === 0 && campaigns.length > 0) {
+      items.push({
+        id: "campaigns",
+        headline: "No active campaigns",
+        description:
+          "Resume or launch a campaign to keep your AI agents generating calls.",
+        actionLabel: "Manage campaigns",
+        actionHref: "/lead-reactivation",
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        id: "default",
+        headline: "Your workspace is performing steadily",
+        description:
+          "Keep monitoring call volume and lead temperature as your agents run.",
+        actionLabel: "View dashboard",
+        actionHref: "/dashboard",
+      });
+    }
+
+    return items;
+  }, [analytics, campaigns, leadBreakdown]);
 
   return (
     <DashboardSection

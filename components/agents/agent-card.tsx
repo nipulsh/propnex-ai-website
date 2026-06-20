@@ -6,7 +6,6 @@ import { Bot } from "lucide-react";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { DisableAgentDialog } from "@/components/agents/disable-agent-dialog";
 import { HearAgentButton } from "@/components/agents/hear-agent-button";
-import { getAgentLeadSummary } from "@/lib/agent-detail-data";
 import type { Agent } from "@/lib/agents-data";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/agents-store";
@@ -43,28 +42,15 @@ function AgentToggle({
   );
 }
 
-function LeadSummaryCard({ agentId }: { agentId: string }) {
-  const summary = getAgentLeadSummary(agentId);
-
+function LeadSummaryCard() {
   return (
     <div className="rounded-lg border border-propnex-border bg-propnex-bg/50 p-3">
       <p className="text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
         Lead Summary
       </p>
-      <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-        <div>
-          <p className="text-lg font-semibold text-orange-400">{summary.hot}</p>
-          <p className="text-[10px] text-propnex-muted">Hot</p>
-        </div>
-        <div>
-          <p className="text-lg font-semibold text-amber-400">{summary.warm}</p>
-          <p className="text-[10px] text-propnex-muted">Warm</p>
-        </div>
-        <div>
-          <p className="text-lg font-semibold text-sky-400">{summary.cold}</p>
-          <p className="text-[10px] text-propnex-muted">Cold</p>
-        </div>
-      </div>
+      <p className="mt-2 text-xs text-propnex-muted">
+        Open agent detail for call and lead metrics.
+      </p>
     </div>
   );
 }
@@ -130,7 +116,7 @@ export function AgentCard({ agent }: AgentCardProps) {
             </span>
           </div>
 
-          <LeadSummaryCard agentId={agent.id} />
+          <LeadSummaryCard />
 
           <HearAgentButton agent={agent} className="w-full" />
         </div>

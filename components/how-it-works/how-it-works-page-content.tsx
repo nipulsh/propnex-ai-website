@@ -36,7 +36,7 @@ const STEPS = [
     title: "Upload Leads",
     description:
       "Import your contact list via CSV. PropNex AI automatically categorizes leads as hot, warm, or cold.",
-    href: "/upload-csv",
+    href: "/call-logs",
     icon: FileUp,
   },
   {

@@ -12,28 +12,35 @@ import {
 
 import { StatCard } from "@/components/call-details/stat-card";
 import { DashboardSection } from "@/components/common/dashboard-section";
-import { TrendBadge, formatTrendFooter } from "@/components/home/trend-badge";
-import {
-  getActiveAgentCount,
-  getLifetimeTotalCalls,
-  getOverviewMetrics,
-  getPeriodLabel,
-} from "@/lib/home-dashboard-data";
+import { getPeriodLabel } from "@/lib/home-dashboard-data";
 import { useHomeDashboardStore } from "@/stores/home-dashboard-store";
 
 export function OverviewSection() {
   const dateRange = useHomeDashboardStore((s) => s.dateRange);
+  const analytics = useHomeDashboardStore((s) => s.analytics);
+  const agentStatus = useHomeDashboardStore((s) => s.agentStatus);
+  const campaigns = useHomeDashboardStore((s) => s.campaigns);
+  const leadBreakdown = useHomeDashboardStore((s) => s.leadBreakdown);
+  const recentCalls = useHomeDashboardStore((s) => s.recentCalls);
 
-  const metrics = useMemo(
-    () => getOverviewMetrics(dateRange, getActiveAgentCount()),
-    [dateRange],
-  );
-
-  const lifetimeTotalCalls = useMemo(() => getLifetimeTotalCalls(), []);
   const periodLabel = getPeriodLabel(dateRange);
 
-  const trendFooterClass = (percent: number) =>
-    percent >= 0 ? "text-success" : "text-destructive";
+  const activeCampaigns = useMemo(
+    () => campaigns.filter((c) => c.status === "active").length,
+    [campaigns],
+  );
+
+  const avgDurationSeconds = useMemo(() => {
+    if (recentCalls.length === 0) return 0;
+    const total = recentCalls.reduce((sum, c) => sum + c.durationSeconds, 0);
+    return Math.round(total / recentCalls.length);
+  }, [recentCalls]);
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   return (
     <DashboardSection
@@ -43,74 +50,39 @@ export function OverviewSection() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <StatCard
           title="Total Calls"
-          value={lifetimeTotalCalls.toLocaleString("en-IN")}
+          value={(analytics?.totalCalls ?? 0).toLocaleString("en-IN")}
           icon={Phone}
-          footer="Lifetime · all time"
+          footer={`Period · ${periodLabel}`}
         />
         <StatCard
           title="Active Agents"
-          value={metrics.activeAgents.formatted}
+          value={String(agentStatus?.active ?? 0)}
           icon={Bot}
-          badge={
-            <TrendBadge
-              percent={metrics.activeAgents.trendPercent}
-              periodLabel={periodLabel}
-            />
-          }
-          footer={formatTrendFooter(metrics.activeAgents.trendPercent, periodLabel)}
-          footerClassName={trendFooterClass(metrics.activeAgents.trendPercent)}
+          footer={`${agentStatus?.total ?? 0} total agents`}
         />
         <StatCard
           title="Total Leads"
-          value={metrics.totalLeads.formatted}
+          value={String(leadBreakdown?.total ?? 0)}
           icon={Users}
-          badge={
-            <TrendBadge
-              percent={metrics.totalLeads.trendPercent}
-              periodLabel={periodLabel}
-            />
-          }
-          footer={formatTrendFooter(metrics.totalLeads.trendPercent, periodLabel)}
-          footerClassName={trendFooterClass(metrics.totalLeads.trendPercent)}
+          footer="Qualified pipeline"
         />
         <StatCard
           title="Active Campaigns"
-          value={metrics.activeCampaigns.formatted}
+          value={String(activeCampaigns)}
           icon={Megaphone}
-          badge={
-            <TrendBadge
-              percent={metrics.activeCampaigns.trendPercent}
-              periodLabel={periodLabel}
-            />
-          }
-          footer={formatTrendFooter(metrics.activeCampaigns.trendPercent, periodLabel)}
-          footerClassName={trendFooterClass(metrics.activeCampaigns.trendPercent)}
+          footer={`${campaigns.length} campaigns`}
         />
         <StatCard
           title="Conversion Rate"
-          value={metrics.conversionRate.formatted}
+          value={`${analytics?.conversionRate ?? 0}%`}
           icon={Percent}
-          badge={
-            <TrendBadge
-              percent={metrics.conversionRate.trendPercent}
-              periodLabel={periodLabel}
-            />
-          }
-          footer={formatTrendFooter(metrics.conversionRate.trendPercent, periodLabel)}
-          footerClassName={trendFooterClass(metrics.conversionRate.trendPercent)}
+          footer={`${analytics?.connectedCalls ?? 0} connected calls`}
         />
         <StatCard
           title="Avg Call Duration"
-          value={metrics.avgCallDuration.formatted}
+          value={formatDuration(avgDurationSeconds)}
           icon={Clock}
-          badge={
-            <TrendBadge
-              percent={metrics.avgCallDuration.trendPercent}
-              periodLabel={periodLabel}
-            />
-          }
-          footer={formatTrendFooter(metrics.avgCallDuration.trendPercent, periodLabel)}
-          footerClassName={trendFooterClass(metrics.avgCallDuration.trendPercent)}
+          footer="From recent calls"
         />
       </div>
     </DashboardSection>

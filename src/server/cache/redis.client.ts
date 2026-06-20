@@ -16,6 +16,9 @@ function createRedisClient(): Redis | null {
   return new Redis(url, {
     maxRetriesPerRequest: 3,
     lazyConnect: true,
+    connectTimeout: 5000,
+    commandTimeout: 3000,
+    enableOfflineQueue: false,
   });
 }
 

@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { requireAuth } from "@/lib/api/auth";
-import { getAgentTools } from "@/lib/api/integration-state";
+import { requireTenantContext } from "@/lib/api/tenant-context";
+import { getAgentToolsDb } from "@/lib/integrations/db-state";
 
 type RouteParams = { params: Promise<{ agentId: string }> };
 
 export async function GET(_req: Request, { params }: RouteParams) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
   const { agentId } = await params;
-  return NextResponse.json({ tools: getAgentTools(agentId) });
+  const tools = await getAgentToolsDb(ctx, agentId);
+  return NextResponse.json({ tools });
 }

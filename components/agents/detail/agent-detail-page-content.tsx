@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
@@ -15,73 +15,61 @@ import { AgentOverviewSection } from "@/components/agents/detail/agent-overview-
 import { AgentResourcesSection } from "@/components/agents/detail/agent-resources-section";
 import { AgentSectionNav } from "@/components/agents/detail/agent-section-nav";
 import { Button } from "@/components/ui/button";
-import {
-  findAgentInList,
-  getAgentListMetrics,
-  getCallsForAgent,
-  getPhoneNumbersForAgent,
-} from "@/lib/agent-detail-data";
+import type { AgentListMetrics } from "@/lib/agent-detail-data";
+import { useAgentDetailGraphQL } from "@/hooks/use-agent-detail-graphql";
 import { useAgentDetailStore } from "@/stores/agent-detail-store";
 import { useAgentsStore } from "@/stores/agents-store";
-import { usePhoneNumbersStore } from "@/stores/phone-numbers-store";
 
 type AgentDetailPageContentProps = {
   agentId: string;
 };
 
+function computeMetrics(
+  agentId: string,
+  calls: ReturnType<typeof useAgentDetailStore.getState>["calls"],
+): AgentListMetrics {
+  const inboundCalls = calls.filter((c) => c.direction === "inbound").length;
+  const outboundCalls = calls.filter((c) => c.direction === "outbound").length;
+  const completed = calls.filter((c) => c.status === "completed");
+  const avgCallDurationSeconds =
+    completed.length > 0
+      ? Math.round(
+          completed.reduce((sum, c) => sum + c.durationSeconds, 0) /
+            completed.length,
+        )
+      : 0;
+
+  return {
+    totalCalls: calls.length,
+    inboundCalls,
+    outboundCalls,
+    lastActivity: calls[0]?.timestamp ?? null,
+    conversionRate:
+      completed.length > 0
+        ? Math.round((completed.length / calls.length) * 100)
+        : 0,
+    hotLeads: 0,
+    avgCallDurationSeconds,
+  };
+}
+
 export function AgentDetailPageContent({
   agentId,
 }: AgentDetailPageContentProps) {
-  const agents = useAgentsStore((s) => s.agents);
+  useAgentDetailGraphQL(agentId);
+
+  const agent = useAgentsStore((s) => s.agents.find((a) => a.id === agentId));
   const setAgentEnabled = useAgentsStore((s) => s.setAgentEnabled);
-  const phoneNumbers = usePhoneNumbersStore((s) => s.numbers);
   const isLoading = useAgentDetailStore((s) => s.isLoading);
   const error = useAgentDetailStore((s) => s.error);
   const successBanner = useAgentDetailStore((s) => s.successBanner);
-  const hydrate = useAgentDetailStore((s) => s.hydrate);
-  const reset = useAgentDetailStore((s) => s.reset);
-  const setLoading = useAgentDetailStore((s) => s.setLoading);
-  const setError = useAgentDetailStore((s) => s.setError);
-
-  const agent = useMemo(
-    () => findAgentInList(agents, agentId),
-    [agents, agentId],
-  );
+  const calls = useAgentDetailStore((s) => s.calls);
+  const assignedNumbers = useAgentDetailStore((s) => s.assignedNumbers);
 
   const metrics = useMemo(
-    () => (agent ? getAgentListMetrics(agent.id) : null),
-    [agent],
+    () => (agent ? computeMetrics(agentId, calls) : null),
+    [agent, agentId, calls],
   );
-
-  const assignedNumbers = useMemo(
-    () =>
-      agent ? getPhoneNumbersForAgent(phoneNumbers, agent.id) : [],
-    [agent, phoneNumbers],
-  );
-
-  const calls = useMemo(
-    () => (agent ? getCallsForAgent(agent.id) : []),
-    [agent],
-  );
-
-  useEffect(() => {
-    reset();
-    setLoading(true);
-
-    const timer = setTimeout(() => {
-      const found = findAgentInList(
-        useAgentsStore.getState().agents,
-        agentId,
-      );
-      if (!found) {
-        setError("Agent not found");
-        return;
-      }
-      hydrate(agentId);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [agentId, hydrate, reset, setError, setLoading]);
 
   if (isLoading) {
     return (
@@ -100,8 +88,8 @@ export function AgentDetailPageContent({
             Agent not found
           </h2>
           <p className="max-w-sm text-sm text-propnex-muted">
-            The agent you are looking for does not exist or may have been
-            removed.
+            {error ??
+              "The agent you are looking for does not exist or may have been removed."}
           </p>
           <Button
             nativeButton={false}

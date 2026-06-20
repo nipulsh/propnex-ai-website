@@ -1,10 +1,31 @@
 "use client";
 
-import { Clock } from "lucide-react";
+import { useMemo } from "react";
 
 import { PageHeader } from "@/components/common/page-header";
+import { BillingBanner } from "@/components/billing/billing-banner";
+import { LeadReactivationFilters } from "@/components/lead-reactivation/lead-reactivation-filters";
+import { LeadReactivationStats } from "@/components/lead-reactivation/lead-reactivation-stats";
+import { LeadReactivationTable } from "@/components/lead-reactivation/lead-reactivation-table";
+import { useLeadReactivationGraphQL } from "@/hooks/use-lead-reactivation-graphql";
+import {
+  LEAD_REACTIVATION_PAGE_SIZE,
+  useLeadReactivationStore,
+} from "@/stores/lead-reactivation-store";
 
 export function LeadReactivationPageContent() {
+  useLeadReactivationGraphQL();
+
+  const leads = useLeadReactivationStore((s) => s.leads);
+  const isLoading = useLeadReactivationStore((s) => s.isLoading);
+  const error = useLeadReactivationStore((s) => s.error);
+  const currentPage = useLeadReactivationStore((s) => s.currentPage);
+
+  const pageLeads = useMemo(() => {
+    const start = (currentPage - 1) * LEAD_REACTIVATION_PAGE_SIZE;
+    return leads.slice(start, start + LEAD_REACTIVATION_PAGE_SIZE);
+  }, [leads, currentPage]);
+
   return (
     <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
       <PageHeader
@@ -12,20 +33,16 @@ export function LeadReactivationPageContent() {
         description="Re-engage dormant leads with automated AI voice outreach."
       />
 
-      <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-propnex-border bg-propnex-panel/50 px-6 py-20 text-center">
-        <div className="flex size-16 items-center justify-center rounded-full bg-propnex-accent/10">
-          <Clock className="size-8 text-propnex-accent" />
-        </div>
-        <span className="mt-6 inline-flex rounded-full border border-propnex-border bg-propnex-panel px-3 py-1 text-xs font-medium text-propnex-accent">
-          Coming Soon
-        </span>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">
-          Lead reactivation workflows are on the way
-        </h2>
-        <p className="mt-2 max-w-md text-sm text-propnex-muted">
-          Soon you&apos;ll be able to identify dormant leads, launch re-engagement
-          campaigns, and track conversions — all powered by PropNex AI agents.
-        </p>
+      {error ? <BillingBanner type="error" message={error} /> : null}
+      {isLoading ? (
+        <BillingBanner type="info" message="Loading dormant leads..." />
+      ) : null}
+
+      <LeadReactivationStats leads={leads} />
+      <LeadReactivationFilters />
+
+      <div className="overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
+        <LeadReactivationTable leads={pageLeads} />
       </div>
     </div>
   );

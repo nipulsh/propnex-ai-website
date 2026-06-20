@@ -1,3 +1,6 @@
+import type { CallVolumeRange, PrimaryUseCase } from "@prisma/client";
+import { clerkClient } from "@clerk/nextjs/server";
+
 import { cacheService } from "@/server/cache/cache.service";
 import { CACHE_TTL, cacheKeys } from "@/server/cache/keys";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/server/lib/errors";
@@ -73,12 +76,39 @@ export class TenantService {
     return this.repo.upsertUser(data);
   }
 
+  async ensureUserFromClerk(clerkUserId: string) {
+    const existing = await this.repo.findUserByClerkId(clerkUserId);
+    if (existing) {
+      return existing;
+    }
+
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(clerkUserId);
+    const primaryEmail =
+      clerkUser.emailAddresses.find(
+        (e) => e.id === clerkUser.primaryEmailAddressId,
+      )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
+
+    if (!primaryEmail) {
+      return null;
+    }
+
+    return this.repo.upsertUser({
+      clerkUserId,
+      email: primaryEmail,
+      firstName: clerkUser.firstName,
+      lastName: clerkUser.lastName,
+      imageUrl: clerkUser.imageUrl,
+      phone: clerkUser.phoneNumbers[0]?.phoneNumber,
+    });
+  }
+
   async syncCompanyFromClerk(data: {
     clerkOrganizationId: string;
     name: string;
     slug: string;
-    primaryUseCase?: string | null;
-    callVolume?: string | null;
+    primaryUseCase?: PrimaryUseCase | null;
+    callVolume?: CallVolumeRange | null;
   }) {
     return this.repo.upsertCompany(data);
   }

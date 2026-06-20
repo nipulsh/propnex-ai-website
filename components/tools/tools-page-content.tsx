@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   Bot,
@@ -11,11 +12,20 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
+import { AgentToolCatalogCard } from "@/components/tools/agent-tool-catalog-card";
+import { ConfigureToolAgentDialog } from "@/components/tools/configure-tool-agent-dialog";
 import { Button } from "@/components/ui/button";
+import { useAgentsGraphQL } from "@/hooks/use-agents-graphql";
 import { INTEGRATION_DEFINITIONS } from "@/lib/integrations/registry";
 import { TOOL_REGISTRY } from "@/lib/tools/registry";
+import type { ToolRegistryEntry } from "@/lib/tools/registry";
 
 export function ToolsPageContent() {
+  useAgentsGraphQL();
+  const [configureTool, setConfigureTool] = useState<ToolRegistryEntry | null>(
+    null,
+  );
+  const [configureOpen, setConfigureOpen] = useState(false);
   const availableIntegrations = INTEGRATION_DEFINITIONS.filter((d) => d.available);
   const comingSoonIntegrations = INTEGRATION_DEFINITIONS.filter(
     (d) => d.comingSoon,
@@ -120,34 +130,22 @@ export function ToolsPageContent() {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {TOOL_REGISTRY.map((tool) => (
-            <article
+            <AgentToolCatalogCard
               key={tool.id}
-              className="rounded-xl border border-propnex-border bg-propnex-panel p-5"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                  <tool.icon className="size-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">{tool.name}</h3>
-                  <p className="mt-1 text-sm text-propnex-muted">
-                    {tool.description}
-                  </p>
-                  <ul className="mt-2 space-y-0.5">
-                    {tool.examples.slice(0, 3).map((ex) => (
-                      <li
-                        key={ex}
-                        className="text-xs text-propnex-muted before:mr-1 before:content-['•']"
-                      >
-                        {ex}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </article>
+              tool={tool}
+              onConfigure={() => {
+                setConfigureTool(tool);
+                setConfigureOpen(true);
+              }}
+            />
           ))}
         </div>
+
+        <ConfigureToolAgentDialog
+          open={configureOpen}
+          onOpenChange={setConfigureOpen}
+          tool={configureTool}
+        />
 
         <div className="flex flex-wrap gap-3 rounded-xl border border-propnex-border bg-propnex-bg px-4 py-3 text-xs text-propnex-muted">
           <span className="flex items-center gap-1">

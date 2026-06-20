@@ -3,6 +3,10 @@
 import { auth } from "@clerk/nextjs/server";
 
 import { saveOnboarding, type OnboardingInput } from "@/lib/onboarding.server";
+import {
+  parseCallVolumeRange,
+  parsePrimaryUseCase,
+} from "@/lib/user-metadata";
 import { provisionOrganizationForUser } from "@/server/services/clerk-provision.service";
 
 export async function completeOnboarding(input: OnboardingInput) {
@@ -11,10 +15,20 @@ export async function completeOnboarding(input: OnboardingInput) {
     throw new Error("Unauthorized");
   }
 
-  if (!input.companyName?.trim() || !input.primaryUseCase || !input.callVolume) {
-    throw new Error("Missing required fields");
+  const primaryUseCase = parsePrimaryUseCase(input.primaryUseCase);
+  const callVolume = parseCallVolumeRange(input.callVolume);
+
+  if (!input.companyName?.trim() || !primaryUseCase || !callVolume) {
+    throw new Error("Missing or invalid required fields");
   }
 
-  await saveOnboarding(userId, input);
-  await provisionOrganizationForUser(userId, input);
+  const validatedInput: OnboardingInput = {
+    companyName: input.companyName.trim(),
+    phone: input.phone?.trim(),
+    primaryUseCase,
+    callVolume,
+  };
+
+  await saveOnboarding(userId, validatedInput);
+  await provisionOrganizationForUser(userId, validatedInput);
 }

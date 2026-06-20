@@ -23,6 +23,10 @@ import {
   draftToAgentInput,
   useCreateAgentStore,
 } from "@/stores/create-agent-store";
+import {
+  createAgentOnServer,
+  updateAgentOnServer,
+} from "@/hooks/use-agents-graphql";
 import { useAgentsStore } from "@/stores/agents-store";
 
 const fieldClassName =
@@ -34,13 +38,30 @@ const MONITOR_OPTIONS = [
   "Lead Qualification Monitoring",
 ];
 
+function StepHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-6 border-b border-propnex-border pb-4">
+      <h2 className="text-lg font-medium text-foreground">{title}</h2>
+      {description ? (
+        <p className="mt-1 text-sm text-propnex-muted">{description}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function CreateAgentWizardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
 
   const agents = useAgentsStore((s) => s.agents);
-  const createAgent = useAgentsStore((s) => s.createAgent);
+  const upsertAgent = useAgentsStore((s) => s.upsertAgent);
   const updateAgent = useAgentsStore((s) => s.updateAgent);
 
   const currentStep = useCreateAgentStore((s) => s.currentStep);
@@ -78,13 +99,18 @@ function CreateAgentWizardInner() {
     if (currentStep > 1) setStep(currentStep - 1);
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     const input = draftToAgentInput(draft);
     if (editAgentId) {
-      updateAgent(editAgentId, input);
+      const updated = await updateAgentOnServer(
+        editAgentId,
+        input as Record<string, unknown>,
+      );
+      updateAgent(editAgentId, updated);
       router.push(`/agents/${editAgentId}`);
     } else {
-      const agent = createAgent(input);
+      const agent = await createAgentOnServer(input);
+      upsertAgent(agent);
       router.push(`/agents/${agent.id}`);
     }
   }
@@ -98,31 +124,38 @@ function CreateAgentWizardInner() {
   const isEdit = Boolean(editAgentId);
 
   return (
-    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        render={<Link href="/agents" />}
-        className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Back to Agents
-      </Button>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="shrink-0 space-y-4 border-b border-propnex-border px-6 pt-6 pb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          nativeButton={false}
+          render={<Link href="/agents" />}
+          className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Agents
+        </Button>
 
-      <PageHeader
-        title={isEdit ? "Edit Agent" : "Add Agent"}
-        description="Full configuration wizard for power users who need complete control."
-      />
+        <PageHeader
+          title={isEdit ? "Edit Agent" : "Add Agent"}
+          description="Full configuration wizard for power users who need complete control."
+        />
 
-      <WizardStepper
-        steps={[...CREATE_AGENT_STEPS]}
-        currentStep={currentStep}
-      />
+        <WizardStepper
+          steps={[...CREATE_AGENT_STEPS]}
+          currentStep={currentStep}
+        />
+      </div>
 
-      <div className="rounded-xl border border-propnex-border bg-propnex-panel p-6">
+      <div className="propnex-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6">
+        <div className="rounded-xl border border-propnex-border bg-propnex-panel p-6">
         {currentStep === 1 ? (
           <div className="space-y-6">
+            <StepHeader
+              title="Basics"
+              description="Set your agent's identity, type, and supported languages."
+            />
             <AgentIdentitySection
               agentName={draft.agentName}
               avatarGradient={draft.avatarGradient}
@@ -165,27 +198,6 @@ function CreateAgentWizardInner() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-propnex-muted">Environment</label>
-              <div className="flex gap-2">
-                {(["production", "staging", "development"] as const).map(
-                  (env) => (
-                    <button
-                      key={env}
-                      type="button"
-                      onClick={() => updateDraft({ environment: env })}
-                      className={`rounded-lg border px-4 py-2 text-sm capitalize ${
-                        draft.environment === env
-                          ? "border-propnex-accent bg-propnex-accent/10 text-propnex-accent"
-                          : "border-propnex-border bg-propnex-bg text-propnex-muted"
-                      }`}
-                    >
-                      {env}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
               <label className="text-xs text-propnex-muted">Languages</label>
               <LanguageTagsInput
                 languages={draft.languages}
@@ -198,6 +210,10 @@ function CreateAgentWizardInner() {
 
         {currentStep === 2 ? (
           <div className="space-y-6">
+            <StepHeader
+              title="Voice"
+              description="Choose how your agent sounds during conversations."
+            />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-xs text-propnex-muted">Voice Gender</label>
@@ -224,28 +240,16 @@ function CreateAgentWizardInner() {
                 </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs text-propnex-muted">Voice Provider</label>
-              <div className="relative">
-                <select
-                  value={draft.voiceProvider}
-                  onChange={(e) =>
-                    updateDraft({ voiceProvider: e.target.value })
-                  }
-                  className={fieldClassName}
-                >
-                  <option value="ElevenLabs">ElevenLabs</option>
-                  <option value="PlayHT">PlayHT</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-propnex-muted" />
-              </div>
-            </div>
             <VoiceCloningSection />
           </div>
         ) : null}
 
         {currentStep === 3 ? (
           <div className="space-y-4">
+            <StepHeader
+              title="Prompt"
+              description="Define the opening message and system instructions for your agent."
+            />
             <div className="space-y-2">
               <label className="text-xs text-propnex-muted">First Message</label>
               <textarea
@@ -270,7 +274,12 @@ function CreateAgentWizardInner() {
         ) : null}
 
         {currentStep === 4 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-4">
+            <StepHeader
+              title="AI Model"
+              description="Configure the language model and speech transcription settings."
+            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <label className="text-xs text-propnex-muted">Model Provider</label>
               <select
@@ -318,11 +327,16 @@ function CreateAgentWizardInner() {
                 className="h-11 border-propnex-border bg-propnex-bg"
               />
             </div>
+            </div>
           </div>
         ) : null}
 
         {currentStep === 5 ? (
           <div className="space-y-3">
+            <StepHeader
+              title="Knowledge"
+              description="Select knowledge sources your agent can reference during calls."
+            />
             {(
               [
                 ["documents", "Uploaded Documents"],
@@ -360,6 +374,10 @@ function CreateAgentWizardInner() {
 
         {currentStep === 6 ? (
           <div className="space-y-3">
+            <StepHeader
+              title="Integrations"
+              description="Connect external services your agent can use during conversations."
+            />
             {(
               [
                 ["crm", "CRM Integrations"],
@@ -404,6 +422,10 @@ function CreateAgentWizardInner() {
 
         {currentStep === 7 ? (
           <div className="space-y-4">
+            <StepHeader
+              title="Outputs"
+              description="Define structured data fields to extract from each conversation."
+            />
             <div className="flex gap-2">
               <Input
                 value={newOutputName}
@@ -445,6 +467,10 @@ function CreateAgentWizardInner() {
 
         {currentStep === 8 ? (
           <div className="space-y-3">
+            <StepHeader
+              title="Monitoring"
+              description="Enable quality and compliance monitoring for this agent."
+            />
             {MONITOR_OPTIONS.map((monitor) => (
               <label
                 key={monitor}
@@ -464,6 +490,10 @@ function CreateAgentWizardInner() {
 
         {currentStep === 9 ? (
           <div className="space-y-4">
+            <StepHeader
+              title="Testing"
+              description="Run a simulated call to preview how your agent responds."
+            />
             <Button type="button" onClick={handleTestCall} className="gap-2">
               Run Simulated Test Call
             </Button>
@@ -481,63 +511,124 @@ function CreateAgentWizardInner() {
 
         {currentStep === 10 ? (
           <div className="space-y-4">
-            <p className="text-sm text-propnex-muted">
-              Review your configuration and {isEdit ? "save changes" : "deploy"}.
-            </p>
-            <dl className="space-y-2 rounded-lg border border-propnex-border bg-propnex-bg p-4 text-sm">
-              <div className="flex justify-between">
+            <StepHeader
+              title="Deploy"
+              description={
+                isEdit
+                  ? "Review your changes before saving."
+                  : "Review your configuration before creating the agent."
+              }
+            />
+            <dl className="divide-y divide-propnex-border rounded-lg border border-propnex-border bg-propnex-bg text-sm">
+              <div className="flex justify-between gap-4 px-4 py-3">
                 <dt className="text-propnex-muted">Name</dt>
-                <dd>{draft.agentName || "—"}</dd>
+                <dd className="text-right font-medium">{draft.agentName || "—"}</dd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4 px-4 py-3">
                 <dt className="text-propnex-muted">Type</dt>
                 <dd className="capitalize">{draft.type}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-propnex-muted">Environment</dt>
-                <dd className="capitalize">{draft.environment}</dd>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-propnex-muted">Category</dt>
+                <dd>{draft.category}</dd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-propnex-muted">Languages</dt>
+                <dd className="text-right">{draft.languages.join(", ") || "—"}</dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-propnex-muted">Voice</dt>
+                <dd>
+                  {draft.accent}{" "}
+                  {draft.voiceGender === "F"
+                    ? "Female"
+                    : draft.voiceGender === "M"
+                      ? "Male"
+                      : "Neutral"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
                 <dt className="text-propnex-muted">Model</dt>
                 <dd>
                   {draft.modelProvider} / {draft.modelName}
                 </dd>
               </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-propnex-muted">Transcriber</dt>
+                <dd>
+                  {draft.transcriberProvider} ({draft.transcriberLanguage})
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-propnex-muted">Knowledge Sources</dt>
+                <dd className="text-right">
+                  {Object.entries(draft.knowledgeEnabled)
+                    .filter(([, enabled]) => enabled)
+                    .map(([key]) => key)
+                    .join(", ") || "None"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-propnex-muted">Integrations</dt>
+                <dd className="text-right">
+                  {Object.entries(draft.integrations)
+                    .filter(([, enabled]) => enabled)
+                    .map(([key]) => key)
+                    .join(", ") || "None"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-propnex-muted">Structured Outputs</dt>
+                <dd className="text-right">
+                  {draft.structuredOutputNames.length > 0
+                    ? draft.structuredOutputNames.join(", ")
+                    : "None"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 px-4 py-3">
+                <dt className="text-propnex-muted">Monitors</dt>
+                <dd className="text-right">
+                  {draft.monitors.length > 0 ? draft.monitors.join(", ") : "None"}
+                </dd>
+              </div>
             </dl>
           </div>
         ) : null}
+        </div>
       </div>
 
-      <div className="flex gap-3">
-        {currentStep > 1 ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleBack}
-            className="h-11 flex-1 border-propnex-border bg-propnex-panel"
-          >
-            Back
-          </Button>
-        ) : null}
-        {currentStep < CREATE_AGENT_STEPS.length ? (
-          <Button
-            type="button"
-            onClick={handleNext}
-            disabled={currentStep === 1 && !draft.agentName.trim()}
-            className="h-11 flex-1"
-          >
-            Next
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={handleCreate}
-            disabled={!draft.agentName.trim()}
-            className="h-11 flex-1"
-          >
-            {isEdit ? "Save Agent" : "Add Agent"}
-          </Button>
-        )}
+      <div className="shrink-0 border-t border-propnex-border bg-propnex-bg px-6 py-4">
+        <div className="flex gap-3">
+          {currentStep > 1 ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleBack}
+              className="h-11 flex-1 border-propnex-border bg-propnex-panel"
+            >
+              Back
+            </Button>
+          ) : null}
+          {currentStep < CREATE_AGENT_STEPS.length ? (
+            <Button
+              type="button"
+              onClick={handleNext}
+              disabled={currentStep === 1 && !draft.agentName.trim()}
+              className="h-11 flex-1"
+            >
+              Next
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleCreate}
+              disabled={!draft.agentName.trim()}
+              className="h-11 flex-1"
+            >
+              {isEdit ? "Save Agent" : "Add Agent"}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

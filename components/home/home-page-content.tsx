@@ -9,8 +9,10 @@ import { DateRangeSelector } from "@/components/home/date-range-selector";
 import { DemoRequestsSection } from "@/components/home/demo-requests-section";
 import { HomePageSkeleton } from "@/components/home/home-page-skeleton";
 import { LeadStatusSection } from "@/components/home/lead-status-section";
+import { NotificationsSection } from "@/components/home/notifications-section";
 import { OverviewSection } from "@/components/home/overview-section";
 import { QuickActionsSection } from "@/components/home/quick-actions-section";
+import { RecentActivitySection } from "@/components/home/recent-activity-section";
 import { ResourceWarningBanner } from "@/components/home/resource-warning-banner";
 import { Button } from "@/components/ui/button";
 import { useHomeDashboardGraphQL } from "@/hooks/use-home-dashboard-graphql";
@@ -30,10 +32,15 @@ function ResourceWarningsStrip() {
 }
 
 export function HomePageContent() {
-  useHomeDashboardGraphQL();
+  const { reload } = useHomeDashboardGraphQL();
   const isLoading = useHomeDashboardStore((s) => s.isLoading);
   const hasError = useHomeDashboardStore((s) => s.hasError);
   const resetError = useHomeDashboardStore((s) => s.resetError);
+
+  const handleRetry = () => {
+    resetError();
+    void reload();
+  };
 
   if (hasError) {
     return (
@@ -46,7 +53,7 @@ export function HomePageContent() {
           type="error"
           message="Unable to load dashboard data. Please try again."
         />
-        <Button variant="outline" onClick={resetError} className="w-fit">
+        <Button variant="outline" onClick={handleRetry} className="w-fit">
           Retry
         </Button>
       </div>
@@ -72,7 +79,9 @@ export function HomePageContent() {
           <ResourceWarningsStrip />
           <LeadStatusSection />
           <CampaignOverviewSection />
+          <RecentActivitySection />
           <DemoRequestsSection />
+          <NotificationsSection />
           <CreditsResourcesSection />
           <AIInsightsSection />
         </div>

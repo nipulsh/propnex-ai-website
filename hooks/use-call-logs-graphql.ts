@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchCallLogsPage } from "@/lib/graphql/api";
+import type { CallLogsPageResult } from "@/lib/graphql/queries/call-logs";
+import type { CallOutcome, LeadTemperature } from "@/lib/call-detail-data";
+import { getLeadTemperatureForCall } from "@/lib/call-detail-data";
+
+type CallLogNode = CallLogsPageResult["callLogs"]["connection"]["edges"][number]["node"];
 
 export type GraphQLCallLog = {
   id: string;
@@ -12,9 +17,70 @@ export type GraphQLCallLog = {
   durationSeconds: number;
   leadName: string;
   agentName: string;
+  agentId: string;
   phoneNumber: string;
   lineLabel: string;
+  phoneNumberId: string;
+  outcome: CallOutcome | null;
+  leadTemperature: LeadTemperature;
+  leadScore: number;
+  callCost: number;
+  provider: string;
+  summarySnippet: string;
+  hasRecording: boolean;
 };
+
+function toOutcome(value?: string | null): CallOutcome | null {
+  if (!value) return null;
+  return value.toLowerCase().replace(/_/g, "-") as CallOutcome;
+}
+
+function toTemperature(
+  value: string | null | undefined,
+  callId: string,
+): LeadTemperature {
+  if (value) return value.toLowerCase() as LeadTemperature;
+  return getLeadTemperatureForCall(callId);
+}
+
+function extractAiSummary(summary: Record<string, unknown> | null): string {
+  if (!summary) return "—";
+  const interests = summary.interests;
+  if (typeof interests === "string" && interests.trim()) return interests.trim();
+  const points = summary.discussionPoints;
+  if (Array.isArray(points) && points.length > 0) {
+    return String(points[0]);
+  }
+  return "—";
+}
+
+function mapNode(node: CallLogNode): GraphQLCallLog {
+  const leadName =
+    [node.lead?.firstName, node.lead?.lastName].filter(Boolean).join(" ") ||
+    "Unknown";
+
+  return {
+    id: node.id,
+    startedAt: node.startedAt,
+    direction: node.direction.toLowerCase(),
+    status: node.status.toLowerCase(),
+    durationSeconds: node.durationSeconds,
+    leadName,
+    agentName: node.aiAgent?.name ?? "Unassigned",
+    agentId: node.aiAgent?.id ?? "",
+    phoneNumber:
+      node.phoneNumber?.number ?? node.lead?.phone ?? "—",
+    lineLabel: node.phoneNumber?.label ?? "",
+    phoneNumberId: node.phoneNumber?.id ?? "",
+    outcome: toOutcome(node.outcome),
+    leadTemperature: toTemperature(node.lead?.temperature, node.id),
+    leadScore: node.lead?.score ?? 0,
+    callCost: node.cost ?? 0,
+    provider: node.provider ?? "—",
+    summarySnippet: extractAiSummary(node.aiSummary),
+    hasRecording: Boolean(node.recordingUrl),
+  };
+}
 
 export function useCallLogsGraphQL(filter?: Record<string, unknown>) {
   const [logs, setLogs] = useState<GraphQLCallLog[]>([]);
@@ -29,19 +95,7 @@ export function useCallLogsGraphQL(filter?: Record<string, unknown>) {
       try {
         const data = await fetchCallLogsPage(after, filter);
         const connection = data.callLogs.connection;
-        const mapped = connection.edges.map(({ node }) => ({
-          id: node.id,
-          startedAt: node.startedAt,
-          direction: node.direction.toLowerCase(),
-          status: node.status.toLowerCase(),
-          durationSeconds: node.durationSeconds,
-          leadName: [node.lead?.firstName, node.lead?.lastName]
-            .filter(Boolean)
-            .join(" ") || "Unknown",
-          agentName: node.aiAgent?.name ?? "Unassigned",
-          phoneNumber: "",
-          lineLabel: "",
-        }));
+        const mapped = connection.edges.map(({ node }) => mapNode(node));
 
         setLogs((prev) => (after ? [...prev, ...mapped] : mapped));
         setEndCursor(connection.pageInfo.endCursor);

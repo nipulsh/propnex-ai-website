@@ -1,11 +1,47 @@
+import type {
+  AgentEnvironment,
+  AgentStatus,
+  AgentType,
+  Prisma,
+} from "@prisma/client";
+
 import { cacheService } from "@/server/cache/cache.service";
 import { CACHE_TTL, cacheKeys } from "@/server/cache/keys";
 import { NotFoundError } from "@/server/lib/errors";
 import prisma from "@/server/lib/prisma";
-import { AgentsRepository } from "@/server/repositories/agents.repository";
+import {
+  AgentsRepository,
+  type CreateAgentData,
+} from "@/server/repositories/agents.repository";
 import type { TenantContext } from "@/server/types/context";
 import { PERMISSIONS } from "@/server/types/permissions";
 import { tenantService } from "@/server/services/tenant.service";
+
+function mapAgent(agent: Awaited<ReturnType<AgentsRepository["findById"]>>) {
+  if (!agent) return null;
+  return {
+    id: agent.id,
+    name: agent.name,
+    type: agent.type,
+    category: agent.category,
+    status: agent.status,
+    environment: agent.environment,
+    enabled: agent.enabled,
+    languages: agent.languages,
+    firstMessage: agent.firstMessage,
+    systemPrompt: agent.systemPrompt,
+    voiceConfig: agent.voiceConfig,
+    modelConfig: agent.modelConfig,
+    transcriberConfig: agent.transcriberConfig,
+    serverConfig: agent.serverConfig,
+    structuredOutputs: agent.structuredOutputs,
+    scorecards: agent.scorecards,
+    monitors: agent.monitors,
+    demoAudioUrl: agent.demoAudioUrl,
+    createdAt: agent.createdAt.toISOString(),
+    updatedAt: agent.updatedAt.toISOString(),
+  };
+}
 
 export class AgentsService {
   private readonly repo = new AgentsRepository(prisma);
@@ -38,7 +74,8 @@ export class AgentsService {
 
   async list(ctx: TenantContext) {
     tenantService.requirePermission(ctx, PERMISSIONS.AGENTS_READ);
-    return this.repo.findMany(ctx.companyId);
+    const agents = await this.repo.findMany(ctx.companyId);
+    return agents.map((agent) => mapAgent(agent)!);
   }
 
   async getById(ctx: TenantContext, id: string) {
@@ -49,7 +86,80 @@ export class AgentsService {
       throw new NotFoundError("Agent not found");
     }
 
-    return agent;
+    return mapAgent(agent)!;
+  }
+
+  async create(ctx: TenantContext, input: CreateAgentData) {
+    tenantService.requirePermission(ctx, PERMISSIONS.AGENTS_WRITE);
+
+    const agent = await this.repo.create(ctx.companyId, {
+      name: input.name,
+      type: input.type,
+      category: input.category,
+      status: input.status ?? "ACTIVE",
+      environment: input.environment ?? "PRODUCTION",
+      enabled: input.enabled ?? true,
+      languages: input.languages ?? ["English (US)"],
+      firstMessage: input.firstMessage,
+      systemPrompt: input.systemPrompt,
+      voiceConfig: input.voiceConfig ?? {},
+      modelConfig: input.modelConfig ?? {},
+      transcriberConfig: input.transcriberConfig ?? {},
+      serverConfig: input.serverConfig ?? {},
+      structuredOutputs: input.structuredOutputs ?? [],
+      scorecards: input.scorecards ?? [],
+      monitors: input.monitors ?? [],
+      demoAudioUrl: input.demoAudioUrl,
+      ...(input.libraryEntryId
+        ? { libraryEntry: { connect: { id: input.libraryEntryId } } }
+        : {}),
+    });
+
+    await cacheService.invalidateCompanyAgentStatus(ctx.companyId);
+    return mapAgent(agent)!;
+  }
+
+  async update(
+    ctx: TenantContext,
+    id: string,
+    input: Partial<CreateAgentData> & {
+      status?: AgentStatus;
+      enabled?: boolean;
+    },
+  ) {
+    tenantService.requirePermission(ctx, PERMISSIONS.AGENTS_WRITE);
+
+    const existing = await this.repo.findById(ctx.companyId, id);
+    if (!existing) throw new NotFoundError("Agent not found");
+
+    const data: Prisma.AiAgentUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.type !== undefined) data.type = input.type as AgentType;
+    if (input.category !== undefined) data.category = input.category;
+    if (input.status !== undefined) data.status = input.status;
+    if (input.environment !== undefined) {
+      data.environment = input.environment as AgentEnvironment;
+    }
+    if (input.enabled !== undefined) data.enabled = input.enabled;
+    if (input.languages !== undefined) data.languages = input.languages;
+    if (input.firstMessage !== undefined) data.firstMessage = input.firstMessage;
+    if (input.systemPrompt !== undefined) data.systemPrompt = input.systemPrompt;
+    if (input.voiceConfig !== undefined) data.voiceConfig = input.voiceConfig;
+    if (input.modelConfig !== undefined) data.modelConfig = input.modelConfig;
+    if (input.transcriberConfig !== undefined) {
+      data.transcriberConfig = input.transcriberConfig;
+    }
+    if (input.serverConfig !== undefined) data.serverConfig = input.serverConfig;
+    if (input.structuredOutputs !== undefined) {
+      data.structuredOutputs = input.structuredOutputs;
+    }
+    if (input.scorecards !== undefined) data.scorecards = input.scorecards;
+    if (input.monitors !== undefined) data.monitors = input.monitors;
+    if (input.demoAudioUrl !== undefined) data.demoAudioUrl = input.demoAudioUrl;
+
+    const agent = await this.repo.update(ctx.companyId, id, data);
+    await cacheService.invalidateCompanyAgentStatus(ctx.companyId);
+    return mapAgent(agent)!;
   }
 }
 

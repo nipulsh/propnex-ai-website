@@ -1,12 +1,9 @@
 import { agents } from "@/lib/agents-data";
 import {
   getLeadTemperatureForCall,
+  type CallOutcome,
   type LeadTemperature,
 } from "@/lib/call-detail-data";
-import {
-  formatPhoneDisplay,
-  initialPhoneNumbers,
-} from "@/lib/phone-numbers-data";
 
 export type CallDirection = "inbound" | "outbound";
 
@@ -24,6 +21,13 @@ export type CallLog = {
   agentName: string;
   status: CallStatus;
   durationSeconds: number;
+  outcome: CallOutcome | null;
+  leadTemperature: LeadTemperature;
+  leadScore: number;
+  callCost: number;
+  provider: string;
+  summarySnippet: string;
+  hasRecording: boolean;
 };
 
 export type DateRangeOption =
@@ -119,63 +123,7 @@ function randomItem<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)]!;
 }
 
-function seededRandom(seed: number): () => number {
-  let state = seed;
-  return () => {
-    state = (state * 1664525 + 1013904223) % 4294967296;
-    return state / 4294967296;
-  };
-}
-
-function generateCallLogs(count: number): CallLog[] {
-  const now = Date.now();
-  const dayMs = 24 * 60 * 60 * 1000;
-  const phoneEntries = initialPhoneNumbers.map((pn) => ({
-    id: pn.id,
-    display: formatPhoneDisplay(pn.number),
-    inboundAgentId: pn.inboundAgentId,
-    inboundAgentName: pn.inboundAgentName,
-    outboundAgentId: pn.outboundAgentId,
-    outboundAgentName: pn.outboundAgentName,
-  }));
-
-  return Array.from({ length: count }, (_, index) => {
-    const rand = seededRandom(index + 42);
-    const phoneEntry = phoneEntries[Math.floor(rand() * phoneEntries.length)]!;
-    const direction: CallDirection = rand() > 0.45 ? "inbound" : "outbound";
-    const agentId =
-      direction === "inbound"
-        ? phoneEntry.inboundAgentId || randomItem(agents).id
-        : phoneEntry.outboundAgentId || randomItem(agents).id;
-    const agent =
-      agents.find((a) => a.id === agentId) ?? randomItem(agents);
-    const daysAgo = Math.floor(rand() * 90);
-    const hour = Math.floor(rand() * 12) + 8;
-    const minute = Math.floor(rand() * 60);
-    const timestamp =
-      now -
-      daysAgo * dayMs -
-      (24 - hour) * 60 * 60 * 1000 -
-      minute * 60 * 1000 -
-      index * 37_000;
-
-    return {
-      id: `call-${index + 1}`,
-      timestamp,
-      direction,
-      phoneNumberId: phoneEntry.id,
-      phoneNumber: phoneEntry.display,
-      lineLabel: randomItem(LINE_LABELS),
-      leadName: randomItem(LEAD_NAMES),
-      agentId: agent.id,
-      agentName: agent.name,
-      status: randomItem(STATUSES),
-      durationSeconds: Math.floor(rand() * 540) + 30,
-    };
-  }).sort((a, b) => b.timestamp - a.timestamp);
-}
-
-export const callLogs = generateCallLogs(1240);
+export const callLogs: CallLog[] = [];
 
 export function formatCallDate(timestamp: number): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -340,10 +288,8 @@ export function filterCallsByPhoneNumber(
     .sort((a, b) => b.timestamp - a.timestamp);
 }
 
-export function getCallsForPhoneNumber(phoneNumberId: string): CallLog[] {
-  return callLogs
-    .filter((log) => log.phoneNumberId === phoneNumberId)
-    .sort((a, b) => b.timestamp - a.timestamp);
+export function getCallsForPhoneNumber(_phoneNumberId: string): CallLog[] {
+  return [];
 }
 
 export function callLogsToCsv(logs: CallLog[]): string {
@@ -351,24 +297,36 @@ export function callLogsToCsv(logs: CallLog[]): string {
     "Date",
     "Time",
     "Direction",
-    "Phone Number",
     "Lead Name",
+    "Phone Number",
     "Line",
     "Agent",
+    "Duration",
+    "Lead Type",
+    "Outcome",
+    "Cost",
+    "Provider",
+    "AI Summary",
+    "Recording",
     "Status",
-    "Duration (sec)",
   ];
 
   const rows = logs.map((log) => [
     formatCallDate(log.timestamp),
     formatCallTime(log.timestamp),
     log.direction,
-    log.phoneNumber,
     log.leadName,
+    log.phoneNumber,
     log.lineLabel,
     log.agentName,
+    formatDuration(log.durationSeconds),
+    log.leadTemperature,
+    log.outcome ?? "",
+    String(log.callCost),
+    log.provider,
+    log.summarySnippet,
+    log.hasRecording ? "Yes" : "No",
     log.status,
-    String(log.durationSeconds),
   ]);
 
   return [headers, ...rows]

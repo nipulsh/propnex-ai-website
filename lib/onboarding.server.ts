@@ -1,7 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
+import type { CallVolumeRange, PrimaryUseCase } from "@prisma/client";
 import type { JwtPayload } from "@clerk/shared/types";
-
-import type { CallVolumeRange, PrimaryUseCase } from "@/lib/user-metadata";
 
 export type OnboardingInput = {
   companyName: string;
@@ -18,9 +17,20 @@ export async function isOnboardingComplete(
     return true;
   }
 
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  return user.publicMetadata?.onboardingComplete === true;
+  const publicMetadata = (
+    sessionClaims as { publicMetadata?: { onboardingComplete?: boolean } } | undefined
+  )?.publicMetadata;
+  if (publicMetadata?.onboardingComplete === true) {
+    return true;
+  }
+
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    return user.publicMetadata?.onboardingComplete === true;
+  } catch {
+    return false;
+  }
 }
 
 export async function saveOnboarding(

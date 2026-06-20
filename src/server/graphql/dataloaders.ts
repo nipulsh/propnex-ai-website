@@ -3,11 +3,13 @@ import DataLoader from "dataloader";
 import prisma from "@/server/lib/prisma";
 import { AgentsRepository } from "@/server/repositories/agents.repository";
 import { CallLogsRepository } from "@/server/repositories/call-logs.repository";
+import { PhoneNumbersRepository } from "@/server/repositories/phone-numbers.repository";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
 
 export function createDataLoaders(companyId: string) {
   const leadsRepo = new CallLogsRepository(prisma);
   const agentsRepo = new AgentsRepository(prisma);
+  const phoneNumbersRepo = new PhoneNumbersRepository(prisma);
   const tenantRepo = new TenantRepository(prisma);
 
   return {
@@ -19,6 +21,11 @@ export function createDataLoaders(companyId: string) {
     aiAgent: new DataLoader(async (ids: readonly string[]) => {
       const agents = await agentsRepo.findByIds(companyId, [...ids]);
       const map = new Map(agents.map((a) => [a.id, a]));
+      return ids.map((id) => map.get(id) ?? null);
+    }),
+    phoneNumber: new DataLoader(async (ids: readonly string[]) => {
+      const numbers = await phoneNumbersRepo.findByIds(companyId, [...ids]);
+      const map = new Map(numbers.map((n) => [n.id, n]));
       return ids.map((id) => map.get(id) ?? null);
     }),
     user: new DataLoader(async (ids: readonly string[]) => {

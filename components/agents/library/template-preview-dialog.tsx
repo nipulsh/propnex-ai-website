@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Clock, XIcon } from "lucide-react";
 
+import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { Button } from "@/components/ui/button";
 import type { AgentLibraryTemplate } from "@/lib/agent-library-data";
 
@@ -45,8 +45,19 @@ export function TemplatePreviewDialog({
           </div>
 
           <p className="mt-4 text-sm leading-relaxed text-foreground/90">
-            {template.description}
+            {template.profile}
           </p>
+
+          <div className="mt-4">
+            <HearAgentButton
+              agent={{
+                id: template.id,
+                name: template.name,
+                demoAudioUrl: template.demoAudioUrl,
+                firstMessage: template.defaultFirstMessage,
+              } as never}
+            />
+          </div>
 
           <div className="mt-4">
             <p className="text-[0.65rem] font-medium tracking-[0.12em] text-propnex-muted uppercase">

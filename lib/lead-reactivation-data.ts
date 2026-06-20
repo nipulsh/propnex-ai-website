@@ -1,5 +1,3 @@
-import { agents } from "@/lib/agents-data";
-
 export type LeadStatus =
   | "dormant"
   | "scheduled"
@@ -39,83 +37,16 @@ export const INACTIVITY_OPTIONS: { value: InactivityFilter; label: string }[] = 
   { value: "90-plus", label: "90+ Days" },
 ];
 
-const CONTACT_NAMES = [
-  "Sarah Mitchell",
-  "James Chen",
-  "Emily Rodriguez",
-  "Michael O'Brien",
-  "Priya Sharma",
-  "David Kim",
-  "Lisa Thompson",
-  "Robert Garcia",
-  "Amanda Foster",
-  "Chris Williams",
-];
 
-const PHONE_NUMBERS = [
-  "+1 (555) 234-5678",
-  "+1 (555) 345-6789",
-  "+1 (555) 456-7890",
-  "+1 (555) 567-8901",
-  "+1 (555) 678-9012",
-  "+1 (555) 789-0123",
-  "+1 (555) 890-1234",
-  "+1 (555) 901-2345",
-];
-
-const SOURCES = [
-  "Website Form",
-  "Trade Show",
-  "Referral",
-  "Cold Outreach",
-  "LinkedIn",
-  "Partner Lead",
-];
-
-const STATUSES: LeadStatus[] = [
-  "dormant",
-  "scheduled",
-  "contacted",
-  "reactivated",
-  "no-response",
-];
-
-function randomItem<T>(items: T[]): T {
-  return items[Math.floor(Math.random() * items.length)]!;
-}
-
-function generateDormantLeads(count: number): DormantLead[] {
-  const now = Date.now();
-  const dayMs = 24 * 60 * 60 * 1000;
-
-  return Array.from({ length: count }, (_, index) => {
-    const agent = randomItem(agents);
-    const daysInactive = Math.floor(Math.random() * 120) + 15;
-    const lastContactAt = now - daysInactive * dayMs - index * 41_000;
-
-    return {
-      id: `lead-${index + 1}`,
-      contactName: randomItem(CONTACT_NAMES),
-      phoneNumber: randomItem(PHONE_NUMBERS),
-      lastContactAt,
-      daysInactive,
-      agentId: agent.id,
-      agentName: agent.name,
-      status: randomItem(STATUSES),
-      source: randomItem(SOURCES),
-    };
-  }).sort((a, b) => b.daysInactive - a.daysInactive);
-}
-
-export const dormantLeads = generateDormantLeads(186);
+export const dormantLeads: DormantLead[] = [];
 
 export const LEAD_REACTIVATION_STATS = {
-  dormantLeads: 186,
-  reactivationRate: "24%",
-  scheduledCalls: 42,
-  dormantTrend: "+12 this week",
-  rateTrend: "+3.2% vs last month",
-  scheduledContext: "Next 7 days",
+  dormantLeads: 0,
+  reactivationRate: "0%",
+  scheduledCalls: 0,
+  dormantTrend: "No data yet",
+  rateTrend: "No data yet",
+  scheduledContext: "No scheduled calls",
 };
 
 export function formatLastContact(timestamp: number): string {

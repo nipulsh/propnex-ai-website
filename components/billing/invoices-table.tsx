@@ -3,20 +3,30 @@
 import { useState } from "react";
 
 import { BillingEmptyState } from "@/components/billing/billing-empty-state";
-import { PurchaseStatusBadge } from "@/components/billing/purchase-status-badge";
 import { Button } from "@/components/ui/button";
-import { formatInr } from "@/lib/billing-pricing";
-import {
-  formatResourceDate,
-  type PurchaseHistoryItem,
-} from "@/lib/billing-resources-data";
 import { useBillingStore } from "@/stores/billing-store";
 
+function formatInvoiceDate(value: string) {
+  return new Date(value).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatAmount(cents: number, currency: string) {
+  const amount = cents / 100;
+  if (currency.toUpperCase() === "INR") {
+    return `₹${amount.toLocaleString("en-IN")}`;
+  }
+  return `${currency} ${amount.toFixed(2)}`;
+}
+
 export function InvoicesTable() {
-  const purchaseHistory = useBillingStore((s) => s.purchaseHistory);
+  const invoices = useBillingStore((s) => s.invoices);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  if (purchaseHistory.length === 0) {
+  if (invoices.length === 0) {
     return (
       <BillingEmptyState
         title="No invoices yet"
@@ -32,30 +42,30 @@ export function InvoicesTable() {
           <tr className="border-b border-propnex-border text-[0.65rem] tracking-[0.12em] text-propnex-muted uppercase">
             <th className="px-5 py-3 font-medium">Invoice</th>
             <th className="px-5 py-3 font-medium">Date</th>
-            <th className="px-5 py-3 font-medium">Resource</th>
+            <th className="px-5 py-3 font-medium">Description</th>
             <th className="px-5 py-3 font-medium">Amount</th>
             <th className="px-5 py-3 font-medium">Status</th>
             <th className="px-5 py-3 font-medium" />
           </tr>
         </thead>
         <tbody>
-          {purchaseHistory.map((item: PurchaseHistoryItem) => (
+          {invoices.map((item) => (
             <tr
               key={item.id}
               className="border-b border-propnex-border last:border-b-0"
             >
-              <td className="px-5 py-4 font-mono text-foreground">
-                {item.invoiceId}
-              </td>
+              <td className="px-5 py-4 font-mono text-foreground">{item.id}</td>
               <td className="px-5 py-4 text-propnex-muted">
-                {formatResourceDate(item.purchaseDate)}
+                {formatInvoiceDate(item.issuedAt)}
               </td>
-              <td className="px-5 py-4 text-foreground">{item.resourceType}</td>
+              <td className="px-5 py-4 text-foreground">
+                {item.description ?? "—"}
+              </td>
               <td className="px-5 py-4 font-semibold text-foreground">
-                {formatInr(item.amount)}
+                {formatAmount(item.amountCents, item.currency)}
               </td>
-              <td className="px-5 py-4">
-                <PurchaseStatusBadge status={item.status} />
+              <td className="px-5 py-4 capitalize text-foreground">
+                {item.status.toLowerCase()}
               </td>
               <td className="px-5 py-4">
                 <Button

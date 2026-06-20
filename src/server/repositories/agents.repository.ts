@@ -1,3 +1,10 @@
+import type {
+  AgentEnvironment,
+  AgentStatus,
+  AgentType,
+  Prisma,
+} from "@prisma/client";
+
 import { BaseRepository } from "@/server/repositories/base.repository";
 
 export class AgentsRepository extends BaseRepository {
@@ -27,4 +34,45 @@ export class AgentsRepository extends BaseRepository {
       where: { companyId, id: { in: ids } },
     });
   }
+
+  create(companyId: string, data: Prisma.AiAgentCreateWithoutCompanyInput) {
+    return this.prisma.aiAgent.create({
+      data: {
+        ...data,
+        company: { connect: { id: companyId } },
+      },
+    });
+  }
+
+  update(
+    companyId: string,
+    id: string,
+    data: Prisma.AiAgentUpdateInput,
+  ) {
+    return this.prisma.aiAgent.update({
+      where: { id },
+      data,
+    });
+  }
 }
+
+export type CreateAgentData = {
+  name: string;
+  type: AgentType;
+  category?: string;
+  status?: AgentStatus;
+  environment?: AgentEnvironment;
+  enabled?: boolean;
+  languages?: string[];
+  firstMessage?: string;
+  systemPrompt?: string;
+  voiceConfig?: Prisma.InputJsonValue;
+  modelConfig?: Prisma.InputJsonValue;
+  transcriberConfig?: Prisma.InputJsonValue;
+  serverConfig?: Prisma.InputJsonValue;
+  structuredOutputs?: Prisma.InputJsonValue;
+  scorecards?: Prisma.InputJsonValue;
+  monitors?: Prisma.InputJsonValue;
+  demoAudioUrl?: string;
+  libraryEntryId?: string;
+};

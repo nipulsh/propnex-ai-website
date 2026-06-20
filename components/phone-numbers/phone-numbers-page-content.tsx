@@ -12,12 +12,14 @@ import { PhoneNumbersStats } from "@/components/phone-numbers/phone-numbers-stat
 import { PhoneNumbersTable } from "@/components/phone-numbers/phone-numbers-table";
 import { PhoneNumbersToolbar } from "@/components/phone-numbers/phone-numbers-toolbar";
 import { filterPhoneNumbers } from "@/lib/phone-numbers-data";
+import { usePhoneNumbersGraphQL } from "@/hooks/use-phone-numbers-graphql";
 import {
   PHONE_NUMBERS_PAGE_SIZE,
   usePhoneNumbersStore,
 } from "@/stores/phone-numbers-store";
 
 export function PhoneNumbersPageContent() {
+  usePhoneNumbersGraphQL();
   const numbers = usePhoneNumbersStore((state) => state.numbers);
   const searchQuery = usePhoneNumbersStore((state) => state.searchQuery);
   const direction = usePhoneNumbersStore((state) => state.direction);

@@ -1,27 +1,28 @@
 import { NextResponse } from "next/server";
 
-import { requireAuth } from "@/lib/api/auth";
+import { requireTenantContext } from "@/lib/api/tenant-context";
 import {
-  createSpreadsheet,
-  getSpreadsheets,
-} from "@/lib/api/integration-state";
+  createSpreadsheetDb,
+  getSpreadsheetsDb,
+} from "@/lib/integrations/db-state";
 
 export async function GET() {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
-  return NextResponse.json({ spreadsheets: getSpreadsheets() });
+  const spreadsheets = await getSpreadsheetsDb(ctx);
+  return NextResponse.json({ spreadsheets });
 }
 
 export async function POST(req: Request) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
   const body = (await req.json()) as { name?: string };
   const name =
     body.name?.trim() ||
     `PropNex Sheet ${new Date().toLocaleDateString()}`;
-  const spreadsheet = createSpreadsheet(name);
+  const spreadsheet = await createSpreadsheetDb(ctx, name);
 
   return NextResponse.json({ spreadsheet });
 }

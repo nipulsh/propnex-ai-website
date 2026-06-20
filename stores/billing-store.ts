@@ -7,7 +7,6 @@ import {
 } from "@/lib/billing-pricing";
 import {
   DEFAULT_RESOURCE_REQUEST,
-  initialPurchaseHistory,
   type PurchaseHistoryItem,
   type Quote,
   type ResourceRequest,
@@ -17,6 +16,22 @@ type Banner = {
   type: "success" | "error" | "info";
   message: string;
 };
+
+export type BillingInvoiceItem = {
+  id: string;
+  issuedAt: string;
+  amountCents: number;
+  status: string;
+  description: string | null;
+  currency: string;
+};
+
+export type BillingSubscriptionItem = {
+  planName: string;
+  status: string;
+  currentPeriodEnd: string;
+  nextInvoiceAmount: number | null;
+} | null;
 
 type RoiInputs = {
   expectedCalls: number;
@@ -28,6 +43,8 @@ type BillingStore = {
   resourceRequest: ResourceRequest;
   roiInputs: RoiInputs;
   quotes: Quote[];
+  invoices: BillingInvoiceItem[];
+  subscription: BillingSubscriptionItem;
   purchaseHistory: PurchaseHistoryItem[];
   activeQuote: Quote | null;
   banner: Banner | null;
@@ -36,6 +53,9 @@ type BillingStore = {
   isSavingDraft: boolean;
   isSendingEmail: boolean;
 
+  setInvoices: (invoices: BillingInvoiceItem[]) => void;
+  setPurchaseHistory: (items: PurchaseHistoryItem[]) => void;
+  setSubscription: (subscription: BillingSubscriptionItem) => void;
   setChannelQty: (qty: number) => void;
   setVirtualNumberQty: (qty: number) => void;
   setExpectedMonthlyCalls: (calls: number) => void;
@@ -86,13 +106,19 @@ export const useBillingStore = create<BillingStore>((set, get) => ({
     avgRevenuePerConversion: 5000,
   },
   quotes: [],
-  purchaseHistory: [...initialPurchaseHistory],
+  invoices: [],
+  subscription: null,
+  purchaseHistory: [],
   activeQuote: null,
   banner: null,
   isGeneratingQuote: false,
   isPurchasing: false,
   isSavingDraft: false,
   isSendingEmail: false,
+
+  setInvoices: (invoices) => set({ invoices }),
+  setPurchaseHistory: (purchaseHistory) => set({ purchaseHistory }),
+  setSubscription: (subscription) => set({ subscription }),
 
   setChannelQty: (qty) =>
     set((state) => ({

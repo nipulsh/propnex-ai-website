@@ -17,7 +17,6 @@ type UsageStore = UsageSnapshot & {
   totalLifetimeCalls: number;
   recordUsage: (delta: UsageDelta) => void;
   recordCallUsage: (durationSeconds: number) => void;
-  addCredits: (amount: number) => void;
   setFromSnapshot: (snapshot: UsageSnapshot) => void;
 };
 
@@ -48,16 +47,6 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
     );
     recordUsage(delta);
   },
-
-  addCredits: (amount) =>
-    set((state) => ({
-      totalCredits: state.totalCredits + amount,
-      remainingCredits: state.remainingCredits + amount,
-      availablePercent: Math.round(
-        ((state.remainingCredits + amount) / (state.totalCredits + amount)) *
-          100,
-      ),
-    })),
 
   setFromSnapshot: (snapshot) =>
     set((state) => ({

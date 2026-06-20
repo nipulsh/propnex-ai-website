@@ -565,11 +565,37 @@ model CallTranscript {
   callLog CallLog @relation(fields: [callLogId], references: [id], onDelete: Cascade)
 }
 
+// ─── Agent Library (global catalog) ────────────────────────────────────────────
+
+model AgentLibraryEntry {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  slug                  String    @unique
+  name                  String
+  profile               String
+  category              String
+  useCases              String[]  @default([])
+  defaultType           AgentType
+  estimatedSetupMinutes Int       @default(5)
+  samplePrompt          String
+  defaultFirstMessage   String
+  defaultVariables      Json      @default("[]")
+  compatibleVoices      Json      @default("[]")
+  demoAudioUrl          String
+  avatarGradient        String?
+  isPublished           Boolean   @default(true)
+  sortOrder             Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  deployedAgents AiAgent[]
+}
+
 // ─── AI Agents ─────────────────────────────────────────────────────────────────
 
 model AiAgent {
   id                String           @id @default(auto()) @map("_id") @db.ObjectId
   companyId         String           @db.ObjectId
+  libraryEntryId    String?          @db.ObjectId
   name              String
   type              AgentType
   category          String?
@@ -591,6 +617,7 @@ model AiAgent {
   updatedAt         DateTime         @updatedAt
 
   company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  libraryEntry         AgentLibraryEntry?    @relation(fields: [libraryEntryId], references: [id])
   promptTemplates      AgentPromptTemplate[]
   toolAssignments      AgentToolAssignment[]
   knowledgeSources     KnowledgeSource[]
@@ -602,6 +629,7 @@ model AiAgent {
   @@index([companyId, status])
   @@index([companyId, type])
   @@index([companyId, enabled, status])
+  @@index([libraryEntryId])
 }
 
 model AgentPromptTemplate {

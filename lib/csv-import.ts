@@ -159,7 +159,37 @@ export type CategorizedLeadImport = {
   cold: number;
   total: number;
   invalid: number;
+  created?: number;
+  updated?: number;
 };
+
+export type LeadImportRow = {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phone: string;
+  temperature: LeadCategory;
+};
+
+function splitContactName(fullName: string): {
+  firstName: string | null;
+  lastName: string | null;
+} {
+  const trimmed = fullName.trim();
+  if (!trimmed) {
+    return { firstName: null, lastName: null };
+  }
+
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: null };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+}
 
 function getCellValue(
   row: string[],
@@ -220,13 +250,47 @@ export function categorizeLeads(
   return result;
 }
 
+export function buildLeadImportRows(
+  parsed: ParsedCsv,
+  mapping: ColumnMapping,
+): LeadImportRow[] {
+  const rows: LeadImportRow[] = [];
+
+  for (const row of parsed.rows) {
+    const category = scoreLeadRow(row, parsed.headers, mapping);
+    if (!category) continue;
+
+    const phone = getCellValue(row, parsed.headers, mapping.phoneNumber);
+    const contactName = getCellValue(row, parsed.headers, mapping.contactName);
+    const emailHeader = parsed.headers.find((header) =>
+      header.toLowerCase().includes("email"),
+    );
+    const email = emailHeader
+      ? getCellValue(row, parsed.headers, emailHeader)
+      : "";
+    const { firstName, lastName } = splitContactName(contactName);
+
+    rows.push({
+      firstName,
+      lastName,
+      email: email || null,
+      phone,
+      temperature: category,
+    });
+  }
+
+  return rows;
+}
+
 export function autoProcessCsv(text: string): {
   parsed: ParsedCsv;
   mapping: ColumnMapping;
   categories: CategorizedLeadImport;
+  rows: LeadImportRow[];
 } {
   const parsed = parseCsv(text);
   const mapping = guessColumnMapping(parsed.headers);
   const categories = categorizeLeads(parsed, mapping);
-  return { parsed, mapping, categories };
+  const rows = buildLeadImportRows(parsed, mapping);
+  return { parsed, mapping, categories, rows };
 }

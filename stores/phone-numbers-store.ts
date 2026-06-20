@@ -6,7 +6,6 @@ import {
   type PhoneNumberStatus,
   type ProviderFilter,
   type StatusFilter,
-  initialPhoneNumbers,
 } from "@/lib/phone-numbers-data";
 import type { TelephonyProvider } from "@/lib/setup-data";
 
@@ -23,12 +22,18 @@ type AddPhoneNumberInput = {
 
 type PhoneNumbersStore = {
   numbers: PhoneNumber[];
+  isLoading: boolean;
+  error: string | null;
   searchQuery: string;
   direction: DirectionFilter;
   status: StatusFilter;
   provider: ProviderFilter;
   showFilters: boolean;
   currentPage: number;
+  setNumbers: (numbers: PhoneNumber[]) => void;
+  upsertNumber: (number: PhoneNumber) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
   setSearchQuery: (value: string) => void;
   setDirection: (value: DirectionFilter) => void;
   setStatus: (value: StatusFilter) => void;
@@ -51,7 +56,9 @@ type PhoneNumbersStore = {
 };
 
 export const usePhoneNumbersStore = create<PhoneNumbersStore>((set) => ({
-  numbers: initialPhoneNumbers,
+  numbers: [],
+  isLoading: true,
+  error: null,
   searchQuery: "",
   direction: "all",
   status: "all",
@@ -59,6 +66,19 @@ export const usePhoneNumbersStore = create<PhoneNumbersStore>((set) => ({
   showFilters: false,
   currentPage: 1,
 
+  setNumbers: (numbers) => set({ numbers }),
+  upsertNumber: (number) =>
+    set((state) => {
+      const idx = state.numbers.findIndex((n) => n.id === number.id);
+      if (idx >= 0) {
+        const numbers = [...state.numbers];
+        numbers[idx] = number;
+        return { numbers };
+      }
+      return { numbers: [number, ...state.numbers] };
+    }),
+  setLoading: (isLoading) => set({ isLoading }),
+  setError: (error) => set({ error, isLoading: false }),
   setSearchQuery: (value) => set({ searchQuery: value, currentPage: 1 }),
   setDirection: (value) => set({ direction: value, currentPage: 1 }),
   setStatus: (value) => set({ status: value, currentPage: 1 }),

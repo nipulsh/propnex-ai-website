@@ -1,23 +1,23 @@
 import { NextResponse } from "next/server";
 
 import { delay, requireAuth } from "@/lib/api/auth";
+import { requireTenantContext } from "@/lib/api/tenant-context";
 import {
-  completeSync,
-  setIntegrationSyncing,
-} from "@/lib/api/integration-state";
+  completeSheetsSyncDb,
+  triggerSheetsSyncDb,
+} from "@/lib/integrations/db-state";
 
 export async function POST() {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
-  setIntegrationSyncing("google-sheets");
+  await triggerSheetsSyncDb(ctx);
   await delay(2000);
 
-  const integration = completeSync(
-    "google-sheets",
-    "success",
+  const integration = await completeSheetsSyncDb(
+    ctx,
     "All rows synced successfully",
-    248,
+    0,
   );
 
   return NextResponse.json({ integration });

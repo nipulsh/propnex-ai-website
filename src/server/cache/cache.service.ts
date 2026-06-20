@@ -1,24 +1,30 @@
 import { redis } from "@/server/cache/redis.client";
 import { cacheKeys } from "@/server/cache/keys";
+import { gqlDebug, gqlDebugTimed } from "@/server/graphql/debug";
 
 export class CacheService {
   async get<T>(key: string): Promise<T | null> {
     if (!redis) return null;
+    const client = redis;
     try {
-      const cached = await redis.get(key);
+      const cached = await gqlDebugTimed(`redis:get:${key}`, () => client.get(key));
       if (!cached) return null;
       return JSON.parse(cached) as T;
     } catch {
+      gqlDebug("redis:get:error", { key });
       return null;
     }
   }
 
   async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
     if (!redis) return;
+    const client = redis;
     try {
-      await redis.setex(key, ttlSeconds, JSON.stringify(value));
+      await gqlDebugTimed(`redis:set:${key}`, () =>
+        client.setex(key, ttlSeconds, JSON.stringify(value)),
+      );
     } catch {
-      // cache write failures should not break requests
+      gqlDebug("redis:set:error", { key });
     }
   }
 
@@ -41,7 +47,7 @@ export class CacheService {
       return cached;
     }
 
-    const value = await factory();
+    const value = await gqlDebugTimed(`db:factory:${key}`, factory);
     await this.set(key, value, ttlSeconds);
     return value;
   }

@@ -9,9 +9,11 @@ import { ProviderSelection } from "@/components/setup/provider-selection";
 import { SetupBanner } from "@/components/setup/setup-banner";
 import { SetupPageActions } from "@/components/setup/setup-page-actions";
 import { SetupSection } from "@/components/setup/setup-section";
+import { useSetupGraphQL } from "@/hooks/use-setup-graphql";
 import { useSetupStore } from "@/stores/setup-store";
 
 export function SetupPageContent() {
+  useSetupGraphQL();
   const banner = useSetupStore((state) => state.banner);
 
   return (

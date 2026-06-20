@@ -3,13 +3,15 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft } from "lucide-react";
+import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 
 import { WizardStepper } from "@/components/agents/common/wizard-stepper";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { findLibraryTemplate } from "@/lib/agent-library-data";
+import { templateToAgentDefaults } from "@/lib/agent-library-data";
+import { createAgentOnServer } from "@/hooks/use-agents-graphql";
+import { useAgentLibraryTemplate } from "@/hooks/use-agent-library-graphql";
 import { useAgentDeployStore } from "@/stores/agent-deploy-store";
 import { useAgentsStore } from "@/stores/agents-store";
 import { usePhoneNumbersStore } from "@/stores/phone-numbers-store";
@@ -30,9 +32,9 @@ export function DeployAgentPageContent({
   templateId,
 }: DeployAgentPageContentProps) {
   const router = useRouter();
-  const template = findLibraryTemplate(templateId);
+  const { template, loading, error } = useAgentLibraryTemplate(templateId);
   const phoneNumbers = usePhoneNumbersStore((s) => s.numbers);
-  const deployFromTemplate = useAgentsStore((s) => s.deployFromTemplate);
+  const upsertAgent = useAgentsStore((s) => s.upsertAgent);
 
   const currentStep = useAgentDeployStore((s) => s.currentStep);
   const config = useAgentDeployStore((s) => s.config);
@@ -56,11 +58,22 @@ export function DeployAgentPageContent({
     return () => reset();
   }, [templateId, template, setTemplateId, updateConfig, reset]);
 
-  if (!template) {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 p-6">
+        <Loader2 className="size-8 animate-spin text-propnex-accent" />
+        <p className="text-sm text-propnex-muted">Loading template...</p>
+      </div>
+    );
+  }
+
+  if (error || !template) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-6">
         <AlertCircle className="size-10 text-destructive" />
-        <p className="text-sm text-propnex-muted">Template not found.</p>
+        <p className="text-sm text-propnex-muted">
+          {error ?? "Template not found."}
+        </p>
         <Button nativeButton={false} render={<Link href="/agents/library" />}>
           Back to Library
         </Button>
@@ -76,17 +89,61 @@ export function DeployAgentPageContent({
     if (currentStep > 1) setStep(currentStep - 1);
   }
 
-  function handleDeploy() {
-    const agent = deployFromTemplate(templateId, {
+  async function handleDeploy() {
+    if (!template) return;
+
+    const defaults = templateToAgentDefaults(template, {
       agentName: config.agentName,
       voiceId: config.voiceId,
       phoneNumberId: config.phoneNumberId,
       variables: config.variables,
       environment: config.environment,
     });
-    if (agent) {
-      router.push(`/agents/${agent.id}`);
-    }
+
+    const agent = await createAgentOnServer({
+      name: config.agentName,
+      type: defaults.type ?? template.defaultType,
+      category: defaults.category ?? template.category,
+      environment: config.environment,
+      enabled: true,
+      languages: ["English (US)"],
+      firstMessage: defaults.firstMessage ?? template.defaultFirstMessage,
+      systemPrompt: defaults.systemPrompt ?? template.samplePrompt,
+      demoAudioUrl: defaults.demoAudioUrl ?? template.demoAudioUrl,
+      libraryEntryId: template.libraryEntryId,
+      voice: defaults.voice,
+      model: {
+        provider: "OpenAI",
+        name: "gpt-4o-mini",
+        latencyMs: 450,
+        estimatedCostPerMin: 0.012,
+      },
+      transcriber: {
+        provider: "Deepgram",
+        language: "en-US",
+        latencyMs: 180,
+        estimatedCostPerMin: 0.004,
+      },
+      server: {
+        provider: "PropNex Cloud",
+        region: "us-east-1",
+        environment: config.environment,
+        connectionStatus: "connected",
+      },
+      structuredOutputs: [],
+      scorecards: [],
+      monitors: [],
+      knowledgeSources: [],
+      integrations: [],
+      status: "active",
+      avatarGradient:
+        defaults.avatarGradient ??
+        template.avatarGradient ??
+        "bg-gradient-to-br from-violet-500/40 via-indigo-500/30 to-cyan-500/20",
+    });
+
+    upsertAgent(agent);
+    router.push(`/agents/${agent.id}`);
   }
 
   const selectedVoice = template.compatibleVoices.find(

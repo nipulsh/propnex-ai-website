@@ -1,4 +1,9 @@
-import type { MemberStatus, UserRole } from "@prisma/client";
+import type {
+  CallVolumeRange,
+  MemberStatus,
+  PrimaryUseCase,
+  UserRole,
+} from "@prisma/client";
 
 import { BaseRepository } from "@/server/repositories/base.repository";
 
@@ -66,8 +71,8 @@ export class TenantRepository extends BaseRepository {
     clerkOrganizationId: string;
     name: string;
     slug: string;
-    primaryUseCase?: string | null;
-    callVolume?: string | null;
+    primaryUseCase?: PrimaryUseCase | null;
+    callVolume?: CallVolumeRange | null;
   }) {
     return this.prisma.company.upsert({
       where: { clerkOrganizationId: data.clerkOrganizationId },
@@ -75,8 +80,8 @@ export class TenantRepository extends BaseRepository {
         clerkOrganizationId: data.clerkOrganizationId,
         name: data.name,
         slug: data.slug,
-        primaryUseCase: data.primaryUseCase as never,
-        callVolume: data.callVolume as never,
+        primaryUseCase: data.primaryUseCase ?? undefined,
+        callVolume: data.callVolume ?? undefined,
       },
       update: {
         name: data.name,

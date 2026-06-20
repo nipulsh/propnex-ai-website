@@ -7,7 +7,7 @@ import { PhoneNumberCallHistoryFilters } from "@/components/phone-numbers/detail
 import { PhoneNumberCallHistoryTable } from "@/components/phone-numbers/detail/phone-number-call-history-table";
 import { PhoneNumberEmptyState } from "@/components/phone-numbers/detail/phone-number-empty-state";
 import { PhoneNumbersPagination } from "@/components/phone-numbers/phone-numbers-pagination";
-import { getCallsForPhoneNumberFiltered } from "@/lib/phone-number-detail-data";
+import { getDateRangeStart } from "@/lib/call-logs-data";
 import {
   PHONE_NUMBER_HISTORY_PAGE_SIZE,
   usePhoneNumberDetailStore,
@@ -21,11 +21,11 @@ type PhoneNumberCallHistoryProps = {
 };
 
 export function PhoneNumberCallHistory({
-  phoneNumberId,
   hasAnyCalls,
   onAssignAgent,
   onTestNumber,
 }: PhoneNumberCallHistoryProps) {
+  const calls = usePhoneNumberDetailStore((s) => s.calls);
   const historyDirection = usePhoneNumberDetailStore(
     (s) => s.historyDirection,
   );
@@ -40,14 +40,23 @@ export function PhoneNumberCallHistory({
   const setHistoryPage = usePhoneNumberDetailStore((s) => s.setHistoryPage);
 
   const { pageCalls, totalPages, totalCount } = useMemo(() => {
-    const filtered = getCallsForPhoneNumberFiltered(phoneNumberId, {
-      direction: historyDirection,
-      status: historyStatus,
-      dateRange: historyDateRange,
-      customFrom: historyCustomFrom,
-      customTo: historyCustomTo,
-      agentId: historyAgentId,
-    });
+    let filtered = [...calls];
+
+    if (historyDirection !== "all") {
+      filtered = filtered.filter((c) => c.direction === historyDirection);
+    }
+    if (historyStatus !== "all") {
+      filtered = filtered.filter((c) => c.status === historyStatus);
+    }
+    if (historyAgentId !== "all") {
+      filtered = filtered.filter((c) => c.agentId === historyAgentId);
+    }
+
+    const rangeStart = getDateRangeStart(historyDateRange);
+    if (rangeStart) {
+      filtered = filtered.filter((c) => c.timestamp >= rangeStart);
+    }
+
     const total = filtered.length;
     const pages = Math.max(1, Math.ceil(total / PHONE_NUMBER_HISTORY_PAGE_SIZE));
     const safePage = Math.min(historyPage, pages);
@@ -59,7 +68,7 @@ export function PhoneNumberCallHistory({
       totalCount: total,
     };
   }, [
-    phoneNumberId,
+    calls,
     historyDirection,
     historyStatus,
     historyDateRange,

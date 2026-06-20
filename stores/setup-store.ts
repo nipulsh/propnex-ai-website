@@ -75,6 +75,25 @@ type SetupStore = {
   assignAgent: (id: string, agentId: string) => void;
   unassignAgent: (id: string) => void;
   clearBanner: () => void;
+  setPhoneNumbersFromApi: (
+    numbers: {
+      id: string;
+      number: string;
+      provider: string;
+      status: string;
+      inboundAgentId: string | null;
+      outboundAgentId: string | null;
+    }[],
+  ) => void;
+  setIntegrationsFromApi: (
+    integrations: {
+      id: string;
+      type: string;
+      status: string;
+      connectedAccount: string | null;
+      lastSyncAt: string | null;
+    }[],
+  ) => void;
 };
 
 function clearTestedForProvider(
@@ -374,4 +393,36 @@ export const useSetupStore = create<SetupStore>((set, get) => ({
   },
 
   clearBanner: () => set({ banner: null }),
+
+  setPhoneNumbersFromApi: (numbers) => {
+    const mapped = numbers.map((n) => ({
+      id: n.id,
+      number: n.number,
+      provider: n.provider as TelephonyProvider,
+      inboundAgentId: n.inboundAgentId ?? "",
+      inboundAgentName: "Unassigned",
+      outboundAgentId: n.outboundAgentId ?? "",
+      outboundAgentName: "Unassigned",
+      status: (n.status.toLowerCase() === "active"
+        ? "active"
+        : "disabled") as import("@/lib/phone-numbers-data").PhoneNumberStatus,
+      inboundCallsCount: 0,
+      outboundCallsCount: 0,
+      lastActivityAt: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      channelCount: 1,
+    }));
+    usePhoneNumbersStore.getState().setNumbers(mapped);
+    set((state) => ({
+      channelUsage: {
+        ...state.channelUsage,
+        virtualNumbers: mapped.length,
+      },
+    }));
+  },
+
+  setIntegrationsFromApi: (_integrations) => {
+    // Integration connection state is managed via REST /api/integrations
+  },
 }));

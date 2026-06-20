@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
+import { getDatabaseUrl } from "@/server/lib/database-url";
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
@@ -7,6 +9,15 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    ...(process.env.DATABASE_URL
+      ? {
+          datasources: {
+            db: {
+              url: getDatabaseUrl(),
+            },
+          },
+        }
+      : {}),
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]

@@ -1,7 +1,9 @@
+"use client";
+
 import type { ComponentType } from "react";
 import { CalendarClock, RefreshCw, Users } from "lucide-react";
 
-import { LEAD_REACTIVATION_STATS } from "@/lib/lead-reactivation-data";
+import type { DormantLead } from "@/lib/lead-reactivation-data";
 import { cn } from "@/lib/utils";
 
 type StatCardProps = {
@@ -37,29 +39,42 @@ function StatCard({
   );
 }
 
-export function LeadReactivationStats() {
+type LeadReactivationStatsProps = {
+  leads: DormantLead[];
+};
+
+export function LeadReactivationStats({ leads }: LeadReactivationStatsProps) {
+  const avgInactive =
+    leads.length > 0
+      ? Math.round(
+          leads.reduce((sum, lead) => sum + lead.daysInactive, 0) / leads.length,
+        )
+      : 0;
+
   return (
     <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <StatCard
         title="Dormant Leads"
-        value={LEAD_REACTIVATION_STATS.dormantLeads.toLocaleString()}
-        footer={LEAD_REACTIVATION_STATS.dormantTrend}
+        value={leads.length.toLocaleString()}
+        footer={`Avg ${avgInactive} days inactive`}
         icon={Users}
         footerClassName="text-orange-400"
         iconClassName="text-orange-400"
       />
       <StatCard
         title="Reactivation Rate"
-        value={LEAD_REACTIVATION_STATS.reactivationRate}
-        footer={LEAD_REACTIVATION_STATS.rateTrend}
+        value={leads.length > 0 ? "—" : "0%"}
+        footer="Based on completed re-engagement calls"
         icon={RefreshCw}
         footerClassName="text-success"
         iconClassName="text-propnex-accent"
       />
       <StatCard
         title="Scheduled Calls"
-        value={LEAD_REACTIVATION_STATS.scheduledCalls.toLocaleString()}
-        footer={LEAD_REACTIVATION_STATS.scheduledContext}
+        value={leads
+          .filter((lead) => lead.status === "scheduled")
+          .length.toLocaleString()}
+        footer="Queued for AI outreach"
         icon={CalendarClock}
         iconClassName="text-cyan-400"
       />

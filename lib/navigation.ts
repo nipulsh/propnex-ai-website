@@ -6,7 +6,6 @@ import {
   PhoneCall,
   type LucideIcon,
   CreditCard,
-  FileUp,
   RefreshCw,
   ServerCog,
   Wrench,
@@ -25,7 +24,6 @@ export const mainNavItems: NavItem[] = [
   { title: "Call Logs", href: "/call-logs", icon: PhoneCall },
   { title: "Lead Reactivation", href: "/lead-reactivation", icon: RefreshCw },
   { title: "Billing", href: "/billing", icon: CreditCard },
-  { title: "Upload Leads", href: "/upload-csv", icon: FileUp },
   { title: "Tools", href: "/tools", icon: Wrench },
 ];
 

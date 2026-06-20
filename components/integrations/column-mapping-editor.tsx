@@ -4,9 +4,8 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { MOCK_SHEET_COLUMNS } from "@/lib/integrations/mock-data";
 import type { ColumnMapping } from "@/lib/integrations/types";
-import { PROPNEX_FIELD_PRESETS } from "@/lib/integrations/types";
+import { PROPNEX_FIELD_PRESETS, SHEET_COLUMN_PRESETS } from "@/lib/integrations/types";
 
 type ColumnMappingEditorProps = {
   mappings: ColumnMapping[];
@@ -20,7 +19,7 @@ export function ColumnMappingEditor({
   const [customField, setCustomField] = useState("");
 
   function addMapping(propnexField: string, label: string) {
-    const unusedColumn = MOCK_SHEET_COLUMNS.find(
+    const unusedColumn = SHEET_COLUMN_PRESETS.find(
       (col) => !mappings.some((m) => m.spreadsheetColumn === col),
     );
     if (!unusedColumn) return;
@@ -99,7 +98,7 @@ export function ColumnMappingEditor({
                 }}
                 className="h-8 rounded-md border border-propnex-border bg-propnex-panel px-2 text-xs"
               >
-                {MOCK_SHEET_COLUMNS.map((col) => (
+                {SHEET_COLUMN_PRESETS.map((col) => (
                   <option key={col} value={col}>
                     {col}
                   </option>

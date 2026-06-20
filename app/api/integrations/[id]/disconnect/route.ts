@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 
-import { requireAuth } from "@/lib/api/auth";
-import { disconnectIntegration } from "@/lib/api/integration-state";
+import { requireTenantContext } from "@/lib/api/tenant-context";
+import { disconnectIntegrationDb } from "@/lib/integrations/db-state";
 import type { IntegrationId } from "@/lib/integrations/types";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function POST(_req: Request, { params }: RouteParams) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
   const { id } = await params;
-  const integration = disconnectIntegration(id as IntegrationId);
+  const integration = await disconnectIntegrationDb(ctx, id as IntegrationId);
   if (!integration) {
     return NextResponse.json({ error: "Integration not found" }, { status: 404 });
   }

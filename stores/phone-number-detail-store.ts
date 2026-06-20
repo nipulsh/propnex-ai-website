@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type {
   CallHistoryDateRange,
+  CallLog,
   DirectionFilter,
   StatusFilter,
 } from "@/lib/call-logs-data";
@@ -21,7 +22,9 @@ type PhoneNumberDetailStore = {
   historyAgentId: string;
   historyPage: number;
   testBanner: string | null;
+  calls: CallLog[];
   hydrate: (phoneNumberId: string) => void;
+  setCalls: (calls: CallLog[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -48,6 +51,7 @@ export const usePhoneNumberDetailStore = create<PhoneNumberDetailStore>(
     historyAgentId: "all",
     historyPage: 1,
     testBanner: null,
+    calls: [],
 
     hydrate: (phoneNumberId) =>
       set({
@@ -58,12 +62,14 @@ export const usePhoneNumberDetailStore = create<PhoneNumberDetailStore>(
 
     setLoading: (isLoading) => set({ isLoading }),
     setError: (error) => set({ error, isLoading: false }),
+    setCalls: (calls) => set({ calls }),
 
     reset: () =>
       set({
         phoneNumberId: null,
         isLoading: true,
         error: null,
+        calls: [],
         historyDirection: "all",
         historyStatus: "all",
         historyDateRange: "last-7-days",

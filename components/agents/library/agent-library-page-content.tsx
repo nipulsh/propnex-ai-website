@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Loader2, Search } from "lucide-react";
 
 import { LibraryTemplateCard } from "@/components/agents/library/library-template-card";
 import { TemplatePreviewDialog } from "@/components/agents/library/template-preview-dialog";
@@ -11,28 +11,24 @@ import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  agentLibraryTemplates,
   filterLibraryTemplates,
   LIBRARY_CATEGORY_OPTIONS,
   type AgentLibraryTemplate,
 } from "@/lib/agent-library-data";
+import { useAgentLibraryGraphQL } from "@/hooks/use-agent-library-graphql";
 import { cn } from "@/lib/utils";
 
 export function AgentLibraryPageContent() {
   const router = useRouter();
+  const { templates, loading, error } = useAgentLibraryGraphQL();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [previewTemplate, setPreviewTemplate] =
     useState<AgentLibraryTemplate | null>(null);
 
   const filtered = useMemo(
-    () =>
-      filterLibraryTemplates(
-        agentLibraryTemplates,
-        searchQuery,
-        categoryFilter,
-      ),
-    [searchQuery, categoryFilter],
+    () => filterLibraryTemplates(templates, searchQuery, categoryFilter),
+    [templates, searchQuery, categoryFilter],
   );
 
   function handleDeployFromPreview(templateId: string) {
@@ -54,8 +50,8 @@ export function AgentLibraryPageContent() {
       </Button>
 
       <PageHeader
-        title="Agent Library"
-        description="Ready-to-use PropNex AI templates designed for rapid deployment."
+        title="Voice Agent Library"
+        description="Ready-to-use PropNex AI voice agents with demo audio — deploy in minutes."
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -65,7 +61,7 @@ export function AgentLibraryPageContent() {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search templates..."
+            placeholder="Search voice agents..."
             className="h-11 border-propnex-border bg-propnex-panel pl-10"
           />
         </div>
@@ -88,10 +84,19 @@ export function AgentLibraryPageContent() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-propnex-border bg-propnex-panel/50 px-6 py-16 text-center">
+          <Loader2 className="size-6 animate-spin text-propnex-accent" />
+          <p className="text-sm text-propnex-muted">Loading voice agents...</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-propnex-border bg-propnex-panel/50 px-6 py-16 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-propnex-border bg-propnex-panel/50 px-6 py-16 text-center">
           <p className="text-sm text-propnex-muted">
-            No templates match your search.
+            No voice agents match your search.
           </p>
         </div>
       ) : (

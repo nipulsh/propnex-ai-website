@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
@@ -14,11 +14,11 @@ import { PhoneNumberOverview } from "@/components/phone-numbers/detail/phone-num
 import { PhoneNumberQuickActions } from "@/components/phone-numbers/detail/phone-number-quick-actions";
 import { PhoneNumberRoutingCard } from "@/components/phone-numbers/detail/phone-number-routing-card";
 import { Button } from "@/components/ui/button";
-import { getCallsForPhoneNumber } from "@/lib/call-logs-data";
-import {
-  findPhoneNumberInStore,
-  getPhoneNumberAnalytics,
-  getPhoneNumberMetrics,
+import { usePhoneNumberDetailGraphQL } from "@/hooks/use-phone-number-detail-graphql";
+import type { CallLog } from "@/lib/call-logs-data";
+import type {
+  PhoneNumberAnalytics,
+  PhoneNumberOverviewMetrics,
 } from "@/lib/phone-number-detail-data";
 import { usePhoneNumberDetailStore } from "@/stores/phone-number-detail-store";
 import { usePhoneNumbersStore } from "@/stores/phone-numbers-store";
@@ -27,64 +27,74 @@ type PhoneNumberDetailPageContentProps = {
   phoneNumberId: string;
 };
 
+function computeMetrics(calls: CallLog[]): PhoneNumberOverviewMetrics {
+  const inbound = calls.filter((c) => c.direction === "inbound");
+  const outbound = calls.filter((c) => c.direction === "outbound");
+  const missed = calls.filter((c) => c.status === "missed");
+  const completed = calls.filter((c) => c.status === "completed");
+  const totalDuration = completed.reduce((sum, c) => sum + c.durationSeconds, 0);
+
+  return {
+    totalCalls: calls.length,
+    inboundCalls: inbound.length,
+    outboundCalls: outbound.length,
+    missedCalls: missed.length,
+    averageDurationSeconds:
+      completed.length > 0 ? Math.round(totalDuration / completed.length) : 0,
+    totalTalkTimeSeconds: totalDuration,
+  };
+}
+
+function computeAnalytics(calls: CallLog[]): PhoneNumberAnalytics {
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayCalls = calls.filter((c) => c.timestamp >= todayStart.getTime());
+  const weekCalls = calls.filter((c) => c.timestamp >= now - 7 * dayMs);
+  const monthCalls = calls.filter((c) => c.timestamp >= now - 30 * dayMs);
+  const outboundCompleted = calls.filter(
+    (c) => c.direction === "outbound" && c.status === "completed",
+  );
+
+  return {
+    inboundCallsToday: todayCalls.filter((c) => c.direction === "inbound").length,
+    outboundCallsToday: todayCalls.filter((c) => c.direction === "outbound")
+      .length,
+    weeklyActivity: weekCalls.length,
+    monthlyActivity: monthCalls.length,
+    conversionRate:
+      outboundCompleted.length > 0
+        ? Math.round((outboundCompleted.length / calls.length) * 100)
+        : 0,
+    hotLeadsGenerated: 0,
+    dailyTrend: [],
+  };
+}
+
 export function PhoneNumberDetailPageContent({
   phoneNumberId,
 }: PhoneNumberDetailPageContentProps) {
-  const numbers = usePhoneNumbersStore((s) => s.numbers);
+  usePhoneNumberDetailGraphQL(phoneNumberId);
+
+  const phoneNumber = usePhoneNumbersStore((s) =>
+    s.numbers.find((n) => n.id === phoneNumberId),
+  );
   const setNumberStatus = usePhoneNumbersStore((s) => s.setNumberStatus);
   const isLoading = usePhoneNumberDetailStore((s) => s.isLoading);
   const error = usePhoneNumberDetailStore((s) => s.error);
   const testBanner = usePhoneNumberDetailStore((s) => s.testBanner);
-  const hydrate = usePhoneNumberDetailStore((s) => s.hydrate);
-  const reset = usePhoneNumberDetailStore((s) => s.reset);
-  const setLoading = usePhoneNumberDetailStore((s) => s.setLoading);
-  const setError = usePhoneNumberDetailStore((s) => s.setError);
+  const calls = usePhoneNumberDetailStore((s) => s.calls);
   const setTestBanner = usePhoneNumberDetailStore((s) => s.setTestBanner);
 
   const [assignDirection, setAssignDirection] = useState<
     "inbound" | "outbound" | null
   >(null);
 
-  const phoneNumber = useMemo(
-    () => findPhoneNumberInStore(numbers, phoneNumberId),
-    [numbers, phoneNumberId],
-  );
-
-  const metrics = useMemo(
-    () =>
-      phoneNumber ? getPhoneNumberMetrics(phoneNumberId) : null,
-    [phoneNumber, phoneNumberId],
-  );
-
-  const analytics = useMemo(
-    () =>
-      phoneNumber ? getPhoneNumberAnalytics(phoneNumberId) : null,
-    [phoneNumber, phoneNumberId],
-  );
-
-  const hasAnyCalls = useMemo(
-    () => getCallsForPhoneNumber(phoneNumberId).length > 0,
-    [phoneNumberId],
-  );
-
-  useEffect(() => {
-    reset();
-    setLoading(true);
-
-    const timer = setTimeout(() => {
-      const found = findPhoneNumberInStore(
-        usePhoneNumbersStore.getState().numbers,
-        phoneNumberId,
-      );
-      if (!found) {
-        setError("Phone number not found");
-        return;
-      }
-      hydrate(phoneNumberId);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [phoneNumberId, hydrate, reset, setError, setLoading]);
+  const metrics = useMemo(() => computeMetrics(calls), [calls]);
+  const analytics = useMemo(() => computeAnalytics(calls), [calls]);
+  const hasAnyCalls = calls.length > 0;
 
   function handleTestNumber() {
     setTestBanner(
@@ -109,7 +119,7 @@ export function PhoneNumberDetailPageContent({
     );
   }
 
-  if (error || !phoneNumber || !metrics || !analytics) {
+  if (error || !phoneNumber) {
     return (
       <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overscroll-contain p-6">
         <div className="flex flex-col items-center gap-3 rounded-xl border border-propnex-border bg-propnex-panel p-8 text-center">
@@ -118,12 +128,12 @@ export function PhoneNumberDetailPageContent({
             Phone number not found
           </h2>
           <p className="max-w-sm text-sm text-propnex-muted">
-            The phone number you are looking for does not exist or may have been
-            removed.
+            {error ??
+              "The phone number you are looking for does not exist or may have been removed."}
           </p>
           <Button
             nativeButton={false}
-            render={<Link href="/setup#phone-numbers" />}
+            render={<Link href="/phone-numbers" />}
             className="mt-2"
           >
             Back to Phone Numbers

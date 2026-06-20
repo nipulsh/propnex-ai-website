@@ -1,0 +1,4 @@
+{"sessionId":"5b2109","location":"context.ts:auth","message":"GraphQL auth snapshot","data":{"hasUserId":true,"hasOrgId":false},"timestamp":1781931151534,"hypothesisId":"A,C"}
+{"sessionId":"5b2109","location":"context.ts:resolveCompany","message":"Company resolution via orgId","data":{"orgId":null,"companyFound":false,"resolveCompanyError":null},"timestamp":1781931151540,"hypothesisId":"B"}
+{"sessionId":"5b2109","location":"context.ts:fallbackMembership","message":"Fallback membership lookup","data":{"dbUserFound":false,"activeMembershipCount":0,"companyFound":false},"timestamp":1781931151577,"hypothesisId":"A"}
+{"sessionId":"5b2109","location":"context.ts:noCompany","message":"Throwing Organization context required","data":{"orgId":null,"membershipCount":0},"timestamp":1781931151578,"hypothesisId":"A,D"}

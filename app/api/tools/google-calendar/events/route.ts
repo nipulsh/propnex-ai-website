@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 
-import { requireAuth } from "@/lib/api/auth";
+import { requireTenantContext } from "@/lib/api/tenant-context";
 import {
-  addCalendarEvent,
-  deleteCalendarEvent,
-  getCalendarEvents,
-  updateCalendarEvent,
-} from "@/lib/api/integration-state";
+  addCalendarEventDb,
+  deleteCalendarEventDb,
+  getCalendarEventsDb,
+  updateCalendarEventDb,
+} from "@/lib/integrations/db-state";
 
 export async function POST(req: Request) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const { error, ctx } = await requireTenantContext();
+  if (error || !ctx) return error!;
 
   const body = (await req.json()) as {
     action: "create" | "reschedule" | "cancel" | "list";
@@ -23,9 +23,9 @@ export async function POST(req: Request) {
 
   switch (body.action) {
     case "list":
-      return NextResponse.json({ events: getCalendarEvents() });
+      return NextResponse.json({ events: await getCalendarEventsDb(ctx) });
     case "create": {
-      const event = addCalendarEvent({
+      const event = await addCalendarEventDb(ctx, {
         title: body.title ?? "Appointment",
         start: body.start ?? new Date().toISOString(),
         end: body.end ?? new Date(Date.now() + 30 * 60 * 1000).toISOString(),
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       if (!body.eventId) {
         return NextResponse.json({ error: "eventId required" }, { status: 400 });
       }
-      const event = updateCalendarEvent(body.eventId, {
+      const event = await updateCalendarEventDb(ctx, body.eventId, {
         start: body.start,
         end: body.end,
       });
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       if (!body.eventId) {
         return NextResponse.json({ error: "eventId required" }, { status: 400 });
       }
-      const deleted = deleteCalendarEvent(body.eventId);
+      const deleted = await deleteCalendarEventDb(ctx, body.eventId);
       if (!deleted) {
         return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }

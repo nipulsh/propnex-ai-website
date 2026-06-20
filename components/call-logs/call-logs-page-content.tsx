@@ -4,6 +4,11 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 
 import { CallLogsFilters } from "@/components/call-logs/call-logs-filters";
+import {
+  UploadCsvButtons,
+  UploadLeadsFeedback,
+  useUploadLeads,
+} from "@/components/call-logs/upload-leads-section";
 import { CallLogsPagination } from "@/components/call-logs/call-logs-pagination";
 import { CallLogsTable } from "@/components/call-logs/call-logs-table";
 import { ExportCsvButton } from "@/components/call-logs/export-csv-button";
@@ -11,8 +16,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { BillingBanner } from "@/components/billing/billing-banner";
 import { useCallLogsGraphQL } from "@/hooks/use-call-logs-graphql";
 import {
-  callLogs,
-  filterCallLogs,
+  getDateRangeStart,
   type CallLog,
 } from "@/lib/call-logs-data";
 import {
@@ -27,18 +31,26 @@ function mapGraphQLToCallLog(
     id: log.id,
     timestamp: new Date(log.startedAt).getTime(),
     direction: log.direction as CallLog["direction"],
-    phoneNumberId: "",
+    phoneNumberId: log.phoneNumberId,
     phoneNumber: log.phoneNumber,
     lineLabel: log.lineLabel,
     leadName: log.leadName,
-    agentId: "",
+    agentId: log.agentId,
     agentName: log.agentName,
     status: log.status as CallLog["status"],
     durationSeconds: log.durationSeconds,
+    outcome: log.outcome,
+    leadTemperature: log.leadTemperature,
+    leadScore: log.leadScore,
+    callCost: log.callCost,
+    provider: log.provider,
+    summarySnippet: log.summarySnippet,
+    hasRecording: log.hasRecording,
   };
 }
 
 export function CallLogsPageContent() {
+  const upload = useUploadLeads();
   const searchParams = useSearchParams();
   const currentPage = useCallLogsStore((state) => state.currentPage);
   const dateRange = useCallLogsStore((state) => state.dateRange);
@@ -53,8 +65,9 @@ export function CallLogsPageContent() {
     () => ({
       status: status !== "all" ? status.toUpperCase() : undefined,
       aiAgentId: agentId !== "all" ? agentId : undefined,
+      dateFrom: new Date(getDateRangeStart(dateRange)).toISOString(),
     }),
-    [status, agentId],
+    [status, agentId, dateRange],
   );
 
   const { logs: gqlLogs, isLoading, error } = useCallLogsGraphQL(gqlFilter);
@@ -80,33 +93,24 @@ export function CallLogsPageContent() {
     }
   }, [searchParams, setLeadType, setStatus]);
 
-  const { logs, totalPages, totalCount } = useMemo(() => {
-    if (!error && gqlLogs.length > 0) {
-      const mapped = gqlLogs.map(mapGraphQLToCallLog);
-      return {
-        logs: mapped,
-        totalPages: 1,
-        totalCount: mapped.length,
-      };
-    }
-
-    const filtered = filterCallLogs(
-      callLogs,
-      dateRange,
-      agentId,
-      status,
-      leadType,
-    );
+  const { logs, filteredLogs, totalPages, totalCount } = useMemo(() => {
+    const mapped = gqlLogs.map(mapGraphQLToCallLog);
+    const filtered =
+      leadType === "all"
+        ? mapped
+        : mapped.filter((log) => log.leadTemperature === leadType);
     const total = filtered.length;
     const pages = Math.max(1, Math.ceil(total / CALL_LOGS_PAGE_SIZE));
-    const start = (currentPage - 1) * CALL_LOGS_PAGE_SIZE;
+    const page = Math.min(currentPage, pages);
+    const start = (page - 1) * CALL_LOGS_PAGE_SIZE;
 
     return {
       logs: filtered.slice(start, start + CALL_LOGS_PAGE_SIZE),
+      filteredLogs: filtered,
       totalPages: pages,
       totalCount: total,
     };
-  }, [currentPage, dateRange, agentId, status, leadType, gqlLogs, error]);
+  }, [gqlLogs, leadType, currentPage]);
 
   return (
     <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
@@ -115,8 +119,13 @@ export function CallLogsPageContent() {
           title="Call Logs"
           description="Monitor real-time interactions and historical performance across all your AI voice agents."
         />
-        <ExportCsvButton />
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <UploadCsvButtons upload={upload} />
+          <ExportCsvButton logs={filteredLogs} />
+        </div>
       </div>
+
+      <UploadLeadsFeedback upload={upload} />
 
       {isLoading ? (
         <BillingBanner type="info" message="Loading call logs..." />
@@ -124,8 +133,8 @@ export function CallLogsPageContent() {
 
       {error ? (
         <BillingBanner
-          type="info"
-          message="Showing cached demo data — connect your organization to load live call logs."
+          type="error"
+          message="Unable to load call logs. Please try again."
         />
       ) : null}
 

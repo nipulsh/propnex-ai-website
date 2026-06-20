@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 
@@ -22,7 +22,7 @@ import { LeadReactivationSection } from "@/components/call-details/lead-reactiva
 import { QuickActionsPanel } from "@/components/call-details/quick-actions-panel";
 import { SentimentAnalysisSection } from "@/components/call-details/sentiment-analysis-section";
 import { Button } from "@/components/ui/button";
-import { getCallDetail } from "@/lib/call-detail-data";
+import { useCallDetailGraphQL } from "@/hooks/use-call-detail-graphql";
 import { useCallDetailStore } from "@/stores/call-detail-store";
 
 type CallDetailPageContentProps = {
@@ -30,30 +30,17 @@ type CallDetailPageContentProps = {
 };
 
 export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
-  const isLoading = useCallDetailStore((s) => s.isLoading);
-  const error = useCallDetailStore((s) => s.error);
+  const { detail, isLoading, error, reload } = useCallDetailGraphQL(callId);
   const hydrate = useCallDetailStore((s) => s.hydrate);
   const reset = useCallDetailStore((s) => s.reset);
-  const setLoading = useCallDetailStore((s) => s.setLoading);
-  const setError = useCallDetailStore((s) => s.setError);
   const outcome = useCallDetailStore((s) => s.outcome);
-
-  const detail = useMemo(() => getCallDetail(callId), [callId]);
 
   useEffect(() => {
     reset();
-    setLoading(true);
-
-    const timer = setTimeout(() => {
-      if (!detail) {
-        setError("Call not found");
-        return;
-      }
+    if (detail) {
       hydrate(detail);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [callId, detail, hydrate, reset, setError, setLoading]);
+    }
+  }, [detail, hydrate, reset]);
 
   if (isLoading) {
     return (
@@ -72,16 +59,16 @@ export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
             Call not found
           </h2>
           <p className="max-w-sm text-sm text-propnex-muted">
-            The call record you are looking for does not exist or may have been
-            removed.
+            {error ?? "The call record you are looking for does not exist or may have been removed."}
           </p>
-          <Button
-            nativeButton={false}
-            render={<Link href="/call-logs" />}
-            className="mt-2"
-          >
-            Back to Call Logs
-          </Button>
+          <div className="mt-2 flex gap-3">
+            <Button variant="outline" onClick={() => void reload()}>
+              Retry
+            </Button>
+            <Button nativeButton={false} render={<Link href="/call-logs" />}>
+              Back to Call Logs
+            </Button>
+          </div>
         </div>
       </div>
     );

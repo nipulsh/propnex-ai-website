@@ -39,7 +39,7 @@ const ACTIONS = [
     title: "Upload Leads",
     description: "Import and categorize leads via CSV",
     icon: FileUp,
-    href: "/upload-csv",
+    href: "/call-logs",
   },
   {
     title: "Schedule Demo",
