@@ -2,6 +2,8 @@ import { GraphQLClient } from "graphql-request";
 
 const DEFAULT_FETCH_TIMEOUT_MS = 60_000;
 
+//serverless
+
 function getGraphQLEndpoint() {
   if (typeof window !== "undefined") {
     return `${window.location.origin}/api/graphql`;

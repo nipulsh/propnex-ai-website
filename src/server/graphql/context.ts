@@ -14,7 +14,10 @@ const tenantRepo = new TenantRepository(prisma);
 export async function createGraphQLContext(): Promise<GraphQLContext> {
   return gqlDebugTimed("context:total", async () => {
     const { userId, orgId } = await gqlDebugTimed("context:auth", () => auth());
-    gqlDebug("context:auth", { hasUserId: Boolean(userId), hasOrgId: Boolean(orgId) });
+    gqlDebug("context:auth", {
+      hasUserId: Boolean(userId),
+      hasOrgId: Boolean(orgId),
+    });
 
     if (!userId) {
       throw new UnauthorizedError();
@@ -26,7 +29,10 @@ export async function createGraphQLContext(): Promise<GraphQLContext> {
         company = await gqlDebugTimed("context:resolveCompany", () =>
           tenantService.resolveCompany(orgId),
         );
-        gqlDebug("context:resolveCompany", { orgId, companyFound: Boolean(company) });
+        gqlDebug("context:resolveCompany", {
+          orgId,
+          companyFound: Boolean(company),
+        });
       } catch (error) {
         if (!isAppError(error) || error.statusCode !== 404) {
           throw error;
@@ -80,8 +86,9 @@ export async function createGraphQLContext(): Promise<GraphQLContext> {
       throw new UnauthorizedError("Organization context required");
     }
 
-    const { user, membership } = await gqlDebugTimed("context:resolveMembership", () =>
-      tenantService.resolveMembership(company.id, userId),
+    const { user, membership } = await gqlDebugTimed(
+      "context:resolveMembership",
+      () => tenantService.resolveMembership(company.id, userId),
     );
 
     const customPermissions = membership.customRole?.permissions ?? [];
