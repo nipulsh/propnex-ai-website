@@ -12,6 +12,7 @@
     "db:studio": "dotenv -e .env.local -- prisma studio",
     "db:validate": "dotenv -e .env.local -- prisma validate",
     "db:seed:agent-library": "dotenv -e .env.local -- node scripts/seed-agent-library.mjs",
+    "db:clean": "dotenv -e .env.local -- node scripts/clean-user-data.mjs",
     "test": "npx tsx --test src/server/__tests__/**/*.test.ts",
     "postinstall": "prisma generate"
   },

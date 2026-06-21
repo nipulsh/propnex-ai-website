@@ -2,6 +2,8 @@ import { clerkClient } from "@clerk/nextjs/server";
 import type { CallVolumeRange, PrimaryUseCase } from "@prisma/client";
 import type { JwtPayload } from "@clerk/shared/types";
 
+import prisma from "@/server/lib/prisma";
+
 export type OnboardingInput = {
   companyName: string;
   phone?: string;
@@ -9,7 +11,7 @@ export type OnboardingInput = {
   callVolume: CallVolumeRange;
 };
 
-export async function isOnboardingComplete(
+async function isClerkOnboardingComplete(
   userId: string,
   sessionClaims?: JwtPayload,
 ): Promise<boolean> {
@@ -31,6 +33,36 @@ export async function isOnboardingComplete(
   } catch {
     return false;
   }
+}
+
+/** True when the user has an active company membership in MongoDB. */
+export async function hasActiveTenant(clerkUserId: string): Promise<boolean> {
+  const dbUser = await prisma.user.findUnique({
+    where: { clerkUserId },
+    select: { id: true },
+  });
+  if (!dbUser) {
+    return false;
+  }
+
+  const membership = await prisma.companyMember.findFirst({
+    where: { userId: dbUser.id, status: "ACTIVE" },
+    select: { id: true },
+  });
+
+  return Boolean(membership);
+}
+
+export async function isOnboardingComplete(
+  userId: string,
+  sessionClaims?: JwtPayload,
+): Promise<boolean> {
+  const clerkComplete = await isClerkOnboardingComplete(userId, sessionClaims);
+  if (!clerkComplete) {
+    return false;
+  }
+
+  return hasActiveTenant(userId);
 }
 
 export async function saveOnboarding(

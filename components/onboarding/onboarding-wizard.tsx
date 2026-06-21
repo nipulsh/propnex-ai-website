@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@clerk/nextjs";
 import { ArrowLeft, ArrowRight, Building2, Phone, Target } from "lucide-react";
@@ -59,6 +60,7 @@ function OptionCard({
 export function OnboardingWizard() {
   const router = useRouter();
   const { session } = useSession();
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const step = useOnboardingStore((s) => s.step);
   const companyName = useOnboardingStore((s) => s.companyName);
   const phone = useOnboardingStore((s) => s.phone);
@@ -83,17 +85,29 @@ export function OnboardingWizard() {
     }
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      await completeOnboarding({
+      const result = await completeOnboarding({
         companyName: companyName.trim(),
         phone: phone.trim(),
         primaryUseCase,
         callVolume,
       });
+
+      if (!result.success) {
+        setSubmitError(result.error);
+        return;
+      }
+
       await session?.reload();
       router.replace("/dashboard");
     } catch (error) {
       console.error("Onboarding completion failed:", error);
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while setting up your account.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -223,6 +237,15 @@ export function OnboardingWizard() {
             </div>
           ) : null}
         </div>
+
+        {submitError ? (
+          <p
+            role="alert"
+            className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {submitError}
+          </p>
+        ) : null}
 
         <div className="mt-6 flex items-center justify-between">
           <Button

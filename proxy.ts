@@ -27,8 +27,14 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();
   }
 
-  if (userId && pathname !== "/onboarding") {
-    if (!(await isOnboardingComplete(userId, sessionClaims))) {
+  if (userId) {
+    const onboardingComplete = await isOnboardingComplete(userId, sessionClaims);
+
+    if (pathname === "/onboarding" && onboardingComplete) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
+    if (pathname !== "/onboarding" && !onboardingComplete) {
       return NextResponse.redirect(new URL("/onboarding", req.url));
     }
   }

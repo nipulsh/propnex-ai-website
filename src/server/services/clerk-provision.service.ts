@@ -1,4 +1,4 @@
-import type { UserRole } from "@prisma/client";
+import type { Company, User, UserRole } from "@prisma/client";
 import { clerkClient } from "@clerk/nextjs/server";
 
 import type { OnboardingInput } from "@/lib/onboarding.server";
@@ -12,6 +12,15 @@ import { TenantRepository } from "@/server/repositories/tenant.repository";
 
 const tenantRepo = new TenantRepository(prisma);
 
+type ClerkUserSnapshot = {
+  firstName: string | null;
+  lastName: string | null;
+  imageUrl: string;
+  emailAddresses: { id: string; emailAddress: string }[];
+  primaryEmailAddressId: string | null;
+  phoneNumbers: { phoneNumber: string }[];
+};
+
 async function ensureCreditBalance(companyId: string) {
   await prisma.creditBalance.upsert({
     where: { companyId },
@@ -24,43 +33,104 @@ async function ensureCreditBalance(companyId: string) {
   });
 }
 
-async function provisionTenantInDatabase(
-  clerkUserId: string,
-  input: OnboardingInput,
-  clerkUser: {
-    firstName: string | null;
-    lastName: string | null;
-    imageUrl: string;
-    emailAddresses: { id: string; emailAddress: string }[];
-    primaryEmailAddressId: string | null;
-    phoneNumbers: { phoneNumber: string }[];
-  },
-) {
-  const primaryEmail =
+function getPrimaryEmail(clerkUser: ClerkUserSnapshot): string | null {
+  return (
     clerkUser.emailAddresses.find(
       (e) => e.id === clerkUser.primaryEmailAddressId,
-    )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
+    )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress ?? null
+  );
+}
 
+async function upsertDbUserFromClerk(
+  clerkUserId: string,
+  clerkUser: ClerkUserSnapshot,
+  phone?: string,
+) {
+  const primaryEmail = getPrimaryEmail(clerkUser);
   if (!primaryEmail) {
     throw new Error("User email is required");
   }
 
-  const dbUser = await tenantRepo.upsertUser({
+  return tenantRepo.upsertUser({
     clerkUserId,
     email: primaryEmail,
     firstName: clerkUser.firstName,
     lastName: clerkUser.lastName,
     imageUrl: clerkUser.imageUrl,
-    phone: input.phone?.trim() || clerkUser.phoneNumbers[0]?.phoneNumber,
+    phone: phone?.trim() || clerkUser.phoneNumbers[0]?.phoneNumber,
   });
+}
 
-  const existingMembership = await prisma.companyMember.findFirst({
-    where: { userId: dbUser.id, status: "ACTIVE" },
+async function getActiveCompanyForUser(userId: string) {
+  const membership = await prisma.companyMember.findFirst({
+    where: { userId, status: "ACTIVE" },
     include: { company: true },
     orderBy: { joinedAt: "desc" },
   });
-  if (existingMembership?.company) {
-    return { company: existingMembership.company, user: dbUser };
+  return membership?.company ?? null;
+}
+
+async function provisionFromClerkOrgMembership(
+  dbUser: User,
+  membership: {
+    role: string;
+    organization: { id: string; name: string };
+  },
+  metadata?: { primaryUseCase?: OnboardingInput["primaryUseCase"]; callVolume?: OnboardingInput["callVolume"] },
+): Promise<Company> {
+  const org = membership.organization;
+
+  let company = await tenantRepo.findCompanyByClerkOrgId(org.id);
+  if (!company) {
+    company = await tenantRepo.upsertCompany({
+      clerkOrganizationId: org.id,
+      name: org.name,
+      slug: companySlugFromName(org.name),
+      primaryUseCase: metadata?.primaryUseCase,
+      callVolume: metadata?.callVolume,
+    });
+  }
+
+  const role: UserRole =
+    membership.role === "org:admin"
+      ? "OWNER"
+      : mapClerkRoleToUserRole(membership.role);
+
+  await tenantRepo.upsertMembership({
+    companyId: company.id,
+    userId: dbUser.id,
+    role,
+  });
+
+  await ensureCreditBalance(company.id);
+  return company;
+}
+
+async function getClerkOrgMemberships(clerkUserId: string) {
+  const client = await clerkClient();
+  try {
+    return await client.users.getOrganizationMembershipList({
+      userId: clerkUserId,
+      limit: 10,
+    });
+  } catch (error) {
+    if (isClerkOrganizationsDisabled(error)) {
+      return { data: [], totalCount: 0 };
+    }
+    throw error;
+  }
+}
+
+async function provisionTenantInDatabase(
+  clerkUserId: string,
+  input: OnboardingInput,
+  clerkUser: ClerkUserSnapshot,
+) {
+  const dbUser = await upsertDbUserFromClerk(clerkUserId, clerkUser, input.phone);
+
+  const existingCompany = await getActiveCompanyForUser(dbUser.id);
+  if (existingCompany) {
+    return { company: existingCompany, user: dbUser };
   }
 
   const company = await prisma.company.create({
@@ -91,23 +161,29 @@ export async function provisionOrganizationForUser(
   const client = await clerkClient();
   const clerkUser = await client.users.getUser(clerkUserId);
 
-  const primaryEmail =
-    clerkUser.emailAddresses.find(
-      (e) => e.id === clerkUser.primaryEmailAddressId,
-    )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
+  const dbUser = await upsertDbUserFromClerk(clerkUserId, clerkUser, input.phone);
 
-  if (!primaryEmail) {
-    throw new Error("User email is required");
+  const existingCompany = await getActiveCompanyForUser(dbUser.id);
+  if (existingCompany) {
+    return { company: existingCompany, user: dbUser, organizationId: existingCompany.clerkOrganizationId };
   }
 
-  const dbUser = await tenantRepo.upsertUser({
-    clerkUserId,
-    email: primaryEmail,
-    firstName: clerkUser.firstName,
-    lastName: clerkUser.lastName,
-    imageUrl: clerkUser.imageUrl,
-    phone: input.phone?.trim() || clerkUser.phoneNumbers[0]?.phoneNumber,
-  });
+  const orgMemberships = await getClerkOrgMemberships(clerkUserId);
+  if (orgMemberships.data.length > 0) {
+    const company = await provisionFromClerkOrgMembership(
+      dbUser,
+      orgMemberships.data[0],
+      {
+        primaryUseCase: input.primaryUseCase,
+        callVolume: input.callVolume,
+      },
+    );
+    return {
+      company,
+      user: dbUser,
+      organizationId: company.clerkOrganizationId,
+    };
+  }
 
   try {
     const org = await client.organizations.createOrganization({
@@ -159,71 +235,33 @@ export async function syncTenantFromClerk(clerkUserId: string) {
     return null;
   }
 
-  const primaryEmail =
-    clerkUser.emailAddresses.find(
-      (e) => e.id === clerkUser.primaryEmailAddressId,
-    )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
-
-  if (!primaryEmail) {
-    return null;
-  }
-
   const metadata = getUserMetadata(
     clerkUser.unsafeMetadata as Record<string, unknown>,
   );
 
-  const dbUser = await tenantRepo.upsertUser({
-    clerkUserId,
-    email: primaryEmail,
-    firstName: clerkUser.firstName,
-    lastName: clerkUser.lastName,
-    imageUrl: clerkUser.imageUrl,
-    phone: metadata.phone ?? clerkUser.phoneNumbers[0]?.phoneNumber,
-  });
-
-  let orgMemberships: Awaited<
-    ReturnType<typeof client.users.getOrganizationMembershipList>
-  > = { data: [], totalCount: 0 };
-
+  let dbUser;
   try {
-    orgMemberships = await client.users.getOrganizationMembershipList({
-      userId: clerkUserId,
-      limit: 10,
-    });
-  } catch (error) {
-    if (!isClerkOrganizationsDisabled(error)) {
-      throw error;
-    }
+    dbUser = await upsertDbUserFromClerk(
+      clerkUserId,
+      clerkUser,
+      metadata.phone,
+    );
+  } catch {
+    return null;
   }
 
+  const existingCompany = await getActiveCompanyForUser(dbUser.id);
+  if (existingCompany) {
+    return existingCompany;
+  }
+
+  const orgMemberships = await getClerkOrgMemberships(clerkUserId);
+
   if (orgMemberships.data.length > 0) {
-    const membership = orgMemberships.data[0];
-    const org = membership.organization;
-
-    let company = await tenantRepo.findCompanyByClerkOrgId(org.id);
-    if (!company) {
-      company = await tenantRepo.upsertCompany({
-        clerkOrganizationId: org.id,
-        name: org.name,
-        slug: companySlugFromName(org.name),
-        primaryUseCase: metadata.primaryUseCase,
-        callVolume: metadata.callVolume,
-      });
-    }
-
-    const role: UserRole =
-      membership.role === "org:admin"
-        ? "OWNER"
-        : mapClerkRoleToUserRole(membership.role);
-
-    await tenantRepo.upsertMembership({
-      companyId: company.id,
-      userId: dbUser.id,
-      role,
+    return provisionFromClerkOrgMembership(dbUser, orgMemberships.data[0], {
+      primaryUseCase: metadata.primaryUseCase,
+      callVolume: metadata.callVolume,
     });
-
-    await ensureCreditBalance(company.id);
-    return company;
   }
 
   if (
@@ -242,6 +280,49 @@ export async function syncTenantFromClerk(clerkUserId: string) {
   }
 
   return null;
+}
+
+async function ensureMembershipFromWebhook(
+  clerkOrganizationId: string,
+  clerkUserId: string,
+  role: UserRole,
+) {
+  let company = await tenantRepo.findCompanyByClerkOrgId(clerkOrganizationId);
+  let user = await tenantRepo.findUserByClerkId(clerkUserId);
+
+  if (!company) {
+    const client = await clerkClient();
+    try {
+      const org = await client.organizations.getOrganization({
+        organizationId: clerkOrganizationId,
+      });
+      company = await tenantRepo.upsertCompany({
+        clerkOrganizationId: org.id,
+        name: org.name,
+        slug: companySlugFromName(org.name),
+      });
+    } catch {
+      return;
+    }
+  }
+
+  if (!user) {
+    const client = await clerkClient();
+    try {
+      const clerkUser = await client.users.getUser(clerkUserId);
+      user = await upsertDbUserFromClerk(clerkUserId, clerkUser);
+    } catch {
+      return;
+    }
+  }
+
+  await tenantRepo.upsertMembership({
+    companyId: company.id,
+    userId: user.id,
+    role,
+  });
+
+  await ensureCreditBalance(company.id);
 }
 
 export async function handleClerkWebhookEvent(
@@ -289,16 +370,9 @@ export async function handleClerkWebhookEvent(
         : (data.user_id as string);
       const role = mapClerkRoleToUserRole((data.role as string) ?? "org:member");
 
-      const company =
-        await tenantRepo.findCompanyByClerkOrgId(clerkOrganizationId);
-      const user = await tenantRepo.findUserByClerkId(clerkUserId);
-      if (!company || !user) return;
+      if (!clerkOrganizationId || !clerkUserId) return;
 
-      await tenantRepo.upsertMembership({
-        companyId: company.id,
-        userId: user.id,
-        role,
-      });
+      await ensureMembershipFromWebhook(clerkOrganizationId, clerkUserId, role);
       break;
     }
 

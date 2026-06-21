@@ -39,7 +39,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  await handleClerkWebhookEvent(event.type, event.data);
+  try {
+    await handleClerkWebhookEvent(event.type, event.data);
+  } catch (error) {
+    console.error("Clerk webhook handler failed:", error);
+    return NextResponse.json(
+      { error: "Webhook handler failed" },
+      { status: 500 },
+    );
+  }
 
   if (
     event.type === "organizationMembership.created" ||
