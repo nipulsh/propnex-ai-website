@@ -6,7 +6,14 @@ export const maxDuration = 60;
 
 const { handleRequest } = yoga;
 
-async function handleGraphQLRequest(request: Request) {
+type NextRouteContext = {
+  params: Promise<Record<string, string>>;
+};
+
+async function handleGraphQLRequest(
+  request: Request,
+  context: NextRouteContext,
+) {
   const start = performance.now();
   const requestId = crypto.randomUUID().slice(0, 8);
 
@@ -19,7 +26,7 @@ async function handleGraphQLRequest(request: Request) {
   });
 
   try {
-    const response = await handleRequest(request);
+    const response = await handleRequest(request, context);
     gqlDebug("route:handler:end", {
       requestId,
       method: request.method,
@@ -37,14 +44,14 @@ async function handleGraphQLRequest(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
-  return handleGraphQLRequest(request);
+export async function GET(request: Request, context: NextRouteContext) {
+  return handleGraphQLRequest(request, context);
 }
 
-export async function POST(request: Request) {
-  return handleGraphQLRequest(request);
+export async function POST(request: Request, context: NextRouteContext) {
+  return handleGraphQLRequest(request, context);
 }
 
-export async function OPTIONS(request: Request) {
-  return handleGraphQLRequest(request);
+export async function OPTIONS(request: Request, context: NextRouteContext) {
+  return handleGraphQLRequest(request, context);
 }
