@@ -3,15 +3,24 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { handleClerkWebhookEvent } from "@/server/services/clerk-provision.service";
+import { isClerkWebhooksEnabled } from "@/server/lib/clerk-config";
 import { cacheService } from "@/server/cache/cache.service";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (!isClerkWebhooksEnabled()) {
+    return NextResponse.json({
+      received: true,
+      skipped: true,
+      reason: "Clerk webhooks disabled; use direct API provisioning in dev",
+    });
+  }
+
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
   if (!webhookSecret) {
     return NextResponse.json(
-      { error: "Webhook secret not configured" },
+      { error: "CLERK_WEBHOOKS_ENABLED is true but CLERK_WEBHOOK_SECRET is missing" },
       { status: 500 },
     );
   }

@@ -262,6 +262,7 @@ enum SystemEventType {
 
 model Company {
   id                  String           @id @default(auto()) @map("_id") @db.ObjectId
+  /// Clerk org id (`org_…`) or synthetic `local:{clerkUserId}` when orgs are disabled.
   clerkOrganizationId String?          @unique
   name                String
   slug                String           @unique

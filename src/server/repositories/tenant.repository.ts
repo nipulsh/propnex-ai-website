@@ -4,6 +4,7 @@ import type {
   PrimaryUseCase,
   UserRole,
 } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { BaseRepository } from "@/server/repositories/base.repository";
 
@@ -67,27 +68,50 @@ export class TenantRepository extends BaseRepository {
     });
   }
 
-  upsertCompany(data: {
+  async upsertCompany(data: {
     clerkOrganizationId: string;
     name: string;
     slug: string;
     primaryUseCase?: PrimaryUseCase | null;
     callVolume?: CallVolumeRange | null;
   }) {
-    return this.prisma.company.upsert({
-      where: { clerkOrganizationId: data.clerkOrganizationId },
-      create: {
-        clerkOrganizationId: data.clerkOrganizationId,
-        name: data.name,
-        slug: data.slug,
-        primaryUseCase: data.primaryUseCase ?? undefined,
-        callVolume: data.callVolume ?? undefined,
-      },
-      update: {
-        name: data.name,
-        slug: data.slug,
-      },
-    });
+    const updateData = {
+      name: data.name,
+      ...(data.primaryUseCase !== undefined
+        ? { primaryUseCase: data.primaryUseCase }
+        : {}),
+      ...(data.callVolume !== undefined ? { callVolume: data.callVolume } : {}),
+    };
+
+    try {
+      return await this.prisma.company.upsert({
+        where: { clerkOrganizationId: data.clerkOrganizationId },
+        create: {
+          clerkOrganizationId: data.clerkOrganizationId,
+          name: data.name,
+          slug: data.slug,
+          primaryUseCase: data.primaryUseCase ?? undefined,
+          callVolume: data.callVolume ?? undefined,
+        },
+        update: updateData,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const existing = await this.findCompanyByClerkOrgId(
+          data.clerkOrganizationId,
+        );
+        if (existing) {
+          return this.prisma.company.update({
+            where: { id: existing.id },
+            data: updateData,
+          });
+        }
+      }
+      throw error;
+    }
   }
 
   upsertMembership(data: {

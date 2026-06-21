@@ -6,7 +6,8 @@ import { getUserMetadata } from "@/lib/user-metadata";
 import {
   isClerkOrganizationsDisabled,
 } from "@/server/lib/clerk-errors";
-import { companySlugFromName, mapClerkRoleToUserRole } from "@/server/lib/clerk-sync";
+import { isClerkWebhooksEnabled } from "@/server/lib/clerk-config";
+import { companySlugFromName, localClerkOrganizationId, mapClerkRoleToUserRole } from "@/server/lib/clerk-sync";
 import prisma from "@/server/lib/prisma";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
 
@@ -61,6 +62,58 @@ async function upsertDbUserFromClerk(
   });
 }
 
+async function ensureCompanyForClerkOrg(
+  clerkOrganizationId: string,
+  data: {
+    name: string;
+    slug: string;
+    primaryUseCase?: OnboardingInput["primaryUseCase"];
+    callVolume?: OnboardingInput["callVolume"];
+  },
+) {
+  return tenantRepo.upsertCompany({
+    clerkOrganizationId,
+    name: data.name,
+    slug: data.slug,
+    primaryUseCase: data.primaryUseCase,
+    callVolume: data.callVolume,
+  });
+}
+
+async function linkUserToCompany(
+  dbUser: User,
+  company: Company,
+  role: UserRole = "OWNER",
+) {
+  await tenantRepo.upsertMembership({
+    companyId: company.id,
+    userId: dbUser.id,
+    role,
+  });
+  await ensureCreditBalance(company.id);
+}
+
+async function recoverOrphanLocalCompany(
+  clerkUserId: string,
+  userId: string,
+) {
+  const orphan = await prisma.company.findFirst({
+    where: {
+      clerkOrganizationId: null,
+      members: { some: { userId, status: "ACTIVE" } },
+    },
+  });
+
+  if (!orphan) {
+    return null;
+  }
+
+  return prisma.company.update({
+    where: { id: orphan.id },
+    data: { clerkOrganizationId: localClerkOrganizationId(clerkUserId) },
+  });
+}
+
 async function getActiveCompanyForUser(userId: string) {
   const membership = await prisma.companyMember.findFirst({
     where: { userId, status: "ACTIVE" },
@@ -80,29 +133,19 @@ async function provisionFromClerkOrgMembership(
 ): Promise<Company> {
   const org = membership.organization;
 
-  let company = await tenantRepo.findCompanyByClerkOrgId(org.id);
-  if (!company) {
-    company = await tenantRepo.upsertCompany({
-      clerkOrganizationId: org.id,
-      name: org.name,
-      slug: companySlugFromName(org.name),
-      primaryUseCase: metadata?.primaryUseCase,
-      callVolume: metadata?.callVolume,
-    });
-  }
+  const company = await ensureCompanyForClerkOrg(org.id, {
+    name: org.name,
+    slug: companySlugFromName(org.name),
+    primaryUseCase: metadata?.primaryUseCase,
+    callVolume: metadata?.callVolume,
+  });
 
   const role: UserRole =
     membership.role === "org:admin"
       ? "OWNER"
       : mapClerkRoleToUserRole(membership.role);
 
-  await tenantRepo.upsertMembership({
-    companyId: company.id,
-    userId: dbUser.id,
-    role,
-  });
-
-  await ensureCreditBalance(company.id);
+  await linkUserToCompany(dbUser, company, role);
   return company;
 }
 
@@ -133,23 +176,21 @@ async function provisionTenantInDatabase(
     return { company: existingCompany, user: dbUser };
   }
 
-  const company = await prisma.company.create({
-    data: {
-      clerkOrganizationId: null,
+  const localOrgId = localClerkOrganizationId(clerkUserId);
+  let company =
+    (await tenantRepo.findCompanyByClerkOrgId(localOrgId)) ??
+    (await recoverOrphanLocalCompany(clerkUserId, dbUser.id));
+
+  if (!company) {
+    company = await ensureCompanyForClerkOrg(localOrgId, {
       name: input.companyName.trim(),
       slug: companySlugFromName(input.companyName),
       primaryUseCase: input.primaryUseCase,
       callVolume: input.callVolume,
-    },
-  });
+    });
+  }
 
-  await tenantRepo.upsertMembership({
-    companyId: company.id,
-    userId: dbUser.id,
-    role: "OWNER",
-  });
-
-  await ensureCreditBalance(company.id);
+  await linkUserToCompany(dbUser, company, "OWNER");
 
   return { company, user: dbUser };
 }
@@ -191,21 +232,14 @@ export async function provisionOrganizationForUser(
       createdBy: clerkUserId,
     });
 
-    const company = await tenantRepo.upsertCompany({
-      clerkOrganizationId: org.id,
+    const company = await ensureCompanyForClerkOrg(org.id, {
       name: input.companyName.trim(),
       slug: companySlugFromName(input.companyName),
       primaryUseCase: input.primaryUseCase,
       callVolume: input.callVolume,
     });
 
-    await tenantRepo.upsertMembership({
-      companyId: company.id,
-      userId: dbUser.id,
-      role: "OWNER",
-    });
-
-    await ensureCreditBalance(company.id);
+    await linkUserToCompany(dbUser, company, "OWNER");
 
     return { company, user: dbUser, organizationId: org.id };
   } catch (error) {
@@ -329,6 +363,10 @@ export async function handleClerkWebhookEvent(
   type: string,
   data: Record<string, unknown>,
 ) {
+  if (!isClerkWebhooksEnabled()) {
+    return;
+  }
+
   switch (type) {
     case "user.created":
     case "user.updated": {

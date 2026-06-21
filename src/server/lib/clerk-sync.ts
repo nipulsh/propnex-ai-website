@@ -13,6 +13,11 @@ export function companySlugFromName(name: string): string {
   return `${base}-${suffix}`;
 }
 
+/** Stable tenant key when Clerk Organizations are unavailable (must stay unique per user). */
+export function localClerkOrganizationId(clerkUserId: string): string {
+  return `local:${clerkUserId}`;
+}
+
 export function mapClerkRoleToUserRole(
   role: string,
 ): "OWNER" | "ADMIN" | "MANAGER" | "AGENT" {
