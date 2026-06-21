@@ -1,61 +1,37 @@
+import { gqlDebug, gqlLogError } from "@/server/graphql/debug";
 import { yoga } from "@/server/graphql/yoga";
-import { gqlDebug, gqlLog } from "@/server/graphql/debug";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-async function readOperationHint(request: Request): Promise<string | undefined> {
-  if (request.method !== "POST") return undefined;
-  try {
-    const body = (await request.clone().json()) as {
-      operationName?: string;
-      query?: string;
-    };
-    if (body.operationName) return body.operationName;
-    const match = body.query?.match(/(?:query|mutation)\s+(\w+)/);
-    return match?.[1];
-  } catch {
-    return undefined;
-  }
-}
+const { handleRequest } = yoga;
 
 async function handleGraphQLRequest(request: Request) {
   const start = performance.now();
-  const operation = await readOperationHint(request);
+  const requestId = crypto.randomUUID().slice(0, 8);
 
-  gqlLog("route:start", {
+  gqlDebug("route:handler:start", {
+    requestId,
     method: request.method,
-    operation,
     url: request.url,
+    hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+    hasClerkSecret: Boolean(process.env.CLERK_SECRET_KEY),
   });
-  gqlDebug("route:handler:start", { method: request.method });
 
   try {
-    const response = await yoga.fetch(request);
-    gqlLog("route:done", {
-      method: request.method,
-      operation,
-      status: response.status,
-      ms: Math.round(performance.now() - start),
-    });
+    const response = await handleRequest(request);
     gqlDebug("route:handler:end", {
+      requestId,
       method: request.method,
       status: response.status,
       ms: Math.round(performance.now() - start),
     });
     return response;
   } catch (error) {
-    gqlLog("route:error", {
-      method: request.method,
-      operation,
-      ms: Math.round(performance.now() - start),
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    gqlDebug("route:handler:error", {
+    gqlLogError("route:handler:error", error, {
+      requestId,
       method: request.method,
       ms: Math.round(performance.now() - start),
-      error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }

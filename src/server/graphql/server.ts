@@ -1,23 +1,28 @@
 import { makeExecutableSchema } from "@graphql-tools/schema";
+import type { GraphQLSchema } from "graphql";
 
-import { gqlLog } from "@/server/graphql/debug";
+import { gqlDebug, gqlLogError } from "@/server/graphql/debug";
 import { resolvers } from "@/server/resolvers";
 import { typeDefs } from "@/server/graphql/type-defs.generated";
 
-gqlLog("schema:init", {
-  typeDefCount: typeDefs.length,
-  hasQueryType: typeDefs.some((doc) => doc.includes("type Query")),
-  hasMutationType: typeDefs.some((doc) => doc.includes("type Mutation")),
-  env: {
-    nodeEnv: process.env.NODE_ENV,
+function buildSchema(): GraphQLSchema {
+  gqlDebug("schema:init:start", {
+    typeDefCount: typeDefs.length,
     hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
-    hasClerkSecret: Boolean(process.env.CLERK_SECRET_KEY),
-  },
-});
+    nodeEnv: process.env.NODE_ENV,
+  });
 
-export const schema = makeExecutableSchema({
-  typeDefs: [...typeDefs],
-  resolvers,
-});
+  try {
+    const built = makeExecutableSchema({
+      typeDefs: [...typeDefs],
+      resolvers,
+    });
+    gqlDebug("schema:init:done", { typeDefCount: typeDefs.length });
+    return built;
+  } catch (error) {
+    gqlLogError("schema:init:error", error, { typeDefCount: typeDefs.length });
+    throw error;
+  }
+}
 
-gqlLog("schema:ready");
+export const schema = buildSchema();

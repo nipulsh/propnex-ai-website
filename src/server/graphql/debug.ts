@@ -1,59 +1,59 @@
-function formatError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
+function isGqlTraceEnabled(): boolean {
+  if (process.env.GRAPHQL_DEBUG === "0") return false;
+  if (process.env.GRAPHQL_DEBUG === "1") return true;
+  // Auto-trace on Vercel unless explicitly disabled
+  return process.env.VERCEL === "1";
 }
 
-/** Always-on structured logs for Vercel/runtime debugging. */
-export function gqlLog(step: string, data?: Record<string, unknown>): void {
-  console.log(`[graphql] ${step}`, data ?? {});
-}
-
-export async function gqlLogTimed<T>(
-  step: string,
-  fn: () => Promise<T>,
-): Promise<T> {
-  const start = performance.now();
-  gqlLog(`${step}:start`);
-  try {
-    const result = await fn();
-    gqlLog(`${step}:done`, { ms: Math.round(performance.now() - start) });
-    return result;
-  } catch (error) {
-    gqlLog(`${step}:error`, {
-      ms: Math.round(performance.now() - start),
-      error: formatError(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    throw error;
+function formatError(error: unknown): { message: string; stack?: string } {
+  if (error instanceof Error) {
+    return { message: error.message, stack: error.stack };
   }
+  return { message: String(error) };
 }
 
 export function gqlDebug(label: string, data?: Record<string, unknown>): void {
-  if (process.env.GRAPHQL_DEBUG !== "1") return;
-  console.info(`[gql] ${label}`, { ...data, ts: Date.now() });
+  if (!isGqlTraceEnabled()) return;
+  console.log(`[gql] ${label}`, { ...data, ts: Date.now() });
+}
+
+export function gqlLogError(
+  label: string,
+  error: unknown,
+  data?: Record<string, unknown>,
+): void {
+  const { message, stack } = formatError(error);
+  console.error(`[gql] ${label}`, {
+    ...data,
+    error: message,
+    stack,
+    ts: Date.now(),
+  });
 }
 
 export async function gqlDebugTimed<T>(
   label: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  if (process.env.GRAPHQL_DEBUG !== "1") {
-    return fn();
+  const trace = isGqlTraceEnabled();
+  const start = performance.now();
+
+  if (trace) {
+    console.log(`[gql] ${label}:start`, { ts: Date.now() });
   }
 
-  const start = performance.now();
   try {
     const result = await fn();
-    console.info(`[gql] ${label}:done`, {
-      ms: Math.round(performance.now() - start),
-      ts: Date.now(),
-    });
+    if (trace) {
+      console.log(`[gql] ${label}:done`, {
+        ms: Math.round(performance.now() - start),
+        ts: Date.now(),
+      });
+    }
     return result;
   } catch (error) {
-    console.info(`[gql] ${label}:error`, {
+    gqlLogError(`${label}:error`, error, {
       ms: Math.round(performance.now() - start),
-      error: error instanceof Error ? error.message : String(error),
-      ts: Date.now(),
     });
     throw error;
   }
