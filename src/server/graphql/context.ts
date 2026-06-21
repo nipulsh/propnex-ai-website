@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 
-import { gqlDebug, gqlDebugTimed } from "@/server/graphql/debug";
+import { gqlDebug, gqlLog, gqlLogTimed } from "@/server/graphql/debug";
 import { createDataLoaders } from "@/server/graphql/dataloaders";
 import { isAppError, UnauthorizedError } from "@/server/lib/errors";
 import prisma from "@/server/lib/prisma";
@@ -12,31 +12,46 @@ import type { GraphQLContext } from "@/server/types/context";
 const tenantRepo = new TenantRepository(prisma);
 
 export async function createGraphQLContext(): Promise<GraphQLContext> {
-  return gqlDebugTimed("context:total", async () => {
-    const { userId, orgId } = await gqlDebugTimed("context:auth", () => auth());
+  return gqlLogTimed("context:total", async () => {
+    const { userId, orgId } = await gqlLogTimed("context:auth", () => auth());
+    gqlLog("context:auth:result", {
+      hasUserId: Boolean(userId),
+      hasOrgId: Boolean(orgId),
+    });
     gqlDebug("context:auth", {
       hasUserId: Boolean(userId),
       hasOrgId: Boolean(orgId),
     });
 
     if (!userId) {
+      gqlLog("context:auth:unauthorized", { reason: "missing userId" });
       throw new UnauthorizedError();
     }
 
     let company = null;
     if (orgId) {
       try {
-        company = await gqlDebugTimed("context:resolveCompany", () =>
+        company = await gqlLogTimed("context:resolveCompany", () =>
           tenantService.resolveCompany(orgId),
         );
+        gqlLog("context:resolveCompany:result", {
+          orgId,
+          companyFound: Boolean(company),
+          companyId: company?.id,
+        });
         gqlDebug("context:resolveCompany", {
           orgId,
           companyFound: Boolean(company),
         });
       } catch (error) {
         if (!isAppError(error) || error.statusCode !== 404) {
+          gqlLog("context:resolveCompany:throw", {
+            orgId,
+            error: error instanceof Error ? error.message : String(error),
+          });
           throw error;
         }
+        gqlLog("context:resolveCompany:fallback", { orgId });
         gqlDebug("context:resolveCompany", {
           orgId,
           companyFound: false,
@@ -46,20 +61,22 @@ export async function createGraphQLContext(): Promise<GraphQLContext> {
     }
 
     if (!company) {
-      let user = await gqlDebugTimed("context:findUser", () =>
+      let user = await gqlLogTimed("context:findUser", () =>
         tenantRepo.findUserByClerkId(userId),
       );
+      gqlLog("context:findUser:result", { dbUserFound: Boolean(user) });
 
       if (!user) {
-        user = await gqlDebugTimed("context:syncUser", () =>
+        user = await gqlLogTimed("context:syncUser", () =>
           tenantService.ensureUserFromClerk(userId),
         );
+        gqlLog("context:syncUser:result", { dbUserFound: Boolean(user) });
       }
 
       gqlDebug("context:fallbackMembership", { dbUserFound: Boolean(user) });
 
       if (user) {
-        const membership = await gqlDebugTimed("context:membership", () =>
+        const membership = await gqlLogTimed("context:membership", () =>
           prisma.companyMember.findFirst({
             where: { userId: user.id, status: "ACTIVE" },
             include: { company: true },
@@ -67,6 +84,11 @@ export async function createGraphQLContext(): Promise<GraphQLContext> {
           }),
         );
         company = membership?.company ?? null;
+        gqlLog("context:membership:result", {
+          dbUserFound: true,
+          companyFound: Boolean(company),
+          companyId: company?.id,
+        });
         gqlDebug("context:fallbackMembership", {
           dbUserFound: true,
           companyFound: Boolean(company),
@@ -75,27 +97,42 @@ export async function createGraphQLContext(): Promise<GraphQLContext> {
     }
 
     if (!company) {
-      company = await gqlDebugTimed("context:syncTenant", () =>
+      company = await gqlLogTimed("context:syncTenant", () =>
         syncTenantFromClerk(userId),
       );
+      gqlLog("context:syncTenant:result", {
+        companyFound: Boolean(company),
+        companyId: company?.id,
+      });
       gqlDebug("context:syncTenant", { companyFound: Boolean(company) });
     }
 
     if (!company) {
+      gqlLog("context:noCompany", { orgId, hasUserId: Boolean(userId) });
       gqlDebug("context:noCompany", { orgId, hasUserId: Boolean(userId) });
       throw new UnauthorizedError("Organization context required");
     }
 
-    const { user, membership } = await gqlDebugTimed(
+    const { user, membership } = await gqlLogTimed(
       "context:resolveMembership",
       () => tenantService.resolveMembership(company.id, userId),
     );
+    gqlLog("context:resolveMembership:result", {
+      userId: user.id,
+      role: membership.role,
+    });
 
     const customPermissions = membership.customRole?.permissions ?? [];
-    const permissions = await gqlDebugTimed("context:permissions", () =>
+    const permissions = await gqlLogTimed("context:permissions", () =>
       tenantService.getPermissions(user.id, membership.role, customPermissions),
     );
 
+    gqlLog("context:done", {
+      companyId: company.id,
+      userId: user.id,
+      role: membership.role,
+      permissionCount: permissions.length,
+    });
     gqlDebug("context:done", {
       companyId: company.id,
       userId: user.id,

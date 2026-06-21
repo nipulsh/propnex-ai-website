@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { GraphQLError } from "graphql";
 
+import { gqlLog } from "@/server/graphql/debug";
 import { isAppError, type AppError } from "@/server/lib/errors";
 
 function unwrapError(error: unknown): unknown {
@@ -106,24 +107,38 @@ export function maskGraphQLError(
   const root = unwrapError(error);
 
   if (isAppError(error) || isAppError(root)) {
-    return toAppGraphQLError(isAppError(error) ? error : (root as AppError));
+    const appError = isAppError(error) ? error : (root as AppError);
+    gqlLog("error:app", {
+      code: appError.code,
+      statusCode: appError.statusCode,
+      message: appError.message,
+    });
+    return toAppGraphQLError(appError);
   }
 
   if (
     (error instanceof Error && isPrismaClientError(error)) ||
     (root instanceof Error && isPrismaClientError(root))
   ) {
-    return toPrismaGraphQLError(
-      root instanceof Error ? root : (error as Error),
-      isDev,
-    );
+    const prismaError = root instanceof Error ? root : (error as Error);
+    gqlLog("error:prisma", {
+      message: prismaError.message,
+      stack: prismaError.stack,
+    });
+    return toPrismaGraphQLError(prismaError, isDev);
   }
 
   if (error instanceof GraphQLError) {
+    gqlLog("error:graphql", { message: error.message });
     return error;
   }
 
   if (!isDev) {
+    gqlLog("error:internal", {
+      message,
+      root: root instanceof Error ? root.message : String(root),
+      stack: root instanceof Error ? root.stack : undefined,
+    });
     return new GraphQLError(message, {
       extensions: {
         code: "INTERNAL_SERVER_ERROR",
