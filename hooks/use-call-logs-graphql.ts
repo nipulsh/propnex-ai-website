@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-import { fetchCallLogsPage } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
 import type { CallLogsPageResult } from "@/lib/graphql/queries/call-logs";
 import type { CallOutcome, LeadTemperature } from "@/lib/call-detail-data";
 import { getLeadTemperatureForCall } from "@/lib/call-detail-data";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 
 type CallLogNode = CallLogsPageResult["callLogs"]["connection"]["edges"][number]["node"];
 
@@ -20,6 +21,7 @@ export type GraphQLCallLog = {
   agentId: string;
   phoneNumber: string;
   lineLabel: string;
+  leadPhone: string;
   phoneNumberId: string;
   outcome: CallOutcome | null;
   leadTemperature: LeadTemperature;
@@ -68,9 +70,9 @@ function mapNode(node: CallLogNode): GraphQLCallLog {
     leadName,
     agentName: node.aiAgent?.name ?? "Unassigned",
     agentId: node.aiAgent?.id ?? "",
-    phoneNumber:
-      node.phoneNumber?.number ?? node.lead?.phone ?? "—",
+    phoneNumber: node.phoneNumber?.number ?? "—",
     lineLabel: node.phoneNumber?.label ?? "",
+    leadPhone: node.lead?.phone ?? "—",
     phoneNumberId: node.phoneNumber?.id ?? "",
     outcome: toOutcome(node.outcome),
     leadTemperature: toTemperature(node.lead?.temperature, node.id),
@@ -89,30 +91,51 @@ export function useCallLogsGraphQL(filter?: Record<string, unknown>) {
   const [endCursor, setEndCursor] = useState<string | null>(null);
   const [hasNextPage, setHasNextPage] = useState(false);
 
-  const load = useCallback(
-    async (after?: string) => {
-      setIsLoading(true);
-      try {
-        const data = await fetchCallLogsPage(after, filter);
-        const connection = data.callLogs.connection;
-        const mapped = connection.edges.map(({ node }) => mapNode(node));
+  const applyPageData = useCallback((data: CallLogsPageResult) => {
+    const connection = data.callLogs.connection;
+    const mapped = connection.edges.map(({ node }) => mapNode(node));
+    setLogs(mapped);
+    setEndCursor(connection.pageInfo.endCursor);
+    setHasNextPage(connection.pageInfo.hasNextPage);
+    setError(null);
+  }, []);
 
-        setLogs((prev) => (after ? [...prev, ...mapped] : mapped));
-        setEndCursor(connection.pageInfo.endCursor);
-        setHasNextPage(connection.pageInfo.hasNextPage);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load call logs");
-      } finally {
-        setIsLoading(false);
-      }
-    },
+  const fetchPage = useCallback(
+    () =>
+      fetchCachedPage<CallLogsPageResult>("call-logs", {
+        filter,
+      }),
     [filter],
   );
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { reload } = useCachedPagePoll({
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => setError(message),
+    onLoading: setIsLoading,
+    deps: [filter],
+  });
+
+  const loadMore = useCallback(async () => {
+    if (!endCursor || !hasNextPage) return;
+    setIsLoading(true);
+    try {
+      const data = await fetchCachedPage<CallLogsPageResult>("call-logs", {
+        after: endCursor,
+        filter,
+      });
+      const connection = data.callLogs.connection;
+      const mapped = connection.edges.map(({ node }) => mapNode(node));
+      setLogs((prev) => [...prev, ...mapped]);
+      setEndCursor(connection.pageInfo.endCursor);
+      setHasNextPage(connection.pageInfo.hasNextPage);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load call logs");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [endCursor, filter, hasNextPage]);
 
   return {
     logs,
@@ -120,10 +143,8 @@ export function useCallLogsGraphQL(filter?: Record<string, unknown>) {
     error,
     hasNextPage,
     loadMore: () => {
-      if (endCursor && hasNextPage) {
-        void load(endCursor);
-      }
+      void loadMore();
     },
-    reload: () => load(),
+    reload,
   };
 }

@@ -4,11 +4,6 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 
 import { CallLogsFilters } from "@/components/call-logs/call-logs-filters";
-import {
-  UploadCsvButtons,
-  UploadLeadsFeedback,
-  useUploadLeads,
-} from "@/components/call-logs/upload-leads-section";
 import { CallLogsPagination } from "@/components/call-logs/call-logs-pagination";
 import { CallLogsTable } from "@/components/call-logs/call-logs-table";
 import { ExportCsvButton } from "@/components/call-logs/export-csv-button";
@@ -34,6 +29,7 @@ function mapGraphQLToCallLog(
     phoneNumberId: log.phoneNumberId,
     phoneNumber: log.phoneNumber,
     lineLabel: log.lineLabel,
+    leadPhone: log.leadPhone,
     leadName: log.leadName,
     agentId: log.agentId,
     agentName: log.agentName,
@@ -50,7 +46,6 @@ function mapGraphQLToCallLog(
 }
 
 export function CallLogsPageContent() {
-  const upload = useUploadLeads();
   const searchParams = useSearchParams();
   const currentPage = useCallLogsStore((state) => state.currentPage);
   const dateRange = useCallLogsStore((state) => state.dateRange);
@@ -120,12 +115,9 @@ export function CallLogsPageContent() {
           description="Monitor real-time interactions and historical performance across all your AI voice agents."
         />
         <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <UploadCsvButtons upload={upload} />
           <ExportCsvButton logs={filteredLogs} />
         </div>
       </div>
-
-      <UploadLeadsFeedback upload={upload} />
 
       {isLoading ? (
         <BillingBanner type="info" message="Loading call logs..." />

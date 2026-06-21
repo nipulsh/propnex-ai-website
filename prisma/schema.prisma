@@ -279,6 +279,7 @@ model Company {
   pipelineStages     LeadPipelineStage[]
   leads              Lead[]
   phoneNumbers       PhoneNumber[]
+  uploadedContacts   UploadedContact[]
   aiAgents           AiAgent[]
   callLogs           CallLog[]
   campaigns          Campaign[]
@@ -517,6 +518,19 @@ model PhoneNumber {
 
   @@unique([companyId, number])
   @@index([companyId, status])
+}
+
+model UploadedContact {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  companyId String   @db.ObjectId
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, phone])
+  @@index([companyId, createdAt])
 }
 
 model CallLog {

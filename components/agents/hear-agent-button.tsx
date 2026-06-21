@@ -4,6 +4,10 @@ import { useCallback, useRef, useState } from "react";
 import { Pause, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  claimAgentPlayback,
+  releaseAgentPlayback,
+} from "@/lib/agent-audio-playback";
 import type { Agent } from "@/lib/agents-data";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +24,10 @@ export function HearAgentButton({ agent, className }: HearAgentButtonProps) {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      audioRef.current = null;
     }
     window.speechSynthesis?.cancel();
+    releaseAgentPlayback(stopPlayback);
     setIsPlaying(false);
   }, []);
 
@@ -31,10 +37,15 @@ export function HearAgentButton({ agent, className }: HearAgentButtonProps) {
       return;
     }
 
+    claimAgentPlayback(stopPlayback);
+
     if (agent.demoAudioUrl) {
       const audio = new Audio(agent.demoAudioUrl);
       audioRef.current = audio;
-      audio.onended = () => setIsPlaying(false);
+      audio.onended = () => {
+        releaseAgentPlayback(stopPlayback);
+        setIsPlaying(false);
+      };
       audio.onerror = () => {
         setIsPlaying(false);
         speakFirstMessage();
@@ -51,10 +62,14 @@ export function HearAgentButton({ agent, className }: HearAgentButtonProps) {
 
     function speakFirstMessage() {
       if (!window.speechSynthesis) {
+        releaseAgentPlayback(stopPlayback);
         return;
       }
       const utterance = new SpeechSynthesisUtterance(agent.firstMessage);
-      utterance.onend = () => setIsPlaying(false);
+      utterance.onend = () => {
+        releaseAgentPlayback(stopPlayback);
+        setIsPlaying(false);
+      };
       setIsPlaying(true);
       window.speechSynthesis.speak(utterance);
     }

@@ -74,6 +74,7 @@ export class CreditsService {
     });
 
     await cacheService.invalidateCompanyCredits(ctx.companyId);
+    await cacheService.invalidateBillingPages(ctx.companyId);
     await eventsService.emit(ctx, {
       type: "CALL_COMPLETED",
       entityType: "CallLog",
@@ -99,6 +100,7 @@ export class CreditsService {
     });
 
     await cacheService.invalidateCompanyCredits(ctx.companyId);
+    await cacheService.invalidateBillingPages(ctx.companyId);
     return usage;
   }
 }

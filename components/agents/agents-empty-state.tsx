@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bot, Library, Plus } from "lucide-react";
+import { Bot, Library } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -19,23 +19,14 @@ export function AgentsEmptyState({ hasFilters }: AgentsEmptyStateProps) {
       <p className="mt-2 max-w-sm text-sm text-propnex-muted">
         {hasFilters
           ? "Try adjusting your search or filter criteria to find agents."
-          : "Create a custom agent or deploy a ready-made template from the Agent Library."}
+          : "Browse ready-made voice agents in the Agent Library."}
       </p>
       {!hasFilters ? (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <Button
             nativeButton={false}
-            render={<Link href="/agents/create" />}
-            className="gap-2"
-          >
-            <Plus className="size-4" />
-            Add Agent
-          </Button>
-          <Button
-            nativeButton={false}
             render={<Link href="/agents/library" />}
-            variant="outline"
-            className="gap-2 border-propnex-border bg-propnex-panel"
+            className="gap-2"
           >
             <Library className="size-4" />
             Open Agent Library

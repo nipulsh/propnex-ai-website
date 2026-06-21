@@ -1,9 +1,6 @@
-import { CreateAgentPageContent } from "@/components/agents/create/create-agent-page-content";
+import { redirect } from "next/navigation";
 
+// CreateAgentPageContent kept at components/agents/create/create-agent-page-content.tsx
 export default function CreateAgentPage() {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CreateAgentPageContent />
-    </div>
-  );
+  redirect("/agents/library");
 }

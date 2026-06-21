@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 
-import { fetchHomePage } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
+import type { HomePageResult } from "@/lib/graphql/queries";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 import { useHomeDashboardStore } from "@/stores/home-dashboard-store";
 
 export function useHomeDashboardGraphQL() {
@@ -10,19 +12,17 @@ export function useHomeDashboardGraphQL() {
   const setError = useHomeDashboardStore((s) => s.setError);
   const setPageData = useHomeDashboardStore((s) => s.setPageData);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchHomePage();
-      setPageData(data);
-    } catch {
-      setError(true);
-    }
-  }, [setError, setLoading, setPageData]);
+  const fetchPage = useCallback(
+    () => fetchCachedPage<HomePageResult>("home"),
+    [],
+  );
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const { reload } = useCachedPagePoll({
+    fetchPage,
+    onData: setPageData,
+    onError: () => setError(true),
+    onLoading: setLoading,
+  });
 
   return { reload };
 }

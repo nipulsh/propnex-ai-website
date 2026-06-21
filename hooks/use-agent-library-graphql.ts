@@ -1,42 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-import {
-  fetchAgentLibraryBySlug,
-  fetchAgentLibraryList,
-} from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
+import type { AgentLibraryBySlugResult, AgentLibraryListResult } from "@/lib/graphql/queries";
 import {
   mapGraphQLLibraryEntryToTemplate,
   type AgentLibraryTemplate,
 } from "@/lib/agent-library-data";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 
 export function useAgentLibraryGraphQL() {
   const [templates, setTemplates] = useState<AgentLibraryTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAgentLibraryList();
-      const mapped = data.agentLibrary.list.map(mapGraphQLLibraryEntryToTemplate);
-      setTemplates(mapped);
-      setError(null);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load agent library",
-      );
-    } finally {
-      setLoading(false);
-    }
+  const applyPageData = useCallback((data: AgentLibraryListResult) => {
+    const mapped = data.agentLibrary.list.map(mapGraphQLLibraryEntryToTemplate);
+    setTemplates(mapped);
+    setError(null);
   }, []);
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const fetchPage = useCallback(
+    () => fetchCachedPage<AgentLibraryListResult>("agent-library"),
+    [],
+  );
 
-  return { templates, loading, error, reload };
+  const { reload } = useCachedPagePoll({
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => setError(message),
+  });
+
+  return { templates, error, reload };
 }
 
 export function useAgentLibraryTemplate(slug: string) {
@@ -44,37 +39,28 @@ export function useAgentLibraryTemplate(slug: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const applyPageData = useCallback((data: AgentLibraryBySlugResult) => {
+    const entry = data.agentLibrary.bySlug;
+    setTemplate(entry ? mapGraphQLLibraryEntryToTemplate(entry) : null);
+    setError(null);
+  }, []);
 
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await fetchAgentLibraryBySlug(slug);
-        const entry = data.agentLibrary.bySlug;
-        if (!cancelled) {
-          setTemplate(
-            entry ? mapGraphQLLibraryEntryToTemplate(entry) : null,
-          );
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Failed to load template",
-          );
-          setTemplate(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
+  const fetchPage = useCallback(
+    () => fetchCachedPage<AgentLibraryBySlugResult>("agent-template", { slug }),
+    [slug],
+  );
 
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
+  useCachedPagePoll({
+    enabled: Boolean(slug),
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => {
+      setError(message);
+      setTemplate(null);
+    },
+    onLoading: setLoading,
+    deps: [slug],
+  });
 
   return { template, loading, error };
 }

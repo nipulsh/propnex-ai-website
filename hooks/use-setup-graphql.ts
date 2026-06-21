@@ -1,33 +1,34 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback } from "react";
 
-import { fetchSetupPage } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
+import type { SetupPageResult } from "@/lib/graphql/queries";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 import { useSetupStore } from "@/stores/setup-store";
 
 export function useSetupGraphQL() {
   const setPhoneNumbersFromApi = useSetupStore((s) => s.setPhoneNumbersFromApi);
   const setIntegrationsFromApi = useSetupStore((s) => s.setIntegrationsFromApi);
 
-  useEffect(() => {
-    let cancelled = false;
+  const applyPageData = useCallback(
+    (data: SetupPageResult) => {
+      setIntegrationsFromApi(data.integrations.list);
+      setPhoneNumbersFromApi(data.phoneNumbers.list);
+    },
+    [setIntegrationsFromApi, setPhoneNumbersFromApi],
+  );
 
-    async function load() {
-      try {
-        const data = await fetchSetupPage();
-        if (cancelled) return;
+  const fetchPage = useCallback(
+    () => fetchCachedPage<SetupPageResult>("setup"),
+    [],
+  );
 
-        setIntegrationsFromApi(data.integrations.list);
-        setPhoneNumbersFromApi(data.phoneNumbers.list);
-      } catch {
-        // Setup wizard keeps local defaults on failure
-      }
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [setIntegrationsFromApi, setPhoneNumbersFromApi]);
+  useCachedPagePoll({
+    fetchPage,
+    onData: applyPageData,
+    onError: () => {
+      // Setup wizard keeps local defaults on failure
+    },
+  });
 }

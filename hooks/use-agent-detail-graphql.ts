@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect } from "react";
 
-import { fetchAgentDetailPage } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
 import {
   mapGraphQLAgentToUI,
   mapGraphQLCallLogToUI,
 } from "@/lib/mappers/agent.mapper";
 import { mapGraphQLPhoneNumberToUI } from "@/lib/mappers/phone-number.mapper";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 import { useAgentDetailStore } from "@/stores/agent-detail-store";
 import { useAgentsStore } from "@/stores/agents-store";
 
@@ -20,10 +21,18 @@ export function useAgentDetailGraphQL(agentId: string) {
   const setAssignedNumbers = useAgentDetailStore((s) => s.setAssignedNumbers);
   const reset = useAgentDetailStore((s) => s.reset);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAgentDetailPage(agentId);
+  const applyPageData = useCallback(
+    (data: {
+      agents: { byId: Record<string, unknown> | null };
+      phoneNumbers: { list: Record<string, unknown>[] };
+      callLogs: {
+        connection: {
+          edges: {
+            node: Record<string, unknown>;
+          }[];
+        };
+      };
+    }) => {
       const agent = data.agents.byId;
 
       if (!agent) {
@@ -65,25 +74,45 @@ export function useAgentDetailGraphQL(agentId: string) {
       setCalls(calls);
       hydrate(agentId);
       setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load agent");
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    agentId,
-    hydrate,
-    upsertAgent,
-    setAssignedNumbers,
-    setCalls,
-    setError,
-    setLoading,
-  ]);
+    },
+    [
+      agentId,
+      hydrate,
+      upsertAgent,
+      setAssignedNumbers,
+      setCalls,
+      setError,
+    ],
+  );
+
+  const fetchPage = useCallback(
+    () =>
+      fetchCachedPage<{
+        agents: { byId: Record<string, unknown> | null };
+        phoneNumbers: { list: Record<string, unknown>[] };
+        callLogs: {
+          connection: {
+            edges: {
+              node: Record<string, unknown>;
+            }[];
+          };
+        };
+      }>("agent-detail", { id: agentId }),
+    [agentId],
+  );
+
+  const { reload } = useCachedPagePoll({
+    enabled: Boolean(agentId),
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => setError(message),
+    onLoading: setLoading,
+    deps: [agentId],
+  });
 
   useEffect(() => {
     reset();
-    void reload();
-  }, [agentId, reload, reset]);
+  }, [agentId, reset]);
 
   return { reload };
 }

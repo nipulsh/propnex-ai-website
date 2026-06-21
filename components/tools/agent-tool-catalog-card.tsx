@@ -24,7 +24,7 @@ export function AgentToolCatalogCard({
 
   function handleConfigure() {
     if (agents.length === 0) {
-      router.push("/agents/create");
+      router.push("/agents/library");
       return;
     }
     if (agents.length === 1) {

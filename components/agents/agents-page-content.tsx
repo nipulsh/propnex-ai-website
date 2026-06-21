@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Library, Plus } from "lucide-react";
+import { Library } from "lucide-react";
 
 import { AgentCard } from "@/components/agents/agent-card";
 import { AgentsEmptyState } from "@/components/agents/agents-empty-state";
@@ -81,14 +81,6 @@ export function AgentsPageContent() {
             >
               <Library className="size-4" />
               Agent Library
-            </Button>
-            <Button
-              nativeButton={false}
-              render={<Link href="/agents/create" />}
-              className="h-9 gap-2 shadow-[0_0_20px_color-mix(in_srgb,var(--propnex-accent)_35%,transparent)]"
-            >
-              <Plus className="size-4" />
-              Add Agent
             </Button>
           </div>
         </div>

@@ -132,6 +132,29 @@ type PhoneNumbersMutations {
   update(id: ID!, input: UpdatePhoneNumberInput!): PhoneNumber!
 }
 
+type UploadedContact {
+  id: ID!
+  phone: String!
+  createdAt: String!
+}
+
+type UploadedContactsQueries {
+  list: [UploadedContact!]!
+}
+
+type UploadedContactImportResult {
+  created: Int!
+  skipped: Int!
+  invalid: Int!
+}
+
+type UploadedContactsMutations {
+  create(phone: String!): UploadedContact!
+  importPhones(phones: [String!]!): UploadedContactImportResult!
+  delete(id: ID!): Boolean!
+  bulkDelete(ids: [ID!]!): Int!
+}
+
 input LeadFilter {
   dormantOnly: Boolean
   minDaysInactive: Int

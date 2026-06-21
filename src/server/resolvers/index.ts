@@ -14,6 +14,7 @@ import {
   notificationsService,
   schedulerService,
 } from "@/server/services/notifications.service";
+import { uploadedContactsService } from "@/server/services/uploaded-contacts.service";
 import { tenantService } from "@/server/services/tenant.service";
 
 function parseCallLogFilter(filter?: {
@@ -63,6 +64,7 @@ export const resolvers = {
     agents: () => ({}),
     agentLibrary: () => ({}),
     phoneNumbers: () => ({}),
+    uploadedContacts: () => ({}),
     leads: () => ({}),
     campaigns: () => ({}),
     notifications: () => ({}),
@@ -76,6 +78,7 @@ export const resolvers = {
     callLogs: () => ({}),
     agents: () => ({}),
     phoneNumbers: () => ({}),
+    uploadedContacts: () => ({}),
     leads: () => ({}),
   },
 
@@ -202,6 +205,34 @@ export const resolvers = {
       args: { id: string; input: Record<string, unknown> },
       ctx: TenantContext,
     ) => phoneNumbersService.update(ctx, args.id, args.input as never),
+  },
+
+  UploadedContactsQueries: {
+    list: (_: unknown, __: unknown, ctx: TenantContext) =>
+      uploadedContactsService.list(ctx),
+  },
+
+  UploadedContactsMutations: {
+    create: (
+      _: unknown,
+      args: { phone: string },
+      ctx: TenantContext,
+    ) => uploadedContactsService.create(ctx, args.phone),
+    importPhones: (
+      _: unknown,
+      args: { phones: string[] },
+      ctx: TenantContext,
+    ) => uploadedContactsService.importPhones(ctx, args.phones),
+    delete: (
+      _: unknown,
+      args: { id: string },
+      ctx: TenantContext,
+    ) => uploadedContactsService.delete(ctx, args.id),
+    bulkDelete: (
+      _: unknown,
+      args: { ids: string[] },
+      ctx: TenantContext,
+    ) => uploadedContactsService.bulkDelete(ctx, args.ids),
   },
 
   LeadsQueries: {

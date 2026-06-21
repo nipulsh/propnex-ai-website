@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 
 import {
   createAgent as createAgentApi,
-  fetchAgentsList,
   updateAgent as updateAgentApi,
 } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
 import {
   mapGraphQLAgentToUI,
   mapUIAgentToCreateInput,
 } from "@/lib/mappers/agent.mapper";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 import { useAgentsStore } from "@/stores/agents-store";
 
 export function useAgentsGraphQL() {
@@ -18,25 +19,35 @@ export function useAgentsGraphQL() {
   const setLoading = useAgentsStore((s) => s.setLoading);
   const setError = useAgentsStore((s) => s.setError);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAgentsList();
+  const applyPageData = useCallback(
+    (data: {
+      agents: {
+        list: Record<string, unknown>[];
+      };
+    }) => {
       const mapped = data.agents.list.map((agent) =>
         mapGraphQLAgentToUI(agent as never),
       );
       setAgents(mapped);
       setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load agents");
-    } finally {
-      setLoading(false);
-    }
-  }, [setAgents, setError, setLoading]);
+    },
+    [setAgents, setError],
+  );
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const fetchPage = useCallback(
+    () =>
+      fetchCachedPage<{
+        agents: { list: Record<string, unknown>[] };
+      }>("agents"),
+    [],
+  );
+
+  const { reload } = useCachedPagePoll({
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => setError(message),
+    onLoading: setLoading,
+  });
 
   return { reload };
 }

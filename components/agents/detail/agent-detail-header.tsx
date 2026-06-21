@@ -80,14 +80,6 @@ export function AgentDetailHeader({
 
         <div className="flex flex-wrap gap-2">
           <Button
-            nativeButton={false}
-            render={<Link href={`/agents/create?edit=${agent.id}`} />}
-            variant="outline"
-            className="border-propnex-border bg-propnex-panel"
-          >
-            Edit Agent
-          </Button>
-          <Button
             type="button"
             variant="outline"
             onClick={handleToggle}

@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect } from "react";
 
-import { fetchPhoneNumberDetail } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
 import { mapGraphQLCallLogToUI } from "@/lib/mappers/agent.mapper";
 import { mapGraphQLPhoneNumberToUI } from "@/lib/mappers/phone-number.mapper";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 import { usePhoneNumberDetailStore } from "@/stores/phone-number-detail-store";
 import { usePhoneNumbersStore } from "@/stores/phone-numbers-store";
 
@@ -16,10 +17,17 @@ export function usePhoneNumberDetailGraphQL(phoneNumberId: string) {
   const setCalls = usePhoneNumberDetailStore((s) => s.setCalls);
   const reset = usePhoneNumberDetailStore((s) => s.reset);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchPhoneNumberDetail(phoneNumberId);
+  const applyPageData = useCallback(
+    (data: {
+      phoneNumbers: { byId: Record<string, unknown> | null };
+      callLogs: {
+        connection: {
+          edges: {
+            node: Record<string, unknown>;
+          }[];
+        };
+      };
+    }) => {
       const phoneNumber = data.phoneNumbers.byId;
 
       if (!phoneNumber) {
@@ -60,26 +68,37 @@ export function usePhoneNumberDetailGraphQL(phoneNumberId: string) {
       setCalls(calls);
       hydrate(phoneNumberId);
       setError(null);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load phone number",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    phoneNumberId,
-    hydrate,
-    upsertNumber,
-    setCalls,
-    setError,
-    setLoading,
-  ]);
+    },
+    [hydrate, phoneNumberId, setCalls, setError, upsertNumber],
+  );
+
+  const fetchPage = useCallback(
+    () =>
+      fetchCachedPage<{
+        phoneNumbers: { byId: Record<string, unknown> | null };
+        callLogs: {
+          connection: {
+            edges: {
+              node: Record<string, unknown>;
+            }[];
+          };
+        };
+      }>("phone-detail", { id: phoneNumberId }),
+    [phoneNumberId],
+  );
+
+  const { reload } = useCachedPagePoll({
+    enabled: Boolean(phoneNumberId),
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => setError(message),
+    onLoading: setLoading,
+    deps: [phoneNumberId],
+  });
 
   useEffect(() => {
     reset();
-    void reload();
-  }, [phoneNumberId, reload, reset]);
+  }, [phoneNumberId, reset]);
 
   return { reload };
 }

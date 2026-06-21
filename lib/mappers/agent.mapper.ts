@@ -127,6 +127,7 @@ type GraphQLCallLogNode = {
     id: string;
     firstName?: string | null;
     lastName?: string | null;
+    phone?: string | null;
   } | null;
 };
 
@@ -142,6 +143,7 @@ export function mapGraphQLCallLogToUI(
     phoneNumberId: "",
     phoneNumber: "",
     lineLabel: "",
+    leadPhone: node.lead?.phone ?? "—",
     leadName:
       [node.lead?.firstName, node.lead?.lastName].filter(Boolean).join(" ") ||
       "Unknown",

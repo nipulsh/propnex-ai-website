@@ -7,6 +7,8 @@ import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { Button } from "@/components/ui/button";
 import type { AgentLibraryTemplate } from "@/lib/agent-library-data";
 
+const DEPLOY_UI_ENABLED = false;
+
 type LibraryTemplateCardProps = {
   template: AgentLibraryTemplate;
   onPreview: (template: AgentLibraryTemplate) => void;
@@ -76,17 +78,19 @@ export function LibraryTemplateCard({
           <Eye className="size-3.5" />
           Preview
         </Button>
-        <Button
-          nativeButton={false}
-          render={
-            <Link href={`/agents/library/${template.id}/deploy`} />
-          }
-          size="sm"
-          className="flex-1 gap-1.5 text-xs"
-        >
-          <Rocket className="size-3.5" />
-          Deploy
-        </Button>
+        {DEPLOY_UI_ENABLED ? (
+          <Button
+            nativeButton={false}
+            render={
+              <Link href={`/agents/library/${template.id}/deploy`} />
+            }
+            size="sm"
+            className="flex-1 gap-1.5 text-xs"
+          >
+            <Rocket className="size-3.5" />
+            Deploy
+          </Button>
+        ) : null}
       </div>
     </article>
   );

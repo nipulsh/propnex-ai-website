@@ -90,6 +90,7 @@ type Query {
   analytics: AnalyticsQueries!
   agents: AgentsQueries!
   phoneNumbers: PhoneNumbersQueries!
+  uploadedContacts: UploadedContactsQueries!
   leads: LeadsQueries!
   campaigns: CampaignsQueries!
   notifications: NotificationQueries!
@@ -103,5 +104,6 @@ type Mutation {
   callLogs: CallLogsMutations!
   agents: AgentsMutations!
   phoneNumbers: PhoneNumbersMutations!
+  uploadedContacts: UploadedContactsMutations!
   leads: LeadsMutations!
 }

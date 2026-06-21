@@ -1,5 +1,6 @@
 import type { AgentToolId as PrismaAgentToolId, IntegrationType, Prisma } from "@prisma/client";
 
+import { cacheService } from "@/server/cache/cache.service";
 import { NotFoundError } from "@/server/lib/errors";
 import prisma from "@/server/lib/prisma";
 import { IntegrationsRepository } from "@/server/repositories/notifications.repository";
@@ -122,6 +123,8 @@ export class IntegrationsManagementService {
       },
     });
 
+    await cacheService.invalidateSettingsPages(ctx.companyId);
+
     return {
       id: integrationId,
       status: mapIntegrationStatus(row.status),
@@ -150,6 +153,8 @@ export class IntegrationsManagementService {
       },
     });
 
+    await cacheService.invalidateSettingsPages(ctx.companyId);
+
     return {
       id: integrationId,
       status: mapIntegrationStatus(row.status),
@@ -173,6 +178,8 @@ export class IntegrationsManagementService {
       },
       update: { config: config as Prisma.InputJsonValue },
     });
+
+    await cacheService.invalidateSettingsPages(ctx.companyId);
 
     return row.config;
   }
@@ -227,6 +234,8 @@ export class IntegrationsManagementService {
         config: data.config as Prisma.InputJsonValue | undefined,
       },
     });
+
+    await cacheService.invalidateAgentPages(ctx.companyId);
 
     return {
       toolId: PRISMA_TO_TOOL_ID[row.toolId],

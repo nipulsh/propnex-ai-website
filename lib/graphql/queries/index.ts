@@ -8,3 +8,4 @@ export * from "./phone-numbers";
 export * from "./leads";
 export * from "./setup";
 export * from "./settings";
+export * from "./uploaded-contacts";

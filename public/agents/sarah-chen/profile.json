@@ -2,7 +2,7 @@
   "slug": "sarah-chen",
   "name": "Sarah Chen",
   "profile": "Warm scheduling assistant for property viewings, reschedules, and appointment confirmations.",
-  "category": "Appointment Scheduling",
+  "category": "Normal",
   "defaultType": "inbound",
   "useCases": [
     "New appointment booking",

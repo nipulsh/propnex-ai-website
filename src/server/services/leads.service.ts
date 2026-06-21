@@ -1,5 +1,6 @@
 import type { LeadTemperature } from "@prisma/client";
 
+import { cacheService } from "@/server/cache/cache.service";
 import { NotFoundError } from "@/server/lib/errors";
 import {
   buildConnection,
@@ -178,6 +179,8 @@ export class LeadsService {
         total: importStats.total,
       },
     });
+
+    await cacheService.invalidateLeadPages(ctx.companyId);
 
     return {
       ...importStats,

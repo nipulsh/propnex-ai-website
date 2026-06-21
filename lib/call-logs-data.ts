@@ -16,6 +16,7 @@ export type CallLog = {
   phoneNumberId: string;
   phoneNumber: string;
   lineLabel: string;
+  leadPhone: string;
   leadName: string;
   agentId: string;
   agentName: string;
@@ -300,6 +301,7 @@ export function callLogsToCsv(logs: CallLog[]): string {
     "Lead Name",
     "Phone Number",
     "Line",
+    "Lead Mobile",
     "Agent",
     "Duration",
     "Lead Type",
@@ -318,6 +320,7 @@ export function callLogsToCsv(logs: CallLog[]): string {
     log.leadName,
     log.phoneNumber,
     log.lineLabel,
+    log.leadPhone,
     log.agentName,
     formatDuration(log.durationSeconds),
     log.leadTemperature,

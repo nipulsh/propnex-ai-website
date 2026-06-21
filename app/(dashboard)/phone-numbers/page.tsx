@@ -1,5 +1,9 @@
-import { redirect } from "next/navigation";
+import { ContactPhonesPageContent } from "@/components/contact-phones/contact-phones-page-content";
 
 export default function PhoneNumbersPage() {
-  redirect("/setup#phone-numbers");
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <ContactPhonesPageContent />
+    </div>
+  );
 }

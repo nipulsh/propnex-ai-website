@@ -18,9 +18,6 @@ export const HOME_PAGE_QUERY = `
         totalCalls
         connectedCalls
         conversionRate
-        generatedLeads
-        periodStart
-        periodEnd
       }
     }
     agents {
@@ -36,20 +33,6 @@ export const HOME_PAGE_QUERY = `
         warm
         cold
         total
-      }
-    }
-    campaigns {
-      list {
-        id
-        name
-        status
-        agentId
-        agentName
-        totalCalls
-        connectedCalls
-        conversionRate
-        generatedLeads
-        createdAt
       }
     }
     scheduler {
@@ -71,19 +54,6 @@ export const HOME_PAGE_QUERY = `
         createdAt
       }
     }
-    notifications {
-      list(first: 5) {
-        edges {
-          node {
-            id
-            type
-            title
-            body
-            createdAt
-          }
-        }
-      }
-    }
   }
 `;
 
@@ -103,9 +73,6 @@ export type HomePageResult = {
       totalCalls: number;
       connectedCalls: number;
       conversionRate: number;
-      generatedLeads: number;
-      periodStart: string | null;
-      periodEnd: string | null;
     };
   };
   agents: {
@@ -118,20 +85,6 @@ export type HomePageResult = {
       cold: number;
       total: number;
     };
-  };
-  campaigns: {
-    list: {
-      id: string;
-      name: string;
-      status: string;
-      agentId: string | null;
-      agentName: string;
-      totalCalls: number;
-      connectedCalls: number;
-      conversionRate: number;
-      generatedLeads: number;
-      createdAt: string;
-    }[];
   };
   scheduler: {
     upcoming: {
@@ -151,18 +104,5 @@ export type HomePageResult = {
       entityId: string | null;
       createdAt: string;
     }[];
-  };
-  notifications: {
-    list: {
-      edges: {
-        node: {
-          id: string;
-          type: string;
-          title: string;
-          body: string;
-          createdAt: string;
-        };
-      }[];
-    };
   };
 };

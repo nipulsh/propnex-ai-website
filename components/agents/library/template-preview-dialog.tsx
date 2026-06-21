@@ -7,6 +7,8 @@ import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { Button } from "@/components/ui/button";
 import type { AgentLibraryTemplate } from "@/lib/agent-library-data";
 
+const DEPLOY_UI_ENABLED = false;
+
 type TemplatePreviewDialogProps = {
   template: AgentLibraryTemplate | null;
   open: boolean;
@@ -93,13 +95,15 @@ export function TemplatePreviewDialog({
             >
               Close
             </Button>
-            <Button
-              type="button"
-              onClick={() => onDeploy(template.id)}
-              className="h-11 flex-1"
-            >
-              Deploy Template
-            </Button>
+            {DEPLOY_UI_ENABLED ? (
+              <Button
+                type="button"
+                onClick={() => onDeploy(template.id)}
+                className="h-11 flex-1"
+              >
+                Deploy Template
+              </Button>
+            ) : null}
           </div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>

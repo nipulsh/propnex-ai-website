@@ -1,5 +1,8 @@
 import { redis } from "@/server/cache/redis.client";
-import { cacheKeys } from "@/server/cache/keys";
+import {
+  cacheKeys,
+  type PageCacheKey,
+} from "@/server/cache/keys";
 import { gqlDebug, gqlDebugTimed } from "@/server/graphql/debug";
 
 export class CacheService {
@@ -78,6 +81,77 @@ export class CacheService {
       cacheKeys.companyAnalytics(companyId),
       cacheKeys.companyCredits(companyId),
     );
+    await this.invalidatePagePrefix(companyId, "home");
+    await this.invalidatePagePrefix(companyId, "call-logs");
+    await this.invalidatePagePrefix(companyId, "call-detail");
+    await this.invalidatePagePrefix(companyId, "phone-detail");
+    await this.invalidatePagePrefix(companyId, "agent-detail");
+    await this.invalidatePagePrefix(companyId, "lead-reactivation");
+  }
+
+  async invalidatePage(companyId: string, pageKey: PageCacheKey): Promise<void> {
+    await this.del(cacheKeys.page(companyId, pageKey));
+  }
+
+  async invalidatePagePrefix(
+    companyId: string,
+    pageKey: PageCacheKey,
+  ): Promise<void> {
+    if (!redis) return;
+    const prefix = cacheKeys.pagePrefix(companyId, pageKey);
+    try {
+      let cursor = "0";
+      do {
+        const [nextCursor, keys] = await redis.scan(
+          cursor,
+          "MATCH",
+          `${prefix}*`,
+          "COUNT",
+          100,
+        );
+        cursor = nextCursor;
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+      } while (cursor !== "0");
+    } catch {
+      gqlDebug("redis:invalidate-page-prefix:error", { prefix });
+    }
+  }
+
+  async invalidateAgentPages(companyId: string): Promise<void> {
+    await this.invalidateCompanyAgentStatus(companyId);
+    await this.invalidatePage(companyId, "home");
+    await this.invalidatePage(companyId, "agents");
+    await this.invalidatePagePrefix(companyId, "agent-detail");
+    await this.invalidatePage(companyId, "setup");
+  }
+
+  async invalidatePhoneNumberPages(companyId: string): Promise<void> {
+    await this.invalidatePage(companyId, "setup");
+    await this.invalidatePagePrefix(companyId, "phone-detail");
+    await this.invalidatePagePrefix(companyId, "agent-detail");
+  }
+
+  async invalidateLeadPages(companyId: string): Promise<void> {
+    await this.invalidatePage(companyId, "home");
+    await this.invalidatePagePrefix(companyId, "lead-reactivation");
+    await this.invalidatePagePrefix(companyId, "call-logs");
+  }
+
+  async invalidateUploadedContactPages(companyId: string): Promise<void> {
+    await this.invalidatePagePrefix(companyId, "phone-contacts");
+  }
+
+  async invalidateBillingPages(companyId: string): Promise<void> {
+    await this.invalidateCompanyCredits(companyId);
+    await this.invalidatePagePrefix(companyId, "billing");
+    await this.invalidatePage(companyId, "home");
+  }
+
+  async invalidateSettingsPages(companyId: string): Promise<void> {
+    await this.invalidatePage(companyId, "settings");
+    await this.invalidatePage(companyId, "setup");
   }
 }
 

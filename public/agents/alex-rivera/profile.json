@@ -2,7 +2,7 @@
   "slug": "alex-rivera",
   "name": "Alex Rivera",
   "profile": "Empathetic inbound support specialist for property inquiries, billing questions, and account help.",
-  "category": "Customer Experience",
+  "category": "Normal",
   "defaultType": "inbound",
   "useCases": [
     "Order status inquiries",

@@ -116,6 +116,7 @@ export class AgentsService {
     });
 
     await cacheService.invalidateCompanyAgentStatus(ctx.companyId);
+    await cacheService.invalidateAgentPages(ctx.companyId);
     return mapAgent(agent)!;
   }
 
@@ -159,6 +160,7 @@ export class AgentsService {
 
     const agent = await this.repo.update(ctx.companyId, id, data);
     await cacheService.invalidateCompanyAgentStatus(ctx.companyId);
+    await cacheService.invalidateAgentPages(ctx.companyId);
     return mapAgent(agent)!;
   }
 }

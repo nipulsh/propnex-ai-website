@@ -1,6 +1,7 @@
 import type { PhoneNumberStatus, TelephonyProvider } from "@prisma/client";
 
 import { NotFoundError } from "@/server/lib/errors";
+import { cacheService } from "@/server/cache/cache.service";
 import prisma from "@/server/lib/prisma";
 import { PhoneNumbersRepository } from "@/server/repositories/phone-numbers.repository";
 import type { TenantContext } from "@/server/types/context";
@@ -56,6 +57,7 @@ export class PhoneNumbersService {
   ) {
     tenantService.requirePermission(ctx, PERMISSIONS.AGENTS_WRITE);
     const row = await this.repo.create(ctx.companyId, input);
+    await cacheService.invalidatePhoneNumberPages(ctx.companyId);
     return mapPhoneNumber(row);
   }
 
@@ -89,6 +91,7 @@ export class PhoneNumbersService {
           : undefined,
     });
 
+    await cacheService.invalidatePhoneNumberPages(ctx.companyId);
     return mapPhoneNumber(row);
   }
 }

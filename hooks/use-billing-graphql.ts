@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-import { fetchBillingPage } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
+import type { BillingPageResult } from "@/lib/graphql/queries";
 import type { PurchaseHistoryItem } from "@/lib/billing-resources-data";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 import { useBillingStore } from "@/stores/billing-store";
 
 export function useBillingGraphQL() {
@@ -13,46 +15,39 @@ export function useBillingGraphQL() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const applyBillingData = useCallback(
+    (data: BillingPageResult) => {
+      setSubscription(data.billing.subscription);
+      setInvoices(data.billing.invoices.edges.map((e) => e.node));
+      setPurchaseHistory(
+        data.credits.usageHistory.edges.map(
+          (e): PurchaseHistoryItem => ({
+            id: e.node.id,
+            purchaseDate: e.node.createdAt.split("T")[0] ?? e.node.createdAt,
+            resourceType: e.node.reason,
+            quantity: Math.abs(e.node.amount),
+            amount: Math.abs(e.node.amount),
+            status: "completed",
+            invoiceId: e.node.id,
+          }),
+        ),
+      );
+      setError(null);
+    },
+    [setInvoices, setPurchaseHistory, setSubscription],
+  );
 
-    async function load() {
-      setIsLoading(true);
-      try {
-        const data = await fetchBillingPage();
-        if (cancelled) return;
+  const fetchPage = useCallback(
+    () => fetchCachedPage<BillingPageResult>("billing"),
+    [],
+  );
 
-        setSubscription(data.billing.subscription);
-        setInvoices(data.billing.invoices.edges.map((e) => e.node));
-        setPurchaseHistory(
-          data.credits.usageHistory.edges.map(
-            (e): PurchaseHistoryItem => ({
-              id: e.node.id,
-              purchaseDate: e.node.createdAt.split("T")[0] ?? e.node.createdAt,
-              resourceType: e.node.reason,
-              quantity: Math.abs(e.node.amount),
-              amount: Math.abs(e.node.amount),
-              status: "completed",
-              invoiceId: e.node.id,
-            }),
-          ),
-        );
-        setError(null);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load billing");
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [setInvoices, setPurchaseHistory, setSubscription]);
+  useCachedPagePoll({
+    fetchPage,
+    onData: applyBillingData,
+    onError: (message) => setError(message),
+    onLoading: setIsLoading,
+  });
 
   return { isLoading, error };
 }

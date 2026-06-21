@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Bot,
-  Calendar,
-  CreditCard,
-  FileUp,
-  Megaphone,
-  PhoneCall,
-} from "lucide-react";
+import { Bot, Calendar, FileUp, PhoneCall } from "lucide-react";
 
 import { DashboardSection } from "@/components/common/dashboard-section";
 import { QuickActionCard } from "@/components/home/quick-action-card";
@@ -24,16 +17,10 @@ import {
 
 const ACTIONS = [
   {
-    title: "Add Agent",
-    description: "Add a new AI calling agent",
+    title: "Agent Library",
+    description: "Browse ready-made AI voice agents",
     icon: Bot,
-    href: "/agents/create",
-  },
-  {
-    title: "Launch Campaign",
-    description: "Start outbound outreach",
-    icon: Megaphone,
-    href: "/dashboard",
+    href: "/agents/library",
   },
   {
     title: "Upload Leads",
@@ -52,12 +39,6 @@ const ACTIONS = [
     description: "Review call history and outcomes",
     icon: PhoneCall,
     href: "/call-logs",
-  },
-  {
-    title: "Buy Credits",
-    description: "Top up your calling credits",
-    icon: CreditCard,
-    href: "/billing",
   },
 ];
 

@@ -18,6 +18,11 @@ import {
   PHONE_NUMBERS_PAGE_QUERY,
   SETTINGS_PAGE_QUERY,
   SETUP_PAGE_QUERY,
+  UPLOADED_CONTACTS_LIST_QUERY,
+  CREATE_UPLOADED_CONTACT_MUTATION,
+  IMPORT_UPLOADED_CONTACTS_MUTATION,
+  DELETE_UPLOADED_CONTACT_MUTATION,
+  BULK_DELETE_UPLOADED_CONTACTS_MUTATION,
   UPDATE_AGENT_MUTATION,
   UPDATE_PHONE_NUMBER_MUTATION,
   type BillingPageResult,
@@ -28,6 +33,8 @@ import {
   type LeadsReactivationResult,
   type SettingsPageResult,
   type SetupPageResult,
+  type UploadedContactsListResult,
+  type UploadedContactImportResult,
   type AgentLibraryBySlugResult,
   type AgentLibraryListResult,
 } from "@/lib/graphql/queries";
@@ -172,6 +179,37 @@ export async function fetchSetupPage() {
 
 export async function fetchSettingsPage() {
   return gqlRequest<SettingsPageResult>(SETTINGS_PAGE_QUERY);
+}
+
+export async function fetchUploadedContacts() {
+  return gqlRequest<UploadedContactsListResult>(UPLOADED_CONTACTS_LIST_QUERY);
+}
+
+export async function createUploadedContact(phone: string) {
+  return gqlRequest<{
+    uploadedContacts: {
+      create: { id: string; phone: string; createdAt: string };
+    };
+  }>(CREATE_UPLOADED_CONTACT_MUTATION, { phone });
+}
+
+export async function importUploadedContacts(phones: string[]) {
+  return gqlRequest<UploadedContactImportResult>(
+    IMPORT_UPLOADED_CONTACTS_MUTATION,
+    { phones },
+  );
+}
+
+export async function deleteUploadedContact(id: string) {
+  return gqlRequest<{
+    uploadedContacts: { delete: boolean };
+  }>(DELETE_UPLOADED_CONTACT_MUTATION, { id });
+}
+
+export async function bulkDeleteUploadedContacts(ids: string[]) {
+  return gqlRequest<{
+    uploadedContacts: { bulkDelete: number };
+  }>(BULK_DELETE_UPLOADED_CONTACTS_MUTATION, { ids });
 }
 
 /** @deprecated Use fetchHomePage */

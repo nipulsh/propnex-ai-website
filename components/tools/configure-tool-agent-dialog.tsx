@@ -76,17 +76,17 @@ export function ConfigureToolAgentDialog({
           {agents.length === 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-propnex-muted">
-                Create an agent first, then enable and configure tools on its
-                detail page.
+                Add an agent from the Agent Library first, then enable and
+                configure tools on its detail page.
               </p>
               <Button
                 nativeButton={false}
-                render={<Link href="/agents/create" />}
+                render={<Link href="/agents/library" />}
                 className="h-11 w-full gap-2"
                 onClick={() => onOpenChange(false)}
               >
                 <Plus className="size-4" />
-                Create agent
+                Open Agent Library
               </Button>
             </div>
           ) : (

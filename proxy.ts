@@ -19,10 +19,6 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  if (pathname.startsWith("/phone-numbers")) {
-    return NextResponse.redirect(new URL("/setup#phone-numbers", req.url));
-  }
-
   if (!isPublicRoute(req)) {
     await auth.protect();
   }

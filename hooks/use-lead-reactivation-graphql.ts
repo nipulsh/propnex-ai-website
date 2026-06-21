@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 
-import { fetchLeadsReactivation } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
+import type { LeadsReactivationResult } from "@/lib/graphql/queries";
 import type { DormantLead } from "@/lib/lead-reactivation-data";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 import { useLeadReactivationStore } from "@/stores/lead-reactivation-store";
 
 type GraphQLLeadNode = {
@@ -45,40 +47,41 @@ export function useLeadReactivationGraphQL() {
   const setError = useLeadReactivationStore((s) => s.setError);
   const inactivityFilter = useLeadReactivationStore((s) => s.inactivity);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const minDays =
-        inactivityFilter === "30-plus"
-          ? 30
-          : inactivityFilter === "60-plus"
-            ? 60
-            : inactivityFilter === "90-plus"
-              ? 90
-              : 30;
+  const minDaysInactive =
+    inactivityFilter === "30-plus"
+      ? 30
+      : inactivityFilter === "60-plus"
+        ? 60
+        : inactivityFilter === "90-plus"
+          ? 90
+          : 30;
 
-      const data = await fetchLeadsReactivation({
-        dormantOnly: true,
-        minDaysInactive: minDays,
-      });
-
+  const applyPageData = useCallback(
+    (data: LeadsReactivationResult) => {
       const mapped = data.leads.connection.edges.map(({ node }) =>
         mapLeadToDormant(node),
       );
       setLeads(mapped);
       setError(null);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load dormant leads",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [inactivityFilter, setError, setLeads, setLoading]);
+    },
+    [setError, setLeads],
+  );
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const fetchPage = useCallback(
+    () =>
+      fetchCachedPage<LeadsReactivationResult>("lead-reactivation", {
+        filter: { dormantOnly: true, minDaysInactive },
+      }),
+    [minDaysInactive],
+  );
+
+  const { reload } = useCachedPagePoll({
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => setError(message),
+    onLoading: setLoading,
+    deps: [inactivityFilter],
+  });
 
   return { reload };
 }

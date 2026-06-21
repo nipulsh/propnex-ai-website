@@ -1,20 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-import { fetchCallDetail } from "@/lib/graphql/api";
+import { fetchCachedPage } from "@/lib/page-cache/client";
 import { mapGraphQLCallDetailToUI } from "@/lib/mappers/call-detail.mapper";
 import type { CallDetail } from "@/lib/call-detail-data";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 
 export function useCallDetailGraphQL(callId: string) {
   const [detail, setDetail] = useState<CallDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await fetchCallDetail(callId);
+  const applyPageData = useCallback(
+    (data: { callLogs: { detail: Record<string, unknown> | null } }) => {
       if (!data.callLogs.detail) {
         setError("Call not found");
         setDetail(null);
@@ -22,17 +21,29 @@ export function useCallDetailGraphQL(callId: string) {
       }
       setDetail(mapGraphQLCallDetailToUI(data.callLogs.detail as never));
       setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load call");
+    },
+    [],
+  );
+
+  const fetchPage = useCallback(
+    () =>
+      fetchCachedPage<{ callLogs: { detail: Record<string, unknown> | null } }>(
+        "call-detail",
+        { id: callId },
+      ),
+    [callId],
+  );
+
+  const { reload } = useCachedPagePoll({
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => {
+      setError(message);
       setDetail(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [callId]);
+    },
+    onLoading: setIsLoading,
+    deps: [callId],
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  return { detail, isLoading, error, reload: load };
+  return { detail, isLoading, error, reload };
 }

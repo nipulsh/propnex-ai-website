@@ -1,14 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  Bot,
-  Clock,
-  Megaphone,
-  Percent,
-  Phone,
-  Users,
-} from "lucide-react";
+import { Bot, Clock, Percent, Phone, Users } from "lucide-react";
 
 import { StatCard } from "@/components/call-details/stat-card";
 import { DashboardSection } from "@/components/common/dashboard-section";
@@ -19,16 +12,10 @@ export function OverviewSection() {
   const dateRange = useHomeDashboardStore((s) => s.dateRange);
   const analytics = useHomeDashboardStore((s) => s.analytics);
   const agentStatus = useHomeDashboardStore((s) => s.agentStatus);
-  const campaigns = useHomeDashboardStore((s) => s.campaigns);
   const leadBreakdown = useHomeDashboardStore((s) => s.leadBreakdown);
   const recentCalls = useHomeDashboardStore((s) => s.recentCalls);
 
   const periodLabel = getPeriodLabel(dateRange);
-
-  const activeCampaigns = useMemo(
-    () => campaigns.filter((c) => c.status === "active").length,
-    [campaigns],
-  );
 
   const avgDurationSeconds = useMemo(() => {
     if (recentCalls.length === 0) return 0;
@@ -47,7 +34,7 @@ export function OverviewSection() {
       title="Overview"
       description="High-level business metrics for your AI calling operation."
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         <StatCard
           title="Total Calls"
           value={(analytics?.totalCalls ?? 0).toLocaleString("en-IN")}
@@ -65,12 +52,6 @@ export function OverviewSection() {
           value={String(leadBreakdown?.total ?? 0)}
           icon={Users}
           footer="Qualified pipeline"
-        />
-        <StatCard
-          title="Active Campaigns"
-          value={String(activeCampaigns)}
-          icon={Megaphone}
-          footer={`${campaigns.length} campaigns`}
         />
         <StatCard
           title="Conversion Rate"

@@ -1,5 +1,4 @@
 import type { Agent, AgentEnvironment, AgentType } from "@/lib/agents-data";
-import { AGENT_CATEGORIES } from "@/lib/agents-data";
 import type { GraphQLAgentLibraryEntry } from "@/lib/graphql/queries/agent-library";
 
 export type AgentLibraryTemplate = {
@@ -68,7 +67,8 @@ export function filterLibraryTemplates(
 
 export const LIBRARY_CATEGORY_OPTIONS = [
   { value: "all", label: "All Categories" },
-  ...AGENT_CATEGORIES.map((c) => ({ value: c, label: c })),
+  { value: "Normal", label: "Normal" },
+  { value: "Premium", label: "Premium" },
 ];
 
 export type DeployFromTemplateConfig = {
