@@ -1,0 +1,2 @@
+{"sessionId":"c43149","runId":"post-fix","hypothesisId":"A","location":"contact-phone-file-parser.ts:parsePhonesFromPdf","message":"PDF parse start","data":{"workerSrc":"file:///D:/intnership/propnex/propnex-main-website/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs","bufferBytes":8380933},"timestamp":1782093420046}
+{"sessionId":"c43149","runId":"post-fix","hypothesisId":"A","location":"contact-phone-file-parser.ts:parsePhonesFromPdf","message":"PDF parse success","data":{"textLength":128},"timestamp":1782093420356}

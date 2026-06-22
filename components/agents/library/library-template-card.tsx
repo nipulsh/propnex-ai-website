@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, Eye, Rocket } from "lucide-react";
+import { Clock, Crown, Eye, Rocket } from "lucide-react";
 
 import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { Button } from "@/components/ui/button";
 import type { AgentLibraryTemplate } from "@/lib/agent-library-data";
+import { cn } from "@/lib/utils";
 
 const DEPLOY_UI_ENABLED = false;
 
@@ -22,7 +23,17 @@ export function LibraryTemplateCard({
     <article className="flex flex-col rounded-2xl border border-propnex-border bg-propnex-panel p-5">
       <div className="flex-1 space-y-3">
         <div>
-          <span className="rounded-md border border-propnex-border bg-propnex-bg px-2 py-0.5 text-[10px] font-medium tracking-wide text-propnex-muted uppercase">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase",
+              template.category === "Premium"
+                ? "border-amber-400/50 bg-gradient-to-r from-amber-500/20 to-yellow-600/15 text-amber-200"
+                : "border-propnex-border bg-propnex-bg text-propnex-muted",
+            )}
+          >
+            {template.category === "Premium" ? (
+              <Crown className="size-3 text-amber-400" />
+            ) : null}
             {template.category}
           </span>
           <h3 className="mt-2 text-base font-semibold text-foreground">

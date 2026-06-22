@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Crown, Search } from "lucide-react";
 
 import { LibraryTemplateCard } from "@/components/agents/library/library-template-card";
 import { TemplatePreviewDialog } from "@/components/agents/library/template-preview-dialog";
@@ -66,21 +66,37 @@ export function AgentLibraryPageContent() {
           />
         </div>
         <div className="propnex-scrollbar flex gap-2 overflow-x-auto pb-1">
-          {LIBRARY_CATEGORY_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setCategoryFilter(opt.value)}
-              className={cn(
-                "shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-                categoryFilter === opt.value
-                  ? "border-propnex-accent/50 bg-propnex-accent/15 text-propnex-accent"
-                  : "border-propnex-border bg-propnex-panel text-propnex-muted hover:text-foreground",
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+          {LIBRARY_CATEGORY_OPTIONS.map((opt) => {
+            const isPremium = opt.value === "Premium";
+            const isSelected = categoryFilter === opt.value;
+
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setCategoryFilter(opt.value)}
+                className={cn(
+                  "shrink-0 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                  isPremium
+                    ? isSelected
+                      ? "border-amber-400/70 bg-gradient-to-r from-amber-500/30 via-yellow-500/20 to-amber-600/25 text-amber-100 shadow-[0_0_16px_rgba(251,191,36,0.2)]"
+                      : "border-amber-500/35 bg-propnex-panel text-amber-300/90 hover:border-amber-400/55 hover:bg-amber-500/10 hover:text-amber-200"
+                    : isSelected
+                      ? "border-propnex-accent/50 bg-propnex-accent/15 text-propnex-accent"
+                      : "border-propnex-border bg-propnex-panel text-propnex-muted hover:text-foreground",
+                )}
+              >
+                {isPremium ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Crown className="size-3.5 text-amber-400" />
+                    {opt.label}
+                  </span>
+                ) : (
+                  opt.label
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
