@@ -16,11 +16,15 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -28,9 +32,14 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="border-sidebar-border">
-      <SidebarHeader className="p-4">
-        <BrandLogo />
+    <Sidebar collapsible="icon" className="border-sidebar-border">
+      <SidebarHeader
+        className={cn(
+          "p-4",
+          isCollapsed && "flex items-center justify-center p-2",
+        )}
+      >
+        <BrandLogo showText={!isCollapsed} size={isCollapsed ? "sm" : "md"} />
       </SidebarHeader>
 
       <SidebarContent className="px-2">
@@ -42,10 +51,14 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     render={<Link href={item.href} />}
                     isActive={isActive(item.href)}
+                    tooltip={item.title}
                     className={cn(
                       "h-9 rounded-lg",
                       isActive(item.href) &&
-                        "border-l-2 border-primary bg-sidebar-accent pl-[calc(0.5rem-2px)] font-medium",
+                        "bg-sidebar-accent font-medium",
+                      isActive(item.href) &&
+                        !isCollapsed &&
+                        "border-l-2 border-primary pl-[calc(0.5rem-2px)]",
                     )}
                   >
                     <item.icon />
@@ -58,14 +71,15 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="px-2 pb-4">
-        <SidebarSeparator className="mb-2" />
+      <SidebarFooter className="px-2 pb-4 group-data-[collapsible=icon]:px-0">
+        <SidebarSeparator className="mb-2 group-data-[collapsible=icon]:hidden" />
         <SidebarMenu>
           {footerNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 render={<Link href={item.href} />}
                 isActive={isActive(item.href)}
+                tooltip={item.title}
                 className="h-9 rounded-lg"
               >
                 <item.icon />
@@ -75,6 +89,7 @@ export function AppSidebar() {
           ))}
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }
