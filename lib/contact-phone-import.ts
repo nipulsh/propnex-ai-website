@@ -9,30 +9,52 @@ export type ParsedPhoneImport = {
   invalid: number;
 };
 
-export function parsePhonesFromCsv(text: string): ParsedPhoneImport {
-  const parsed = parseCsv(text);
-  if (parsed.headers.length === 0 || parsed.rows.length === 0) {
+export const CONTACT_PHONE_UPLOAD_EXTENSIONS = [
+  ".csv",
+  ".xlsx",
+  ".xls",
+  ".pdf",
+  ".docx",
+] as const;
+
+export function getContactPhoneUploadExtension(
+  filename: string,
+): string | null {
+  const lower = filename.toLowerCase();
+  return (
+    CONTACT_PHONE_UPLOAD_EXTENSIONS.find((ext) => lower.endsWith(ext)) ?? null
+  );
+}
+
+export function isSupportedContactPhoneUpload(filename: string): boolean {
+  return getContactPhoneUploadExtension(filename) !== null;
+}
+
+export function parsePhonesFromStructuredRows(
+  headers: string[],
+  rows: string[][],
+): ParsedPhoneImport {
+  if (headers.length === 0 || rows.length === 0) {
     return { phones: [], invalid: 0 };
   }
 
-  const mapping = guessColumnMapping(parsed.headers);
+  const mapping = guessColumnMapping(headers);
   const phoneColumn = mapping.phoneNumber;
 
   if (!phoneColumn) {
-    const invalid = parsed.rows.length;
-    return { phones: [], invalid };
+    return { phones: [], invalid: rows.length };
   }
 
-  const phoneIndex = parsed.headers.indexOf(phoneColumn);
+  const phoneIndex = headers.indexOf(phoneColumn);
   if (phoneIndex === -1) {
-    return { phones: [], invalid: parsed.rows.length };
+    return { phones: [], invalid: rows.length };
   }
 
   const seen = new Set<string>();
   const phones: string[] = [];
   let invalid = 0;
 
-  for (const row of parsed.rows) {
+  for (const row of rows) {
     const raw = (row[phoneIndex] ?? "").trim();
     if (!raw) {
       invalid++;
@@ -50,6 +72,50 @@ export function parsePhonesFromCsv(text: string): ParsedPhoneImport {
   }
 
   return { phones, invalid };
+}
+
+export function parsePhonesFromCsv(text: string): ParsedPhoneImport {
+  const parsed = parseCsv(text);
+  return parsePhonesFromStructuredRows(parsed.headers, parsed.rows);
+}
+
+export async function parsePhonesFromUploadFile(
+  file: File,
+): Promise<ParsedPhoneImport> {
+  const extension = getContactPhoneUploadExtension(file.name);
+  if (!extension) {
+    throw new Error(
+      "Unsupported file type. Upload CSV, Excel (.xlsx/.xls), PDF, or Word (.docx).",
+    );
+  }
+
+  if (extension === ".csv") {
+    const text = await file.text();
+    return parsePhonesFromCsv(text);
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/contact-phones/parse-upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const payload = (await response.json()) as {
+    phones?: string[];
+    invalid?: number;
+    error?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Unable to parse the uploaded file.");
+  }
+
+  return {
+    phones: payload.phones ?? [],
+    invalid: payload.invalid ?? 0,
+  };
 }
 
 export const CONTACT_PHONES_SAMPLE_FILENAME = "propnex-phone-contacts-sample.csv";

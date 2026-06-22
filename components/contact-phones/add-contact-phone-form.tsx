@@ -7,32 +7,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createUploadedContact } from "@/lib/graphql/api";
 import { isValidE164Phone } from "@/lib/csv-import";
+import type { SideNotificationType } from "@/components/common/side-notification";
 import { cn } from "@/lib/utils";
 
 type AddContactPhoneFormProps = {
   onAdded: () => void;
+  onNotify?: (message: string, type: SideNotificationType) => void;
   className?: string;
 };
 
 export function AddContactPhoneForm({
   onAdded,
+  onNotify,
   className,
 }: AddContactPhoneFormProps) {
   const [phone, setPhone] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function notify(message: string, type: SideNotificationType = "error") {
+    onNotify?.(message, type);
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setError(null);
 
     const trimmed = phone.trim();
     if (!trimmed) {
-      setError("Phone number is required.");
+      notify("Phone number is required.");
       return;
     }
     if (!isValidE164Phone(trimmed)) {
-      setError("Use E.164 format (e.g. +15550123456).");
+      notify("Use E.164 format (e.g. +15550123456).");
       return;
     }
 
@@ -42,7 +47,7 @@ export function AddContactPhoneForm({
       setPhone("");
       onAdded();
     } catch (err) {
-      setError(
+      notify(
         err instanceof Error ? err.message : "Unable to add phone number.",
       );
     } finally {
@@ -53,29 +58,22 @@ export function AddContactPhoneForm({
   return (
     <form
       onSubmit={(event) => void handleSubmit(event)}
-      className={cn("flex flex-col gap-2 sm:flex-row sm:items-start", className)}
+      className={cn(
+        "flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center",
+        className,
+      )}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <Input
-          value={phone}
-          onChange={(event) => {
-            setPhone(event.target.value);
-            setError(null);
-          }}
-          placeholder="+15550123456"
-          className="h-11 border-propnex-border bg-propnex-bg font-mono"
-          disabled={isSubmitting}
-        />
-        {error ? (
-          <p className="text-xs text-destructive">{error}</p>
-        ) : (
-          <p className="text-xs text-propnex-muted">E.164 format required</p>
-        )}
-      </div>
+      <Input
+        value={phone}
+        onChange={(event) => setPhone(event.target.value)}
+        placeholder="+15550123456 (E.164)"
+        className="h-9 min-w-0 flex-1 border-propnex-border bg-propnex-bg font-mono"
+        disabled={isSubmitting}
+      />
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="h-11 shrink-0 border-transparent bg-propnex-accent px-6 text-propnex-bg hover:bg-propnex-accent/90"
+        className="h-9 shrink-0 border-transparent bg-propnex-accent px-4 text-propnex-bg hover:bg-propnex-accent/90"
       >
         {isSubmitting ? (
           <Loader2 className="size-4 animate-spin" />

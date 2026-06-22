@@ -1,22 +1,28 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import {
-  CheckCircle2,
-  Download,
-  Loader2,
-  Upload,
-} from "lucide-react";
+import { Download, Loader2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
+  CONTACT_PHONE_UPLOAD_EXTENSIONS,
   downloadContactPhonesSampleCsv,
-  parsePhonesFromCsv,
+  isSupportedContactPhoneUpload,
+  parsePhonesFromUploadFile,
 } from "@/lib/contact-phone-import";
 import { importUploadedContacts } from "@/lib/graphql/api";
 import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
+const UPLOAD_ACCEPT = [
+  ...CONTACT_PHONE_UPLOAD_EXTENSIONS,
+  "text/csv",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+].join(",");
 
 export type UploadContactPhonesState = ReturnType<typeof useUploadContactPhones>;
 
@@ -36,8 +42,10 @@ export function useUploadContactPhones(onImported: () => void) {
       setError(null);
       setResults(null);
 
-      if (!file.name.toLowerCase().endsWith(".csv")) {
-        setError("Please upload a .csv file.");
+      if (!isSupportedContactPhoneUpload(file.name)) {
+        setError(
+          "Unsupported file type. Upload CSV, Excel (.xlsx/.xls), PDF, or Word (.docx).",
+        );
         return;
       }
       if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -49,14 +57,13 @@ export function useUploadContactPhones(onImported: () => void) {
       setIsProcessing(true);
 
       try {
-        const text = await file.text();
-        const { phones, invalid } = parsePhonesFromCsv(text);
+        const { phones, invalid } = await parsePhonesFromUploadFile(file);
 
         if (phones.length === 0) {
           setError(
             invalid > 0
               ? "No valid phone numbers found. Use E.164 format (e.g. +15550123456)."
-              : "No phone numbers found in the CSV file.",
+              : "No phone numbers found in the uploaded file.",
           );
           return;
         }
@@ -94,7 +101,7 @@ export function useUploadContactPhones(onImported: () => void) {
 }
 
 const buttonClassName =
-  "h-11 gap-2 border-propnex-border bg-propnex-panel text-foreground sm:min-w-[160px]";
+  "h-9 gap-2 border-propnex-border bg-propnex-panel text-foreground";
 
 export function UploadContactPhonesButtons({
   upload,
@@ -117,7 +124,7 @@ export function UploadContactPhonesButtons({
       <input
         ref={inputRef}
         type="file"
-        accept=".csv"
+        accept={UPLOAD_ACCEPT}
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -139,63 +146,9 @@ export function UploadContactPhonesButtons({
         ) : (
           <Upload className="size-4" />
         )}
-        Upload CSV
+        Upload file
       </Button>
     </>
   );
 }
 
-export function UploadContactPhonesFeedback({
-  upload,
-}: {
-  upload: UploadContactPhonesState;
-}) {
-  const { fileName, isProcessing, error, results } = upload;
-
-  const hasFeedback =
-    (fileName && !isProcessing) ||
-    isProcessing ||
-    error ||
-    (results && !isProcessing);
-
-  if (!hasFeedback) return null;
-
-  return (
-    <div className="flex flex-col gap-3">
-      {fileName && !isProcessing ? (
-        <p className="text-xs text-propnex-muted">{fileName}</p>
-      ) : null}
-
-      {isProcessing ? (
-        <p className="text-sm text-propnex-muted">
-          Importing phone numbers…
-        </p>
-      ) : null}
-
-      {error ? (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-
-      {results && !isProcessing ? (
-        <div className="flex items-start gap-2 rounded-lg border border-propnex-border bg-propnex-panel px-4 py-3 text-sm">
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
-          <div className="text-foreground">
-            <p className="font-medium">
-              {results.created} number{results.created !== 1 ? "s" : ""} added
-            </p>
-            <p className="mt-1 text-propnex-muted">
-              {results.skipped > 0
-                ? `${results.skipped} duplicate${results.skipped !== 1 ? "s" : ""} skipped. `
-                : null}
-              {results.invalid > 0
-                ? `${results.invalid} invalid row${results.invalid !== 1 ? "s" : ""} skipped.`
-                : null}
-            </p>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}

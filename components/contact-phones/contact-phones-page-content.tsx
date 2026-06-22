@@ -1,17 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
-import { BillingBanner } from "@/components/billing/billing-banner";
+import {
+  SideNotificationProvider,
+  useSideNotification,
+  type SideNotificationType,
+} from "@/components/common/side-notification";
 import { AddContactPhoneForm } from "@/components/contact-phones/add-contact-phone-form";
 import { ContactPhonesBulkBar } from "@/components/contact-phones/contact-phones-bulk-bar";
 import { ContactPhonesTable } from "@/components/contact-phones/contact-phones-table";
 import { DeleteContactPhoneDialog } from "@/components/contact-phones/delete-contact-phone-dialog";
 import {
   UploadContactPhonesButtons,
-  UploadContactPhonesFeedback,
   useUploadContactPhones,
 } from "@/components/contact-phones/upload-contact-phones-section";
 import { Button } from "@/components/ui/button";
@@ -26,9 +29,13 @@ import {
   type ContactPhone,
 } from "@/stores/contact-phones-store";
 
-export function ContactPhonesPageContent() {
+const LOADING_NOTIFICATION_ID = "contact-phones-loading";
+const UPLOADING_NOTIFICATION_ID = "contact-phones-uploading";
+
+function ContactPhonesPageInner() {
   const { reload } = useContactPhonesGraphQL();
   const upload = useUploadContactPhones(() => void reload());
+  const { notify, dismiss } = useSideNotification();
 
   const contacts = useContactPhonesStore((s) => s.contacts);
   const isLoading = useContactPhonesStore((s) => s.isLoading);
@@ -42,6 +49,10 @@ export function ContactPhonesPageContent() {
   const [deleteTarget, setDeleteTarget] = useState<ContactPhone | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const lastUploadErrorRef = useRef<string | null>(null);
+  const lastUploadResultsKeyRef = useRef<string | null>(null);
+  const lastStoreErrorRef = useRef<string | null>(null);
+
   const { pageContacts, totalPages, totalCount } = useMemo(() => {
     const total = contacts.length;
     const pages = Math.max(1, Math.ceil(total / CONTACT_PHONES_PAGE_SIZE));
@@ -54,6 +65,103 @@ export function ContactPhonesPageContent() {
       totalCount: total,
     };
   }, [contacts, currentPage]);
+
+  useEffect(() => {
+    if (isLoading) {
+      notify({
+        id: LOADING_NOTIFICATION_ID,
+        type: "info",
+        message: "Loading phone numbers…",
+      });
+      return;
+    }
+
+    dismiss(LOADING_NOTIFICATION_ID);
+  }, [isLoading, notify, dismiss]);
+
+  useEffect(() => {
+    if (!error) {
+      lastStoreErrorRef.current = null;
+      return;
+    }
+
+    if (error === lastStoreErrorRef.current) {
+      return;
+    }
+
+    lastStoreErrorRef.current = error;
+    notify({
+      type: "error",
+      message: error,
+    });
+    useContactPhonesStore.setState({ error: null });
+  }, [error, notify]);
+
+  useEffect(() => {
+    if (upload.isProcessing) {
+      lastUploadErrorRef.current = null;
+      notify({
+        id: UPLOADING_NOTIFICATION_ID,
+        type: "info",
+        message: "Importing phone numbers…",
+      });
+      return;
+    }
+
+    dismiss(UPLOADING_NOTIFICATION_ID);
+  }, [upload.isProcessing, notify, dismiss]);
+
+  useEffect(() => {
+    if (!upload.error) {
+      lastUploadErrorRef.current = null;
+      return;
+    }
+
+    if (upload.error === lastUploadErrorRef.current) {
+      return;
+    }
+
+    lastUploadErrorRef.current = upload.error;
+    notify({
+      type: "error",
+      message: upload.error,
+    });
+  }, [upload.error, notify]);
+
+  useEffect(() => {
+    if (!upload.results || upload.isProcessing) {
+      if (!upload.results) {
+        lastUploadResultsKeyRef.current = null;
+      }
+      return;
+    }
+
+    const resultsKey = `${upload.results.created}-${upload.results.skipped}-${upload.results.invalid}`;
+    if (resultsKey === lastUploadResultsKeyRef.current) {
+      return;
+    }
+
+    lastUploadResultsKeyRef.current = resultsKey;
+
+    const skippedText =
+      upload.results.skipped > 0
+        ? `${upload.results.skipped} duplicate${upload.results.skipped !== 1 ? "s" : ""} skipped. `
+        : "";
+    const invalidText =
+      upload.results.invalid > 0
+        ? `${upload.results.invalid} invalid row${upload.results.invalid !== 1 ? "s" : ""} skipped.`
+        : "";
+
+    notify({
+      type: "success",
+      message: `${upload.results.created} number${upload.results.created !== 1 ? "s" : ""} added. ${skippedText}${invalidText}`.trim(),
+      duration: 5000,
+    });
+  }, [upload.results, upload.isProcessing, notify]);
+
+  function handleNotify(message: string, type: SideNotificationType) {
+    notify({ type, message });
+  }
 
   function openSingleDelete(contact: ContactPhone) {
     setDeleteTarget(contact);
@@ -90,48 +198,42 @@ export function ContactPhonesPageContent() {
   }
 
   const deleteCount = deleteTarget ? 1 : selectedIds.length;
-  const deletePhoneLabel = deleteTarget
-    ? deleteTarget.phone
-    : undefined;
+  const deletePhoneLabel = deleteTarget ? deleteTarget.phone : undefined;
 
   return (
-    <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
-      <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-6">
+      <div className="shrink-0">
         <PageHeader
           title="Phone Numbers"
-          description="Upload and manage contact mobile numbers for outreach."
+          description="Upload and manage contact mobile numbers from CSV, Excel, PDF, or Word files."
         />
+      </div>
 
-        <div className="flex flex-col gap-4 rounded-xl border border-propnex-border bg-propnex-panel p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <p className="mb-2 text-sm font-medium text-foreground">
-                Add phone number
-              </p>
-              <AddContactPhoneForm onAdded={() => void reload()} />
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <UploadContactPhonesButtons upload={upload} />
-            </div>
+      <div className="shrink-0 rounded-lg border border-propnex-border bg-propnex-panel px-3 py-2">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <AddContactPhoneForm
+            onAdded={() => void reload()}
+            onNotify={handleNotify}
+          />
+          <div className="flex flex-wrap gap-2 lg:shrink-0">
+            <UploadContactPhonesButtons upload={upload} />
           </div>
-          <UploadContactPhonesFeedback upload={upload} />
         </div>
       </div>
 
-      {error ? <BillingBanner type="error" message={error} /> : null}
-      {isLoading ? (
-        <BillingBanner type="info" message="Loading phone numbers…" />
-      ) : null}
+      <div className="shrink-0">
+        <ContactPhonesBulkBar onDeleteSelected={openBulkDelete} />
+      </div>
 
-      <ContactPhonesBulkBar onDeleteSelected={openBulkDelete} />
-
-      <div className="overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
-        <ContactPhonesTable
-          contacts={pageContacts}
-          onDelete={openSingleDelete}
-        />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
+        <div className="propnex-scrollbar min-h-0 flex-1 overflow-y-auto">
+          <ContactPhonesTable
+            contacts={pageContacts}
+            onDelete={openSingleDelete}
+          />
+        </div>
         {totalCount > CONTACT_PHONES_PAGE_SIZE ? (
-          <div className="flex items-center justify-between border-t border-propnex-border px-5 py-3">
+          <div className="flex shrink-0 items-center justify-between border-t border-propnex-border px-5 py-3">
             <p className="text-sm text-propnex-muted">
               {totalCount} contact{totalCount !== 1 ? "s" : ""}
             </p>
@@ -178,5 +280,13 @@ export function ContactPhonesPageContent() {
         isDeleting={isDeleting}
       />
     </div>
+  );
+}
+
+export function ContactPhonesPageContent() {
+  return (
+    <SideNotificationProvider>
+      <ContactPhonesPageInner />
+    </SideNotificationProvider>
   );
 }
