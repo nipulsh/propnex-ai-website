@@ -1,0 +1,38 @@
+{
+  "slug": "premium-1",
+  "name": "Premium Voice",
+  "profile": "Polished premium-tier voice for high-value client conversations, luxury listings, and executive-level outreach.",
+  "category": "Premium",
+  "defaultType": "inbound",
+  "useCases": [
+    "Luxury property inquiries",
+    "VIP client support",
+    "Executive appointment booking",
+    "High-touch lead follow-up"
+  ],
+  "estimatedSetupMinutes": 5,
+  "samplePrompt": "You are a premium-tier AI voice agent for a luxury real estate brand. Speak with confidence, warmth, and refinement. Prioritize discretion, clarity, and a concierge-level experience in every interaction.",
+  "defaultFirstMessage": "Good day. Thank you for reaching out — I'm here to assist you with your property needs. How may I help you today?",
+  "defaultVariables": [
+    {
+      "key": "brandName",
+      "label": "Brand Name",
+      "placeholder": "PropNex Premium"
+    },
+    {
+      "key": "serviceRegion",
+      "label": "Service Region",
+      "placeholder": "Singapore"
+    }
+  ],
+  "compatibleVoices": [
+    {
+      "id": "v-premium-1",
+      "name": "Premium Voice",
+      "provider": "ElevenLabs"
+    }
+  ],
+  "demoAudioUrl": "/agents/premium-1/demo.mp3",
+  "avatarGradient": "bg-gradient-to-br from-amber-500/40 via-yellow-500/30 to-orange-500/20",
+  "sortOrder": 5
+}
