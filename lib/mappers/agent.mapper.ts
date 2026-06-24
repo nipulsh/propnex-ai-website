@@ -123,6 +123,7 @@ type GraphQLCallLogNode = {
   direction: string;
   status: string;
   durationSeconds: number;
+  creditsUsed?: number | null;
   lead?: {
     id: string;
     firstName?: string | null;
@@ -159,6 +160,7 @@ export function mapGraphQLCallLogToUI(
     leadTemperature: getLeadTemperatureForCall(node.id),
     leadScore: 0,
     callCost: 0,
+    creditsUsed: node.creditsUsed ?? 0,
     provider: "—",
     summarySnippet: "—",
     hasRecording: false,
