@@ -13,6 +13,7 @@ import { normalizeContactPhone } from "@/lib/contact-phone-validation";
 import { guessColumnMapping } from "@/lib/csv-import";
 import {
   parsePhonesFromStructuredRows,
+  type ParsedContactRecord,
   type ParsedPhoneImport,
   type ParsePhonesOptions,
 } from "@/lib/contact-phone-import";
