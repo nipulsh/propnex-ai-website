@@ -67,7 +67,6 @@ export const usePhoneNumberDetailStore = create<PhoneNumberDetailStore>(
     reset: () =>
       set({
         phoneNumberId: null,
-        isLoading: true,
         error: null,
         calls: [],
         historyDirection: "all",

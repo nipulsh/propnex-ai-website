@@ -10,6 +10,10 @@ import {
   isSupportedContactPhoneUpload,
   parsePhonesFromUploadFile,
 } from "@/lib/contact-phone-import";
+import {
+  CONTACT_PHONE_COUNTRIES,
+  DEFAULT_CONTACT_PHONE_COUNTRY,
+} from "@/lib/country-dial-codes";
 import { importUploadedContacts } from "@/lib/graphql/api";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +33,9 @@ export type UploadContactPhonesState = ReturnType<typeof useUploadContactPhones>
 export function useUploadContactPhones(onImported: () => void) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [defaultCountry, setDefaultCountry] = useState(
+    DEFAULT_CONTACT_PHONE_COUNTRY,
+  );
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<{
@@ -57,19 +64,21 @@ export function useUploadContactPhones(onImported: () => void) {
       setIsProcessing(true);
 
       try {
-        const { phones, invalid } = await parsePhonesFromUploadFile(file);
+        const { contacts, invalid } = await parsePhonesFromUploadFile(file, {
+          defaultCountry,
+        });
 
-        if (phones.length === 0) {
+        if (contacts.length === 0) {
           setError(
             invalid > 0
-              ? "No valid phone numbers found. Each number must be exactly 10 digits."
+              ? "No valid phone numbers found. CSV/Excel needs country (ISO code) and 10-digit phone columns."
               : "No phone numbers found in the uploaded file.",
           );
           return;
         }
 
-        const data = await importUploadedContacts(phones);
-        const saved = data.uploadedContacts.importPhones;
+        const data = await importUploadedContacts(contacts);
+        const saved = data.uploadedContacts.importContacts;
         setResults({
           created: saved.created,
           skipped: saved.skipped,
@@ -86,12 +95,14 @@ export function useUploadContactPhones(onImported: () => void) {
         setIsProcessing(false);
       }
     },
-    [onImported],
+    [defaultCountry, onImported],
   );
 
   return {
     inputRef,
     fileName,
+    defaultCountry,
+    setDefaultCountry,
     isProcessing,
     error,
     results,
@@ -108,10 +119,31 @@ export function UploadContactPhonesButtons({
 }: {
   upload: UploadContactPhonesState;
 }) {
-  const { inputRef, isProcessing, processFile, openFilePicker } = upload;
+  const {
+    inputRef,
+    defaultCountry,
+    setDefaultCountry,
+    isProcessing,
+    processFile,
+    openFilePicker,
+  } = upload;
 
   return (
     <>
+      <select
+        value={defaultCountry}
+        onChange={(event) => setDefaultCountry(event.target.value)}
+        className="h-9 shrink-0 rounded-md border border-propnex-border bg-propnex-panel px-2 text-sm text-foreground"
+        disabled={isProcessing}
+        aria-label="Default country for files without a country column"
+        title="Default country for PDF, Word, or files without a country column"
+      >
+        {CONTACT_PHONE_COUNTRIES.map((option) => (
+          <option key={option.code} value={option.code}>
+            {option.code} (+{option.dialCode})
+          </option>
+        ))}
+      </select>
       <Button
         type="button"
         variant="outline"
@@ -151,4 +183,3 @@ export function UploadContactPhonesButtons({
     </>
   );
 }
-

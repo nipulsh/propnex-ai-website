@@ -135,7 +135,17 @@ type PhoneNumbersMutations {
 type UploadedContact {
   id: ID!
   phone: String!
+  name: String
+  email: String
+  address: String
   createdAt: String!
+}
+
+input ImportedContactInput {
+  phone: String!
+  name: String
+  email: String
+  address: String
 }
 
 type UploadedContactsQueries {
@@ -150,7 +160,7 @@ type UploadedContactImportResult {
 
 type UploadedContactsMutations {
   create(phone: String!): UploadedContact!
-  importPhones(phones: [String!]!): UploadedContactImportResult!
+  importContacts(contacts: [ImportedContactInput!]!): UploadedContactImportResult!
   delete(id: ID!): Boolean!
   bulkDelete(ids: [ID!]!): Int!
 }

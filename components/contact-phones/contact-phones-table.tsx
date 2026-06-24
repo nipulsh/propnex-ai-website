@@ -13,6 +13,10 @@ type ContactPhonesTableProps = {
   onDelete: (contact: ContactPhone) => void;
 };
 
+function displayValue(value: string | null): string {
+  return value?.trim() ? value : "—";
+}
+
 export function ContactPhonesTable({
   contacts,
   onDelete,
@@ -29,8 +33,8 @@ export function ContactPhonesTable({
     visibleIds.some((id) => selectedIds.includes(id)) && !allVisibleSelected;
 
   return (
-    <div className="flex min-h-full flex-col overflow-x-auto">
-      <table className="w-full min-w-[480px] flex-1 text-left text-sm">
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-left text-sm">
         <thead>
           <tr className="border-b border-propnex-border text-[0.65rem] tracking-[0.12em] text-propnex-muted uppercase">
             <th className="w-12 px-5 py-3 font-medium">
@@ -47,6 +51,9 @@ export function ContactPhonesTable({
                 aria-label="Select all on this page"
               />
             </th>
+            <th className="px-5 py-3 font-medium">Name</th>
+            <th className="px-5 py-3 font-medium">Email</th>
+            <th className="px-5 py-3 font-medium">Address</th>
             <th className="px-5 py-3 font-medium">Mobile Number</th>
             <th className="px-5 py-3 font-medium text-right">Actions</th>
           </tr>
@@ -55,13 +62,11 @@ export function ContactPhonesTable({
           {contacts.length === 0 ? (
             <tr>
               <td
-                colSpan={3}
-                className="px-5 py-24 text-center text-propnex-muted"
+                colSpan={6}
+                className="px-5 py-8 text-center text-propnex-muted"
               >
-                <div className="flex min-h-[40vh] items-center justify-center">
-                  No phone numbers yet. Add a number or upload a CSV to get
-                  started.
-                </div>
+                No phone numbers yet. Add a number or upload a CSV to get
+                started.
               </td>
             </tr>
           ) : (
@@ -75,7 +80,7 @@ export function ContactPhonesTable({
                     isChecked && "bg-propnex-accent/5",
                   )}
                 >
-                  <td className="px-5 py-3">
+                  <td className="px-5 py-3 align-top">
                     <input
                       type="checkbox"
                       className="size-4 rounded border-propnex-border accent-propnex-accent"
@@ -84,10 +89,19 @@ export function ContactPhonesTable({
                       aria-label={`Select ${contact.phone}`}
                     />
                   </td>
-                  <td className="px-5 py-3 font-mono font-medium text-foreground">
+                  <td className="px-5 py-3 align-top text-foreground">
+                    {displayValue(contact.name)}
+                  </td>
+                  <td className="px-5 py-3 align-top text-foreground">
+                    {displayValue(contact.email)}
+                  </td>
+                  <td className="max-w-xs px-5 py-3 align-top text-foreground">
+                    {displayValue(contact.address)}
+                  </td>
+                  <td className="px-5 py-3 align-top font-mono font-medium text-foreground">
                     {formatPhoneDisplay(contact.phone)}
                   </td>
-                  <td className="px-5 py-3 text-right">
+                  <td className="px-5 py-3 text-right align-top">
                     <Button
                       type="button"
                       variant="ghost"

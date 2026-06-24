@@ -34,6 +34,7 @@ export function usePhoneNumbersGraphQL() {
   const fetchPage = useCallback(() => fetchPhoneNumbersPage(), []);
 
   const { reload } = useCachedPagePoll({
+    loadKey: "phone-numbers",
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),

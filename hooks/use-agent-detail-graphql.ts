@@ -103,6 +103,7 @@ export function useAgentDetailGraphQL(agentId: string) {
 
   const { reload } = useCachedPagePoll({
     enabled: Boolean(agentId),
+    loadKey: `agent-detail:${agentId}`,
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),

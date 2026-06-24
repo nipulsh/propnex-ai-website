@@ -35,6 +35,7 @@ import {
   type SetupPageResult,
   type UploadedContactsListResult,
   type UploadedContactImportResult,
+  type ImportedContactInput,
   type AgentLibraryBySlugResult,
   type AgentLibraryListResult,
 } from "@/lib/graphql/queries";
@@ -193,10 +194,12 @@ export async function createUploadedContact(phone: string) {
   }>(CREATE_UPLOADED_CONTACT_MUTATION, { phone });
 }
 
-export async function importUploadedContacts(phones: string[]) {
+export async function importUploadedContacts(
+  contacts: ImportedContactInput[],
+) {
   return gqlRequest<UploadedContactImportResult>(
     IMPORT_UPLOADED_CONTACTS_MUTATION,
-    { phones },
+    { contacts },
   );
 }
 

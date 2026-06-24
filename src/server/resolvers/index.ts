@@ -218,11 +218,18 @@ export const resolvers = {
       args: { phone: string },
       ctx: TenantContext,
     ) => uploadedContactsService.create(ctx, args.phone),
-    importPhones: (
+    importContacts: (
       _: unknown,
-      args: { phones: string[] },
+      args: {
+        contacts: Array<{
+          phone: string;
+          name?: string | null;
+          email?: string | null;
+          address?: string | null;
+        }>;
+      },
       ctx: TenantContext,
-    ) => uploadedContactsService.importPhones(ctx, args.phones),
+    ) => uploadedContactsService.importContacts(ctx, args.contacts),
     delete: (
       _: unknown,
       args: { id: string },

@@ -72,7 +72,7 @@ export function AgentDetailPageContent({
   usePageStatusNotification({
     isInitialLoading: isLoading,
     loadingMessage: "Loading agent…",
-    loadingId: "agent-detail-loading",
+    loadingId: `agent-detail-loading-${agentId}`,
     error: error ?? undefined,
     onErrorClear: () => useAgentDetailStore.setState({ error: null }),
   });

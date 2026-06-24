@@ -6,6 +6,11 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createUploadedContact } from "@/lib/graphql/api";
+import {
+  CONTACT_PHONE_COUNTRIES,
+  DEFAULT_CONTACT_PHONE_COUNTRY,
+  buildStoredContactPhone,
+} from "@/lib/country-dial-codes";
 import { isValidContactPhone } from "@/lib/contact-phone-validation";
 import type { SideNotificationType } from "@/components/common/side-notification";
 import { cn } from "@/lib/utils";
@@ -21,6 +26,7 @@ export function AddContactPhoneForm({
   onNotify,
   className,
 }: AddContactPhoneFormProps) {
+  const [country, setCountry] = useState(DEFAULT_CONTACT_PHONE_COUNTRY);
   const [phone, setPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,9 +47,15 @@ export function AddContactPhoneForm({
       return;
     }
 
+    const stored = buildStoredContactPhone(country, trimmed);
+    if (!stored) {
+      notify("Invalid country or phone number.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await createUploadedContact(trimmed);
+      await createUploadedContact(stored);
       setPhone("");
       onAdded();
     } catch (err) {
@@ -63,10 +75,23 @@ export function AddContactPhoneForm({
         className,
       )}
     >
+      <select
+        value={country}
+        onChange={(event) => setCountry(event.target.value)}
+        className="h-9 shrink-0 rounded-md border border-propnex-border bg-propnex-bg px-2 text-sm text-foreground"
+        disabled={isSubmitting}
+        aria-label="Country"
+      >
+        {CONTACT_PHONE_COUNTRIES.map((option) => (
+          <option key={option.code} value={option.code}>
+            {option.label} (+{option.dialCode})
+          </option>
+        ))}
+      </select>
       <Input
         value={phone}
         onChange={(event) => setPhone(event.target.value)}
-        placeholder="9876543210"
+        placeholder="10-digit local number"
         className="h-9 min-w-0 flex-1 border-propnex-border bg-propnex-bg font-mono"
         disabled={isSubmitting}
       />

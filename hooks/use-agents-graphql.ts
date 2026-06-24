@@ -43,6 +43,7 @@ export function useAgentsGraphQL() {
   );
 
   const { reload } = useCachedPagePoll({
+    loadKey: "agents",
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),

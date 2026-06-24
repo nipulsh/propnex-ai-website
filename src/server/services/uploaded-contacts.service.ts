@@ -1,22 +1,47 @@
 import { AppError, NotFoundError } from "@/server/lib/errors";
 import { cacheService } from "@/server/cache/cache.service";
 import prisma from "@/server/lib/prisma";
-import { UploadedContactsRepository } from "@/server/repositories/uploaded-contacts.repository";
+import {
+  UploadedContactsRepository,
+  type UploadedContactCreateInput,
+} from "@/server/repositories/uploaded-contacts.repository";
 import type { TenantContext } from "@/server/types/context";
 import { PERMISSIONS } from "@/server/types/permissions";
 import { tenantService } from "@/server/services/tenant.service";
-import { normalizeContactPhone } from "@/lib/contact-phone-validation";
+import { normalizeStoredContactPhone } from "@/lib/contact-phone-validation";
 const MAX_IMPORT_ROWS = 5000;
 
 function mapUploadedContact(row: {
   id: string;
   phone: string;
+  name: string | null;
+  email: string | null;
+  address: string | null;
   createdAt: Date;
 }) {
   return {
     id: row.id,
     phone: row.phone,
+    name: row.name,
+    email: row.email,
+    address: row.address,
     createdAt: row.createdAt.toISOString(),
+  };
+}
+
+function normalizeImportedContact(
+  contact: UploadedContactCreateInput,
+): UploadedContactCreateInput | null {
+  const normalized = normalizeStoredContactPhone(contact.phone);
+  if (!normalized) {
+    return null;
+  }
+
+  return {
+    phone: normalized,
+    name: contact.name?.trim() || null,
+    email: contact.email?.trim() || null,
+    address: contact.address?.trim() || null,
   };
 }
 
@@ -32,10 +57,10 @@ export class UploadedContactsService {
   async create(ctx: TenantContext, phone: string) {
     tenantService.requirePermission(ctx, PERMISSIONS.LEADS_WRITE);
 
-    const normalized = normalizeContactPhone(phone);
+    const normalized = normalizeStoredContactPhone(phone);
     if (!normalized) {
       throw new AppError(
-        "Phone number must be exactly 10 digits.",
+        "Phone number must be a valid 10-digit local number with a supported country code.",
         "INVALID_PHONE",
       );
     }
@@ -45,34 +70,37 @@ export class UploadedContactsService {
       throw new AppError("This phone number already exists.", "DUPLICATE_PHONE");
     }
 
-    const row = await this.repo.create(ctx.companyId, normalized);
+    const row = await this.repo.create(ctx.companyId, { phone: normalized });
     await cacheService.invalidateUploadedContactPages(ctx.companyId);
     return mapUploadedContact(row);
   }
 
-  async importPhones(ctx: TenantContext, phones: string[]) {
+  async importContacts(
+    ctx: TenantContext,
+    contacts: UploadedContactCreateInput[],
+  ) {
     tenantService.requirePermission(ctx, PERMISSIONS.LEADS_WRITE);
 
-    const validPhones: string[] = [];
+    const validContacts: UploadedContactCreateInput[] = [];
     let invalid = 0;
     const seen = new Set<string>();
 
-    for (const raw of phones.slice(0, MAX_IMPORT_ROWS)) {
-      const normalized = normalizeContactPhone(raw);
+    for (const raw of contacts.slice(0, MAX_IMPORT_ROWS)) {
+      const normalized = normalizeImportedContact(raw);
       if (!normalized) {
         invalid++;
         continue;
       }
-      if (seen.has(normalized)) {
+      if (seen.has(normalized.phone)) {
         continue;
       }
-      seen.add(normalized);
-      validPhones.push(normalized);
+      seen.add(normalized.phone);
+      validContacts.push(normalized);
     }
 
     const { created, skipped } = await this.repo.createMany(
       ctx.companyId,
-      validPhones,
+      validContacts,
     );
 
     if (created > 0) {

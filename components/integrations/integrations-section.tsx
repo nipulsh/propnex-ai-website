@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { IntegrationCard } from "@/components/integrations/integration-card";
 import { IntegrationDetailSheet } from "@/components/integrations/integration-detail-sheet";
@@ -31,17 +31,8 @@ export function IntegrationsSection() {
   const [confirmDisconnect, setConfirmDisconnect] =
     useState<IntegrationId | null>(null);
 
-  const hasLoadedOnceRef = useRef(false);
-  const isInitialLoading = isLoading && !hasLoadedOnceRef.current;
-
-  useEffect(() => {
-    if (!isLoading) {
-      hasLoadedOnceRef.current = true;
-    }
-  }, [isLoading]);
-
   usePageStatusNotification({
-    isInitialLoading,
+    isInitialLoading: isLoading,
     loadingMessage: "Loading integrations…",
     loadingId: "integrations-loading",
   });

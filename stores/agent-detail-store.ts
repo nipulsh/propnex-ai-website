@@ -43,7 +43,6 @@ export const useAgentDetailStore = create<AgentDetailStore>((set) => ({
   reset: () =>
     set({
       agentId: null,
-      isLoading: true,
       error: null,
       successBanner: null,
       calls: [],

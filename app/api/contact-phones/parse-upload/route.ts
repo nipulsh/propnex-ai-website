@@ -5,6 +5,7 @@ import {
   parseContactPhoneUpload,
   SERVER_PARSE_EXTENSIONS,
 } from "@/lib/contact-phone-file-parser";
+import { DEFAULT_CONTACT_PHONE_COUNTRY } from "@/lib/country-dial-codes";
 import { getContactPhoneUploadExtension } from "@/lib/contact-phone-import";
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
@@ -51,16 +52,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const defaultCountryRaw = formData.get("defaultCountry");
+  const defaultCountry =
+    typeof defaultCountryRaw === "string" && defaultCountryRaw.trim()
+      ? defaultCountryRaw.trim()
+      : DEFAULT_CONTACT_PHONE_COUNTRY;
+
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const result = await parseContactPhoneUpload(buffer, file.name);
+    const result = await parseContactPhoneUpload(buffer, file.name, {
+      defaultCountry,
+    });
 
-    if (result.phones.length === 0) {
+    if (result.contacts.length === 0) {
       return NextResponse.json(
         {
           error:
             result.invalid > 0
-              ? "No valid phone numbers found. Each number must be exactly 10 digits."
+              ? "No valid phone numbers found. Use country (ISO code) and a 10-digit phone column, or a supported default country for unstructured files."
               : "No phone numbers found in the uploaded file.",
         },
         { status: 400 },

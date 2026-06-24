@@ -89,6 +89,7 @@ export function usePhoneNumberDetailGraphQL(phoneNumberId: string) {
 
   const { reload } = useCachedPagePoll({
     enabled: Boolean(phoneNumberId),
+    loadKey: `phone-detail:${phoneNumberId}`,
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),

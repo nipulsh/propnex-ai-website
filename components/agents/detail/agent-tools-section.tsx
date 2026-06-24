@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AgentToolCard } from "@/components/agent-tools/agent-tool-card";
 import { AgentToolConfigSheet } from "@/components/agent-tools/agent-tool-config-sheet";
@@ -33,17 +33,8 @@ export function AgentToolsSection({ agent }: AgentToolsSectionProps) {
   const [configTool, setConfigTool] = useState<AgentToolAssignment | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
 
-  const hasLoadedOnceRef = useRef(false);
-  const isInitialLoading = isLoading && !hasLoadedOnceRef.current;
-
-  useEffect(() => {
-    if (!isLoading) {
-      hasLoadedOnceRef.current = true;
-    }
-  }, [isLoading]);
-
   usePageStatusNotification({
-    isInitialLoading,
+    isInitialLoading: isLoading,
     loadingMessage: "Loading agent tools…",
     loadingId: `agent-tools-loading-${agent.id}`,
   });

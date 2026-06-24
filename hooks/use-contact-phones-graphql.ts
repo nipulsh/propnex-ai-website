@@ -26,6 +26,7 @@ export function useContactPhonesGraphQL() {
   );
 
   const { reload } = useCachedPagePoll({
+    loadKey: "phone-contacts",
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),

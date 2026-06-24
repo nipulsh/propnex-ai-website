@@ -43,6 +43,7 @@ export function useBillingGraphQL() {
   );
 
   useCachedPagePoll({
+    loadKey: "billing",
     fetchPage,
     onData: applyBillingData,
     onError: (message) => setError(message),

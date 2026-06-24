@@ -27,7 +27,7 @@ async function ensureCreditBalance(companyId: string) {
     where: { companyId },
     create: {
       companyId,
-      creditsRemaining: 2000,
+      creditsRemaining: 0,
       creditsUsed: 0,
     },
     update: {},

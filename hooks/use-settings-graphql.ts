@@ -25,6 +25,7 @@ export function useSettingsGraphQL() {
   );
 
   useCachedPagePoll({
+    loadKey: "settings",
     fetchPage,
     onData: applyPageData,
     onError: () => {

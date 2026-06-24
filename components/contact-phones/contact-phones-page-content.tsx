@@ -200,8 +200,8 @@ export function ContactPhonesPageContent() {
         <ContactPhonesBulkBar onDeleteSelected={openBulkDelete} />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
-        <div className="propnex-scrollbar min-h-0 flex-1 overflow-y-auto">
+      <div className="shrink-0 overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
+        <div className="propnex-scrollbar max-h-72 overflow-y-auto">
           <ContactPhonesTable
             contacts={pageContacts}
             onDelete={openSingleDelete}

@@ -1,4 +1,4 @@
-export type CsvFieldKey = "contactName" | "phoneNumber" | "agentId";
+export type CsvFieldKey = "contactName" | "phoneNumber" | "agentId" | "country";
 
 export type ColumnMapping = Record<CsvFieldKey, string | null>;
 
@@ -17,6 +17,7 @@ export const CSV_FIELD_LABELS: Record<CsvFieldKey, string> = {
   contactName: "Contact Name",
   phoneNumber: "Phone Number",
   agentId: "Agent ID (Optional)",
+  country: "Country",
 };
 
 export const SAMPLE_CSV_FILENAME = "propnex-contacts-sample.csv";
@@ -99,6 +100,7 @@ export function guessColumnMapping(headers: string[]): ColumnMapping {
     contactName: findHeader("fullname", "contactname", "name"),
     phoneNumber: findHeader("phonee164", "phone", "mobile", "tel"),
     agentId: findHeader("agentid", "agent"),
+    country: findHeader("country", "countrycode", "iso"),
   };
 }
 

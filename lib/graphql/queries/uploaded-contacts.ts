@@ -4,6 +4,9 @@ export const UPLOADED_CONTACTS_LIST_QUERY = `
       list {
         id
         phone
+        name
+        email
+        address
         createdAt
       }
     }
@@ -16,6 +19,9 @@ export const CREATE_UPLOADED_CONTACT_MUTATION = `
       create(phone: $phone) {
         id
         phone
+        name
+        email
+        address
         createdAt
       }
     }
@@ -23,9 +29,9 @@ export const CREATE_UPLOADED_CONTACT_MUTATION = `
 `;
 
 export const IMPORT_UPLOADED_CONTACTS_MUTATION = `
-  mutation ImportUploadedContacts($phones: [String!]!) {
+  mutation ImportUploadedContacts($contacts: [ImportedContactInput!]!) {
     uploadedContacts {
-      importPhones(phones: $phones) {
+      importContacts(contacts: $contacts) {
         created
         skipped
         invalid
@@ -53,7 +59,17 @@ export const BULK_DELETE_UPLOADED_CONTACTS_MUTATION = `
 export type UploadedContactResult = {
   id: string;
   phone: string;
+  name: string | null;
+  email: string | null;
+  address: string | null;
   createdAt: string;
+};
+
+export type ImportedContactInput = {
+  phone: string;
+  name?: string | null;
+  email?: string | null;
+  address?: string | null;
 };
 
 export type UploadedContactsListResult = {
@@ -64,7 +80,7 @@ export type UploadedContactsListResult = {
 
 export type UploadedContactImportResult = {
   uploadedContacts: {
-    importPhones: {
+    importContacts: {
       created: number;
       skipped: number;
       invalid: number;

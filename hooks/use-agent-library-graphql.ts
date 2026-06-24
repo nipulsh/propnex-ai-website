@@ -26,6 +26,7 @@ export function useAgentLibraryGraphQL() {
   );
 
   const { reload } = useCachedPagePoll({
+    loadKey: "agent-library",
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),
@@ -52,6 +53,7 @@ export function useAgentLibraryTemplate(slug: string) {
 
   useCachedPagePoll({
     enabled: Boolean(slug),
+    loadKey: `agent-template:${slug}`,
     fetchPage,
     onData: applyPageData,
     onError: (message) => {

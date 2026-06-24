@@ -7,6 +7,9 @@ import {
   type SideNotificationType,
 } from "@/components/common/side-notification";
 
+/** Survives client navigations; cleared only on a full page reload. */
+const completedLoadingNotifications = new Set<string>();
+
 type UsePageStatusNotificationOptions = {
   isInitialLoading: boolean;
   loadingMessage: string;
@@ -24,9 +27,17 @@ export function usePageStatusNotification({
 }: UsePageStatusNotificationOptions) {
   const { notify, dismiss } = useSideNotification();
   const lastErrorRef = useRef<string | null>(null);
+  const showLoadingNotification =
+    isInitialLoading && !completedLoadingNotifications.has(loadingId);
 
   useEffect(() => {
-    if (isInitialLoading) {
+    if (!isInitialLoading) {
+      completedLoadingNotifications.add(loadingId);
+    }
+  }, [isInitialLoading, loadingId]);
+
+  useEffect(() => {
+    if (showLoadingNotification) {
       notify({
         id: loadingId,
         type: "info",
@@ -36,7 +47,7 @@ export function usePageStatusNotification({
     }
 
     dismiss(loadingId);
-  }, [isInitialLoading, loadingMessage, loadingId, notify, dismiss]);
+  }, [showLoadingNotification, loadingMessage, loadingId, notify, dismiss]);
 
   useEffect(() => {
     if (!error) {

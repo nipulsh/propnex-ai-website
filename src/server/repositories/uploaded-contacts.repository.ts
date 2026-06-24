@@ -1,5 +1,12 @@
 import { BaseRepository } from "@/server/repositories/base.repository";
 
+export type UploadedContactCreateInput = {
+  phone: string;
+  name?: string | null;
+  email?: string | null;
+  address?: string | null;
+};
+
 export class UploadedContactsRepository extends BaseRepository {
   findMany(companyId: string) {
     return this.prisma.uploadedContact.findMany({
@@ -24,10 +31,13 @@ export class UploadedContactsRepository extends BaseRepository {
     });
   }
 
-  create(companyId: string, phone: string) {
+  create(companyId: string, contact: UploadedContactCreateInput) {
     return this.prisma.uploadedContact.create({
       data: {
-        phone,
+        phone: contact.phone,
+        name: contact.name ?? null,
+        email: contact.email ?? null,
+        address: contact.address ?? null,
         company: { connect: { id: companyId } },
       },
     });
@@ -35,31 +45,42 @@ export class UploadedContactsRepository extends BaseRepository {
 
   async createMany(
     companyId: string,
-    phones: string[],
+    contacts: UploadedContactCreateInput[],
   ): Promise<{ created: number; skipped: number }> {
     const seen = new Set<string>();
-    const uniquePhones: string[] = [];
+    const uniqueContacts: UploadedContactCreateInput[] = [];
 
-    for (const phone of phones) {
-      if (seen.has(phone)) {
+    for (const contact of contacts) {
+      if (seen.has(contact.phone)) {
         continue;
       }
-      seen.add(phone);
-      uniquePhones.push(phone);
+      seen.add(contact.phone);
+      uniqueContacts.push(contact);
     }
 
-    if (uniquePhones.length === 0) {
+    if (uniqueContacts.length === 0) {
       return { created: 0, skipped: 0 };
     }
 
-    const existing = await this.findByPhones(companyId, uniquePhones);
+    const existing = await this.findByPhones(
+      companyId,
+      uniqueContacts.map((contact) => contact.phone),
+    );
     const existingSet = new Set(existing.map((row) => row.phone));
-    const toCreate = uniquePhones.filter((phone) => !existingSet.has(phone));
-    const skipped = uniquePhones.length - toCreate.length;
+    const toCreate = uniqueContacts.filter(
+      (contact) => !existingSet.has(contact.phone),
+    );
+    const skipped = uniqueContacts.length - toCreate.length;
 
     if (toCreate.length > 0) {
       await this.prisma.uploadedContact.createMany({
-        data: toCreate.map((phone) => ({ companyId, phone })),
+        data: toCreate.map((contact) => ({
+          companyId,
+          phone: contact.phone,
+          name: contact.name ?? null,
+          email: contact.email ?? null,
+          address: contact.address ?? null,
+        })),
       });
     }
 

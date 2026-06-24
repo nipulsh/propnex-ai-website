@@ -3,6 +3,9 @@ import { create } from "zustand";
 export type ContactPhone = {
   id: string;
   phone: string;
+  name: string | null;
+  email: string | null;
+  address: string | null;
   createdAt: string;
 };
 

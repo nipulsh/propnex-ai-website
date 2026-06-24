@@ -18,6 +18,7 @@ export function useHomeDashboardGraphQL() {
   );
 
   const { reload } = useCachedPagePoll({
+    loadKey: "home",
     fetchPage,
     onData: setPageData,
     onError: () => setError(true),

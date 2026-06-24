@@ -35,6 +35,7 @@ export function useCallDetailGraphQL(callId: string) {
   );
 
   const { reload } = useCachedPagePoll({
+    loadKey: `call-detail:${callId}`,
     fetchPage,
     onData: applyPageData,
     onError: (message) => {

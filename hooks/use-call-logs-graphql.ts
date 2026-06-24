@@ -119,6 +119,7 @@ export function useCallLogsGraphQL(filter?: Record<string, unknown>) {
   );
 
   const { reload } = useCachedPagePoll({
+    loadKey: "call-logs",
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),

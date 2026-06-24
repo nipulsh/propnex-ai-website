@@ -76,6 +76,7 @@ export function useLeadReactivationGraphQL() {
   );
 
   const { reload } = useCachedPagePoll({
+    loadKey: "lead-reactivation",
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),
