@@ -7,7 +7,6 @@ import { BillingSection } from "@/components/billing/billing-section";
 import { QuantityStepper } from "@/components/billing/quantity-stepper";
 import { StatCard } from "@/components/call-details/stat-card";
 import { Button } from "@/components/ui/button";
-import { billingSummary } from "@/lib/billing-data";
 import {
   BILLING_PRICING,
   calculateChannelCost,
@@ -16,11 +15,14 @@ import {
   validateChannelQuantity,
 } from "@/lib/billing-pricing";
 import { useBillingStore } from "@/stores/billing-store";
+import { useUsageStore } from "@/stores/usage-store";
 
 const CREDITS_PER_PACK = 5000;
 const CREDIT_PACK_PRICE = 1500;
 
 export function SimplePurchasePanel() {
+  const remainingCredits = useUsageStore((s) => s.remainingCredits);
+  const creditsHydrated = useUsageStore((s) => s.creditsHydrated);
   const channelQty = useBillingStore((s) => s.resourceRequest.channelQty);
   const virtualNumberQty = useBillingStore(
     (s) => s.resourceRequest.virtualNumberQty,
@@ -107,7 +109,11 @@ export function SimplePurchasePanel() {
         >
           <StatCard
             title="Available Credits"
-            value={billingSummary.remainingCredits.toLocaleString("en-IN")}
+            value={
+              creditsHydrated
+                ? remainingCredits.toLocaleString("en-IN")
+                : "…"
+            }
             icon={Coins}
             footer="Use credits for outbound calls and campaigns"
           />

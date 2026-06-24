@@ -15,24 +15,27 @@ type UsageStore = UsageSnapshot & {
   resetDate: string;
   activePlan: string;
   totalLifetimeCalls: number;
+  creditsHydrated: boolean;
   recordUsage: (delta: UsageDelta) => void;
   recordCallUsage: (durationSeconds: number) => void;
   setFromSnapshot: (snapshot: UsageSnapshot) => void;
+  setCreditsHydrated: (hydrated: boolean) => void;
 };
 
 const initialSnapshot: UsageSnapshot = {
-  totalCredits: billingSummary.totalCredits,
-  usedCredits: billingSummary.usedCredits,
-  remainingCredits: billingSummary.remainingCredits,
-  moneyUsedInr: Math.round(billingSummary.usedCredits * 0.31),
+  totalCredits: 0,
+  usedCredits: 0,
+  remainingCredits: 0,
+  moneyUsedInr: 0,
   monthlyCallsUsed: INITIAL_RESOURCE_USAGE.monthlyCallsUsed,
   monthlyCallCapacity: INITIAL_RESOURCE_USAGE.monthlyCallCapacity,
-  availablePercent: billingSummary.availablePercent,
+  availablePercent: 0,
 };
 
 export const useUsageStore = create<UsageStore>((set, get) => ({
   ...initialSnapshot,
   totalLifetimeCalls: 0,
+  creditsHydrated: false,
   resetDate: billingSummary.resetDate,
   activePlan: billingSummary.activePlan,
 
@@ -53,4 +56,6 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
       ...state,
       ...snapshot,
     })),
+
+  setCreditsHydrated: (hydrated) => set({ creditsHydrated: hydrated }),
 }));

@@ -15,11 +15,13 @@ import { ModeToggle } from "@/components/common/mode-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { billingSummary } from "@/lib/billing-data";
 import { getUserMetadata } from "@/lib/user-metadata";
+import { useUsageStore } from "@/stores/usage-store";
 
 export function TopNav() {
   const { isLoaded, user } = useUser();
+  const remainingCredits = useUsageStore((s) => s.remainingCredits);
+  const creditsHydrated = useUsageStore((s) => s.creditsHydrated);
 
   const displayName =
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Account";
@@ -68,17 +70,19 @@ export function TopNav() {
         <ModeToggle />
         <AssistantChatPanel />
 
-        <Link
-          href="/billing"
-          className="flex items-center gap-2 rounded-lg border border-propnex-border bg-propnex-panel px-3 py-1.5 text-sm transition-colors hover:border-propnex-accent/50"
-          title="Available credits"
-        >
-          <Coins className="size-4 shrink-0 text-propnex-accent" />
-          <span className="hidden text-propnex-muted sm:inline">Credits</span>
-          <span className="font-semibold text-foreground">
-            {billingSummary.remainingCredits.toLocaleString()}
-          </span>
-        </Link>
+        <Show when="signed-in">
+          <Link
+            href="/billing"
+            className="flex items-center gap-2 rounded-lg border border-propnex-border bg-propnex-panel px-3 py-1.5 text-sm transition-colors hover:border-propnex-accent/50"
+            title="Available credits"
+          >
+            <Coins className="size-4 shrink-0 text-propnex-accent" />
+            <span className="hidden text-propnex-muted sm:inline">Credits</span>
+            <span className="font-semibold text-foreground">
+              {creditsHydrated ? remainingCredits.toLocaleString() : "…"}
+            </span>
+          </Link>
+        </Show>
 
         <Show when="signed-in">
           <SignOutButton>
