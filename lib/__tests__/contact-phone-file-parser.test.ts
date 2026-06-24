@@ -9,23 +9,72 @@ import {
   parsePhonesFromText,
 } from "@/lib/contact-phone-file-parser";
 import { parsePhonesFromStructuredRows } from "@/lib/contact-phone-import";
+import {
+  isValidContactPhone,
+  normalizeContactPhone,
+} from "@/lib/contact-phone-validation";
+
+describe("normalizeContactPhone", () => {
+  it("accepts plain 10-digit numbers", () => {
+    assert.equal(normalizeContactPhone("9876543210"), "9876543210");
+  });
+
+  it("strips formatting and normalizes to 10 digits", () => {
+    assert.equal(normalizeContactPhone("98765 43210"), "9876543210");
+    assert.equal(normalizeContactPhone("98765-43210"), "9876543210");
+    assert.equal(normalizeContactPhone("(987) 654-3210"), "9876543210");
+  });
+
+  it("rejects numbers with wrong digit count", () => {
+    assert.equal(normalizeContactPhone("123456789"), null);
+    assert.equal(normalizeContactPhone("12345678901"), null);
+    assert.equal(normalizeContactPhone("+919876543210"), null);
+  });
+
+  it("rejects non-numeric input", () => {
+    assert.equal(normalizeContactPhone("abc123"), null);
+    assert.equal(normalizeContactPhone("'; DROP TABLE--"), null);
+    assert.equal(normalizeContactPhone(""), null);
+  });
+});
+
+describe("isValidContactPhone", () => {
+  it("returns true for valid 10-digit numbers", () => {
+    assert.equal(isValidContactPhone("9876543210"), true);
+  });
+
+  it("returns false for invalid input", () => {
+    assert.equal(isValidContactPhone("invalid"), false);
+    assert.equal(isValidContactPhone("123"), false);
+  });
+});
 
 describe("parsePhonesFromStructuredRows", () => {
-  it("extracts valid E.164 numbers from a phone column", () => {
+  it("extracts valid 10-digit numbers from a phone column", () => {
     const result = parsePhonesFromStructuredRows(
-      ["phone_e164", "name"],
+      ["phone", "name"],
       [
-        ["+15550123456", "Alice"],
-        ["+15550987654", "Bob"],
-        ["+15550123456", "Duplicate"],
+        ["9876543210", "Alice"],
+        ["9123456789", "Bob"],
+        ["9876543210", "Duplicate"],
         ["invalid", "Bad"],
         ["", "Empty"],
       ],
     );
 
     assert.equal(result.phones.length, 2);
-    assert.deepEqual(result.phones, ["+15550123456", "+15550987654"]);
+    assert.deepEqual(result.phones, ["9876543210", "9123456789"]);
     assert.equal(result.invalid, 2);
+  });
+
+  it("normalizes formatted numbers from structured rows", () => {
+    const result = parsePhonesFromStructuredRows(
+      ["mobile", "name"],
+      [["98765 43210", "Alice"]],
+    );
+
+    assert.deepEqual(result.phones, ["9876543210"]);
+    assert.equal(result.invalid, 0);
   });
 
   it("returns invalid count when no phone column is found", () => {
@@ -40,31 +89,28 @@ describe("parsePhonesFromStructuredRows", () => {
 });
 
 describe("parsePhonesFromText", () => {
-  it("extracts plain E.164 numbers", () => {
+  it("extracts plain 10-digit numbers", () => {
     const result = parsePhonesFromText(
-      "Reach us at +15550123456 or +447911123456 for support.",
+      "Reach us at 9876543210 or 9123456789 for support.",
     );
 
-    assert.deepEqual(result.phones, ["+15550123456", "+447911123456"]);
+    assert.deepEqual(result.phones, ["9876543210", "9123456789"]);
   });
 
-  it("normalizes formatted international numbers", () => {
-    const result = parsePhonesFromText("Call +1 (555) 123-4567 today.");
+  it("does not extract numbers embedded in longer digit sequences", () => {
+    const result = parsePhonesFromText("Call +919876543210 today.");
 
-    assert.deepEqual(result.phones, ["+15551234567"]);
+    assert.deepEqual(result.phones, []);
   });
 });
 
 describe("normalizePhoneCandidate", () => {
-  it("accepts already valid E.164 numbers", () => {
-    assert.equal(normalizePhoneCandidate("+15550123456"), "+15550123456");
+  it("accepts already valid 10-digit numbers", () => {
+    assert.equal(normalizePhoneCandidate("9876543210"), "9876543210");
   });
 
-  it("strips formatting from numbers that start with +", () => {
-    assert.equal(
-      normalizePhoneCandidate("+1 (555) 123-4567"),
-      "+15551234567",
-    );
+  it("strips formatting from numbers", () => {
+    assert.equal(normalizePhoneCandidate("98765 43210"), "9876543210");
   });
 });
 
@@ -73,8 +119,8 @@ describe("parsePhonesFromExcel", () => {
     const workbook = XLSX.utils.book_new();
     const sheet = XLSX.utils.aoa_to_sheet([
       ["mobile", "name"],
-      ["+15550123456", "Alice"],
-      ["+15550987654", "Bob"],
+      ["9876543210", "Alice"],
+      ["9123456789", "Bob"],
     ]);
     XLSX.utils.book_append_sheet(workbook, sheet, "Contacts");
     const buffer = Buffer.from(
@@ -82,7 +128,7 @@ describe("parsePhonesFromExcel", () => {
     );
 
     const result = parsePhonesFromExcel(buffer);
-    assert.deepEqual(result.phones, ["+15550123456", "+15550987654"]);
+    assert.deepEqual(result.phones, ["9876543210", "9123456789"]);
   });
 });
 

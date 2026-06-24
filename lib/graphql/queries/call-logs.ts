@@ -11,9 +11,12 @@ export const CALL_LOGS_PAGE_QUERY = `
             outcome
             durationSeconds
             recordingUrl
+            transcriptUrl
             cost
+            creditsUsed
             provider
             aiSummary
+            sentiment
             leadId
             aiAgentId
             phoneNumberId
@@ -58,6 +61,7 @@ export const CALL_DETAIL_QUERY = `
         durationSeconds
         recordingUrl
         cost
+        creditsUsed
         provider
         aiSummary
         sentiment
@@ -101,9 +105,12 @@ export type CallLogsPageResult = {
           outcome: string | null;
           durationSeconds: number;
           recordingUrl: string | null;
+          transcriptUrl: string | null;
           cost: number | null;
+          creditsUsed: number | null;
           provider: string | null;
           aiSummary: Record<string, unknown> | null;
+          sentiment: Record<string, unknown> | null;
           leadId: string | null;
           aiAgentId: string | null;
           phoneNumberId: string | null;

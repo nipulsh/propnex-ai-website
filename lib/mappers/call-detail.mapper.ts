@@ -7,6 +7,7 @@ import type {
   RecordingStatus,
   TranscriptSpeaker,
 } from "@/lib/call-detail-data";
+import { extractSentimentOutcome } from "@/lib/call-logs-data";
 
 type GraphQLCallDetail = {
   id: string;
@@ -17,6 +18,7 @@ type GraphQLCallDetail = {
   durationSeconds: number;
   recordingUrl?: string | null;
   cost?: number | null;
+  creditsUsed?: number | null;
   provider?: string | null;
   aiSummary?: Record<string, unknown> | null;
   sentiment?: Record<string, unknown> | null;
@@ -89,7 +91,11 @@ export function mapGraphQLCallDetailToUI(detail: GraphQLCallDetail): CallDetail 
     durationSeconds: detail.durationSeconds,
     summarySnippet: String(summary.interests ?? ""),
     hasRecording: recordingStatus === "available",
+    recordingUrl: detail.recordingUrl ?? null,
+    sentimentOutcome: extractSentimentOutcome(detail.sentiment),
+    hasTranscript: Boolean(detail.transcript),
     callCost: detail.cost ?? 0,
+    creditsUsed: detail.creditsUsed ?? 0,
     provider: detail.provider ?? "PropNex",
     outcome: toOutcome(detail.outcome),
     leadScore: detail.lead?.score ?? 0,

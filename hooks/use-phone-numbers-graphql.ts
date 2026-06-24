@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 
 import {
   createPhoneNumber as createPhoneNumberApi,
@@ -12,6 +12,7 @@ import {
   mapUIPhoneNumberToCreateInput,
 } from "@/lib/mappers/phone-number.mapper";
 import type { TelephonyProvider } from "@/lib/setup-data";
+import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 import { usePhoneNumbersStore } from "@/stores/phone-numbers-store";
 
 export function usePhoneNumbersGraphQL() {
@@ -19,27 +20,25 @@ export function usePhoneNumbersGraphQL() {
   const setLoading = usePhoneNumbersStore((s) => s.setLoading);
   const setError = usePhoneNumbersStore((s) => s.setError);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchPhoneNumbersPage();
+  const applyPageData = useCallback(
+    (data: Awaited<ReturnType<typeof fetchPhoneNumbersPage>>) => {
       const mapped = data.phoneNumbers.list.map((row) =>
         mapGraphQLPhoneNumberToUI(row as never),
       );
       setNumbers(mapped);
       setError(null);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load phone numbers",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [setError, setLoading, setNumbers]);
+    },
+    [setError, setNumbers],
+  );
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const fetchPage = useCallback(() => fetchPhoneNumbersPage(), []);
+
+  const { reload } = useCachedPagePoll({
+    fetchPage,
+    onData: applyPageData,
+    onError: (message) => setError(message),
+    onLoading: setLoading,
+  });
 
   return { reload };
 }

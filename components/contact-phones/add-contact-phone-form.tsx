@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createUploadedContact } from "@/lib/graphql/api";
-import { isValidE164Phone } from "@/lib/csv-import";
+import { isValidContactPhone } from "@/lib/contact-phone-validation";
 import type { SideNotificationType } from "@/components/common/side-notification";
 import { cn } from "@/lib/utils";
 
@@ -36,8 +36,8 @@ export function AddContactPhoneForm({
       notify("Phone number is required.");
       return;
     }
-    if (!isValidE164Phone(trimmed)) {
-      notify("Use E.164 format (e.g. +15550123456).");
+    if (!isValidContactPhone(trimmed)) {
+      notify("Phone number must be exactly 10 digits.");
       return;
     }
 
@@ -66,7 +66,7 @@ export function AddContactPhoneForm({
       <Input
         value={phone}
         onChange={(event) => setPhone(event.target.value)}
-        placeholder="+15550123456 (E.164)"
+        placeholder="9876543210"
         className="h-9 min-w-0 flex-1 border-propnex-border bg-propnex-bg font-mono"
         disabled={isSubmitting}
       />

@@ -94,6 +94,7 @@ export type SpreadsheetOption = {
   id: string;
   name: string;
   modifiedAt: string;
+  webViewLink?: string;
 };
 
 export type WorksheetOption = {

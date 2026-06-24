@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { delay, requireAuth } from "@/lib/api/auth";
 import { requireTenantContext } from "@/lib/api/tenant-context";
+import { isGoogleIntegration } from "@/lib/integrations/google/constants";
 import { connectIntegrationDb } from "@/lib/integrations/db-state";
 import type { IntegrationId } from "@/lib/integrations/types";
 
@@ -12,7 +12,13 @@ export async function POST(_req: Request, { params }: RouteParams) {
   if (error || !ctx) return error!;
 
   const { id } = await params;
-  await delay(1500);
+
+  if (isGoogleIntegration(id as IntegrationId)) {
+    return NextResponse.json(
+      { error: "Use Google OAuth to connect this integration" },
+      { status: 400 },
+    );
+  }
 
   const integration = await connectIntegrationDb(ctx, id as IntegrationId);
   if (!integration) {

@@ -62,7 +62,7 @@ export function useUploadContactPhones(onImported: () => void) {
         if (phones.length === 0) {
           setError(
             invalid > 0
-              ? "No valid phone numbers found. Use E.164 format (e.g. +15550123456)."
+              ? "No valid phone numbers found. Each number must be exactly 10 digits."
               : "No phone numbers found in the uploaded file.",
           );
           return;

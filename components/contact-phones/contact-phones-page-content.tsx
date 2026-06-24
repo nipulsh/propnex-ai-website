@@ -5,7 +5,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import {
-  SideNotificationProvider,
   useSideNotification,
   type SideNotificationType,
 } from "@/components/common/side-notification";
@@ -19,6 +18,7 @@ import {
 } from "@/components/contact-phones/upload-contact-phones-section";
 import { Button } from "@/components/ui/button";
 import { useContactPhonesGraphQL } from "@/hooks/use-contact-phones-graphql";
+import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
 import {
   bulkDeleteUploadedContacts,
   deleteUploadedContact,
@@ -29,10 +29,9 @@ import {
   type ContactPhone,
 } from "@/stores/contact-phones-store";
 
-const LOADING_NOTIFICATION_ID = "contact-phones-loading";
 const UPLOADING_NOTIFICATION_ID = "contact-phones-uploading";
 
-function ContactPhonesPageInner() {
+export function ContactPhonesPageContent() {
   const { reload } = useContactPhonesGraphQL();
   const upload = useUploadContactPhones(() => void reload());
   const { notify, dismiss } = useSideNotification();
@@ -51,7 +50,14 @@ function ContactPhonesPageInner() {
 
   const lastUploadErrorRef = useRef<string | null>(null);
   const lastUploadResultsKeyRef = useRef<string | null>(null);
-  const lastStoreErrorRef = useRef<string | null>(null);
+
+  usePageStatusNotification({
+    isInitialLoading: isLoading,
+    loadingMessage: "Loading phone numbers…",
+    loadingId: "contact-phones-loading",
+    error: error ?? undefined,
+    onErrorClear: () => useContactPhonesStore.setState({ error: null }),
+  });
 
   const { pageContacts, totalPages, totalCount } = useMemo(() => {
     const total = contacts.length;
@@ -65,37 +71,6 @@ function ContactPhonesPageInner() {
       totalCount: total,
     };
   }, [contacts, currentPage]);
-
-  useEffect(() => {
-    if (isLoading) {
-      notify({
-        id: LOADING_NOTIFICATION_ID,
-        type: "info",
-        message: "Loading phone numbers…",
-      });
-      return;
-    }
-
-    dismiss(LOADING_NOTIFICATION_ID);
-  }, [isLoading, notify, dismiss]);
-
-  useEffect(() => {
-    if (!error) {
-      lastStoreErrorRef.current = null;
-      return;
-    }
-
-    if (error === lastStoreErrorRef.current) {
-      return;
-    }
-
-    lastStoreErrorRef.current = error;
-    notify({
-      type: "error",
-      message: error,
-    });
-    useContactPhonesStore.setState({ error: null });
-  }, [error, notify]);
 
   useEffect(() => {
     if (upload.isProcessing) {
@@ -280,13 +255,5 @@ function ContactPhonesPageInner() {
         isDeleting={isDeleting}
       />
     </div>
-  );
-}
-
-export function ContactPhonesPageContent() {
-  return (
-    <SideNotificationProvider>
-      <ContactPhonesPageInner />
-    </SideNotificationProvider>
   );
 }

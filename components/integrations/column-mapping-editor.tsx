@@ -10,22 +10,32 @@ import { PROPNEX_FIELD_PRESETS, SHEET_COLUMN_PRESETS } from "@/lib/integrations/
 type ColumnMappingEditorProps = {
   mappings: ColumnMapping[];
   onChange: (mappings: ColumnMapping[]) => void;
+  columnOptions?: string[];
 };
 
 export function ColumnMappingEditor({
   mappings,
   onChange,
+  columnOptions,
 }: ColumnMappingEditorProps) {
   const [customField, setCustomField] = useState("");
 
+  const availableColumns =
+    columnOptions && columnOptions.length > 0
+      ? columnOptions.map((header, index) => ({
+          value: header,
+          label: header || `Column ${String.fromCharCode(65 + index)}`,
+        }))
+      : SHEET_COLUMN_PRESETS.map((col) => ({ value: col, label: col }));
+
   function addMapping(propnexField: string, label: string) {
-    const unusedColumn = SHEET_COLUMN_PRESETS.find(
-      (col) => !mappings.some((m) => m.spreadsheetColumn === col),
+    const unusedColumn = availableColumns.find(
+      (col) => !mappings.some((m) => m.spreadsheetColumn === col.value),
     );
     if (!unusedColumn) return;
     onChange([
       ...mappings,
-      { propnexField, spreadsheetColumn: unusedColumn, label },
+      { propnexField, spreadsheetColumn: unusedColumn.value, label },
     ]);
   }
 
@@ -98,9 +108,9 @@ export function ColumnMappingEditor({
                 }}
                 className="h-8 rounded-md border border-propnex-border bg-propnex-panel px-2 text-xs"
               >
-                {SHEET_COLUMN_PRESETS.map((col) => (
-                  <option key={col} value={col}>
-                    {col}
+                {availableColumns.map((col) => (
+                  <option key={col.value} value={col.value}>
+                    {col.label}
                   </option>
                 ))}
               </select>

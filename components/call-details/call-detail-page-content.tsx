@@ -2,12 +2,10 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
 
 import { CallAiSummary } from "@/components/call-details/call-ai-summary";
 import { CallDetailHeader } from "@/components/call-details/call-detail-header";
 import { CallDetailOverview } from "@/components/call-details/call-detail-overview";
-import { CallDetailSkeleton } from "@/components/call-details/call-detail-skeleton";
 import { CallOutcomeSection } from "@/components/call-details/call-outcome-section";
 import { CallQualitySection } from "@/components/call-details/call-quality-section";
 import { CallRecordingPlayer } from "@/components/call-details/call-recording-player";
@@ -23,6 +21,7 @@ import { QuickActionsPanel } from "@/components/call-details/quick-actions-panel
 import { SentimentAnalysisSection } from "@/components/call-details/sentiment-analysis-section";
 import { Button } from "@/components/ui/button";
 import { useCallDetailGraphQL } from "@/hooks/use-call-detail-graphql";
+import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
 import { useCallDetailStore } from "@/stores/call-detail-store";
 
 type CallDetailPageContentProps = {
@@ -35,6 +34,13 @@ export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
   const reset = useCallDetailStore((s) => s.reset);
   const outcome = useCallDetailStore((s) => s.outcome);
 
+  usePageStatusNotification({
+    isInitialLoading: isLoading,
+    loadingMessage: "Loading call details…",
+    loadingId: "call-detail-loading",
+    error: error ?? undefined,
+  });
+
   useEffect(() => {
     reset();
     if (detail) {
@@ -42,33 +48,19 @@ export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
     }
   }, [detail, hydrate, reset]);
 
-  if (isLoading) {
-    return (
-      <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
-        <CallDetailSkeleton />
-      </div>
-    );
-  }
-
-  if (error || !detail) {
+  if (!detail) {
     return (
       <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overscroll-contain p-6">
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-propnex-border bg-propnex-panel p-8 text-center">
-          <AlertCircle className="size-10 text-destructive" />
-          <h2 className="text-lg font-semibold text-foreground">
-            Call not found
-          </h2>
-          <p className="max-w-sm text-sm text-propnex-muted">
-            {error ?? "The call record you are looking for does not exist or may have been removed."}
-          </p>
-          <div className="mt-2 flex gap-3">
-            <Button variant="outline" onClick={() => void reload()}>
-              Retry
-            </Button>
-            <Button nativeButton={false} render={<Link href="/call-logs" />}>
-              Back to Call Logs
-            </Button>
-          </div>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => void reload({ showLoading: true })}
+          >
+            Retry
+          </Button>
+          <Button nativeButton={false} render={<Link href="/call-logs" />}>
+            Back to Call Logs
+          </Button>
         </div>
       </div>
     );
@@ -87,7 +79,9 @@ export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
         <div className="flex min-w-0 flex-col gap-6">
           <CallRecordingPlayer recording={detail.recording} />
-          <CallTranscript transcript={detail.transcript} />
+          <div id="call-transcript">
+            <CallTranscript transcript={detail.transcript} />
+          </div>
           <LeadIntelligenceSection detail={detailWithOutcome} />
           <EngagementAnalyticsSection
             engagement={detail.engagement}

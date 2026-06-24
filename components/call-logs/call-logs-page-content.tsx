@@ -8,8 +8,8 @@ import { CallLogsPagination } from "@/components/call-logs/call-logs-pagination"
 import { CallLogsTable } from "@/components/call-logs/call-logs-table";
 import { ExportCsvButton } from "@/components/call-logs/export-csv-button";
 import { PageHeader } from "@/components/common/page-header";
-import { BillingBanner } from "@/components/billing/billing-banner";
 import { useCallLogsGraphQL } from "@/hooks/use-call-logs-graphql";
+import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
 import {
   getDateRangeStart,
   type CallLog,
@@ -39,9 +39,13 @@ function mapGraphQLToCallLog(
     leadTemperature: log.leadTemperature,
     leadScore: log.leadScore,
     callCost: log.callCost,
+    creditsUsed: log.creditsUsed,
     provider: log.provider,
     summarySnippet: log.summarySnippet,
     hasRecording: log.hasRecording,
+    recordingUrl: log.recordingUrl,
+    sentimentOutcome: log.sentimentOutcome,
+    hasTranscript: log.hasTranscript,
   };
 }
 
@@ -66,6 +70,13 @@ export function CallLogsPageContent() {
   );
 
   const { logs: gqlLogs, isLoading, error } = useCallLogsGraphQL(gqlFilter);
+
+  usePageStatusNotification({
+    isInitialLoading: isLoading,
+    loadingMessage: "Loading call logs…",
+    loadingId: "call-logs-loading",
+    error: error ?? undefined,
+  });
 
   useEffect(() => {
     const leadTypeParam = searchParams.get("leadType");
@@ -118,17 +129,6 @@ export function CallLogsPageContent() {
           <ExportCsvButton logs={filteredLogs} />
         </div>
       </div>
-
-      {isLoading ? (
-        <BillingBanner type="info" message="Loading call logs..." />
-      ) : null}
-
-      {error ? (
-        <BillingBanner
-          type="error"
-          message="Unable to load call logs. Please try again."
-        />
-      ) : null}
 
       <CallLogsFilters />
 

@@ -1,7 +1,9 @@
 import { create } from "zustand";
 
+import { isGoogleIntegration } from "@/lib/integrations/google/constants";
 import type {
   CalendarOption,
+  ColumnMapping,
   GoogleCalendarConfig,
   GoogleSheetsConfig,
   IntegrationId,
@@ -31,7 +33,8 @@ type IntegrationsStore = {
   disconnectIntegration: (id: IntegrationId) => Promise<void>;
   syncSheets: () => Promise<void>;
   fetchSpreadsheets: () => Promise<void>;
-  createSpreadsheet: (name: string) => Promise<SpreadsheetOption>;
+  createSpreadsheet: (name: string, columns?: ColumnMapping[]) => Promise<SpreadsheetOption>;
+  deleteSpreadsheet: (spreadsheetId: string) => Promise<void>;
   fetchWorksheets: (spreadsheetId: string) => Promise<void>;
   saveSheetsConfig: (config: Partial<GoogleSheetsConfig>) => Promise<void>;
   fetchSyncHistory: () => Promise<void>;
@@ -82,6 +85,51 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
   selectIntegration: (id) => set({ selectedIntegrationId: id }),
 
   connectIntegration: async (id) => {
+    if (isGoogleIntegration(id)) {
+      set({ isConnecting: true, banner: null });
+      try {
+        const res = await fetch("/api/integrations/google/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ integrationId: id }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          integration?: WorkspaceIntegration;
+          error?: string;
+          code?: string;
+          oauthUrl?: string;
+          requiresOAuth?: boolean;
+        };
+
+        if (data.oauthUrl) {
+          window.location.href = data.oauthUrl;
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(data.error ?? "Connection failed");
+        }
+
+        set({ isConnecting: false, selectedIntegrationId: id });
+        await get().fetchIntegrations();
+        set({
+          banner: {
+            type: "success",
+            message: `${data.integration?.name ?? "Google"} connected`,
+          },
+        });
+      } catch (e) {
+        set({
+          isConnecting: false,
+          banner: {
+            type: "error",
+            message: e instanceof Error ? e.message : "Connection failed",
+          },
+        });
+      }
+      return;
+    }
+
     set({ isConnecting: true, banner: null });
     try {
       const data = await parseJson<{ integration: WorkspaceIntegration }>(
@@ -167,16 +215,39 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
     }
   },
 
-  createSpreadsheet: async (name) => {
+  createSpreadsheet: async (name, columns = []) => {
     const data = await parseJson<{ spreadsheet: SpreadsheetOption }>(
       await fetch("/api/integrations/google/sheets/spreadsheets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, columns }),
       }),
     );
     set((s) => ({ spreadsheets: [data.spreadsheet, ...s.spreadsheets] }));
     return data.spreadsheet;
+  },
+
+  deleteSpreadsheet: async (spreadsheetId) => {
+    const data = await parseJson<{
+      spreadsheets: SpreadsheetOption[];
+      integration: WorkspaceIntegration;
+    }>(
+      await fetch(
+        `/api/integrations/google/sheets/spreadsheets?spreadsheetId=${encodeURIComponent(spreadsheetId)}`,
+        { method: "DELETE" },
+      ),
+    );
+    set((s) => ({
+      spreadsheets: data.spreadsheets,
+      integrations: s.integrations.map((i) =>
+        i.id === "google-sheets" ? data.integration : i,
+      ),
+      worksheets:
+        s.integrations.find((i) => i.id === "google-sheets")?.sheetsConfig
+          ?.spreadsheetId === spreadsheetId
+          ? []
+          : s.worksheets,
+    }));
   },
 
   fetchWorksheets: async (spreadsheetId) => {

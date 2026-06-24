@@ -5,7 +5,9 @@ import {
   type LeadTemperature,
 } from "@/lib/call-detail-data";
 
-export type CallDirection = "inbound" | "outbound";
+export type CallDirection = "inbound" | "outbound" | "demo";
+
+export type SentimentOutcome = "positive" | "neutral" | "negative";
 
 export type CallStatus = "completed" | "missed" | "voicemail" | "failed";
 
@@ -26,9 +28,13 @@ export type CallLog = {
   leadTemperature: LeadTemperature;
   leadScore: number;
   callCost: number;
+  creditsUsed: number;
   provider: string;
   summarySnippet: string;
   hasRecording: boolean;
+  recordingUrl: string | null;
+  sentimentOutcome: SentimentOutcome | null;
+  hasTranscript: boolean;
 };
 
 export type DateRangeOption =
@@ -70,6 +76,7 @@ export const DIRECTION_OPTIONS: { value: DirectionFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "inbound", label: "Inbound" },
   { value: "outbound", label: "Outbound" },
+  { value: "demo", label: "Demo" },
 ];
 
 export const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
@@ -146,6 +153,42 @@ export function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+export function formatCallStatus(status: CallStatus): string {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+export function formatDirection(direction: CallDirection): string {
+  return direction.charAt(0).toUpperCase() + direction.slice(1);
+}
+
+export function formatSentimentOutcome(
+  outcome: SentimentOutcome | null,
+): string {
+  if (!outcome) return "—";
+  return outcome.charAt(0).toUpperCase() + outcome.slice(1);
+}
+
+export function extractSentimentOutcome(
+  sentiment: Record<string, unknown> | null | undefined,
+): SentimentOutcome | null {
+  if (!sentiment) return null;
+
+  const positive = Number(sentiment.positive ?? 0);
+  const neutral = Number(sentiment.neutral ?? 0);
+  const negative = Number(sentiment.negative ?? 0);
+  const max = Math.max(positive, neutral, negative);
+
+  if (max <= 0) return null;
+  if (positive === max) return "positive";
+  if (negative === max) return "negative";
+  return "neutral";
+}
+
+export function truncateCallId(id: string, length = 8): string {
+  if (id.length <= length) return id;
+  return `${id.slice(0, length)}…`;
 }
 
 export function getDateRangeStart(option: DateRangeOption): number {

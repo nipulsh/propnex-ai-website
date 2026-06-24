@@ -4,8 +4,35 @@ import type { Prisma } from "@prisma/client";
 
 import { INTEGRATION_DEFINITIONS } from "@/lib/integrations/registry";
 import {
+  isGoogleIntegration,
+} from "@/lib/integrations/google/constants";
+import {
+  appendSheetRow,
+  createSpreadsheet,
+  deleteSpreadsheet,
+  listSpreadsheets,
+  listWorksheets,
+  mapDataToRow,
+  mapDialerCallToRow,
+  mapLeadToRow,
+  readSheetRange,
+  rowToRecord,
+  updateSheetRange,
+} from "@/lib/integrations/google/sheets-service";
+import {
+  clearGoogleTokens,
+  getGoogleTokens,
+} from "@/lib/integrations/google/token-store";
+import { revokeGoogleToken } from "@/lib/integrations/google/oauth";
+import {
+  isGoogleIntegrationAuthorized,
+  markGoogleIntegrationsConnected,
+  reconcileGoogleIntegrationStatus,
+} from "@/lib/integrations/google/auth-status";
+import {
   DEFAULT_CALENDAR_CONFIG,
   DEFAULT_SHEETS_CONFIG,
+  type ColumnMapping,
   type GoogleCalendarConfig,
   type GoogleSheetsConfig,
   type IntegrationId,
@@ -98,8 +125,11 @@ function toWorkspaceIntegration(
 }
 
 export async function listIntegrations(ctx: TenantContext): Promise<WorkspaceIntegration[]> {
+  await reconcileGoogleIntegrationStatus(ctx);
+
   const rows = await integrationsManagementService.list(ctx);
   const byType = new Map(rows.map((r) => [r.type, r]));
+  const googleAuthorized = await isGoogleIntegrationAuthorized(ctx);
 
   return INTEGRATION_DEFINITIONS.filter((d) => d.available).map((def) => {
     const row = byType.get(TYPE_MAP[def.id]);
@@ -112,10 +142,30 @@ export async function listIntegrations(ctx: TenantContext): Promise<WorkspaceInt
         config: {},
       });
     }
+
+    let status =
+      row.status === "connected"
+        ? "CONNECTED"
+        : row.status === "syncing"
+          ? "SYNCING"
+          : row.status === "error"
+            ? "ERROR"
+            : "NOT_CONNECTED";
+
+    if (isGoogleIntegration(def.id) && !googleAuthorized) {
+      status = "NOT_CONNECTED";
+    }
+
     return toWorkspaceIntegration(def.id, {
-      status: row.status === "connected" ? "CONNECTED" : row.status === "syncing" ? "SYNCING" : row.status === "error" ? "ERROR" : "NOT_CONNECTED",
-      connectedAccount: row.connectedAccount,
-      lastSyncAt: row.lastSyncAt ? new Date(row.lastSyncAt) : null,
+      status,
+      connectedAccount: googleAuthorized || !isGoogleIntegration(def.id)
+        ? row.connectedAccount
+        : null,
+      lastSyncAt: googleAuthorized || !isGoogleIntegration(def.id)
+        ? row.lastSyncAt
+          ? new Date(row.lastSyncAt)
+          : null
+        : null,
       errorMessage: row.errorMessage,
       config: row.config,
     });
@@ -135,6 +185,11 @@ export async function connectIntegrationDb(
   id: IntegrationId,
   account?: string,
 ) {
+  if (isGoogleIntegration(id)) {
+    await markGoogleIntegrationsConnected(ctx, account ?? null, "oauth");
+    return getIntegrationById(ctx, id);
+  }
+
   await integrationsManagementService.connect(ctx, id, account);
   return getIntegrationById(ctx, id);
 }
@@ -143,6 +198,16 @@ export async function disconnectIntegrationDb(
   ctx: TenantContext,
   id: IntegrationId,
 ) {
+  if (isGoogleIntegration(id)) {
+    const tokens = await getGoogleTokens(ctx);
+    if (tokens?.refreshToken) {
+      await revokeGoogleToken(tokens.refreshToken);
+    }
+    await clearGoogleTokens(ctx);
+    await reconcileGoogleIntegrationStatus(ctx);
+    return getIntegrationById(ctx, id);
+  }
+
   await integrationsManagementService.disconnect(ctx, id);
   return getIntegrationById(ctx, id);
 }
@@ -179,27 +244,111 @@ export async function updateCalendarConfigDb(
 }
 
 export async function getSpreadsheetsDb(ctx: TenantContext) {
+  try {
+    const remote = await listSpreadsheets(ctx);
+    if (remote.length > 0) {
+      await mergeConfig(ctx, "google-sheets", { spreadsheets: remote });
+      return remote;
+    }
+  } catch {
+    /* fall back to cache when not connected */
+  }
   const row = await getOrCreateIntegration(ctx.companyId, "google-sheets");
   return parseConfig(row.config).spreadsheets ?? [];
 }
 
-export async function createSpreadsheetDb(ctx: TenantContext, name: string) {
+export async function createSpreadsheetDb(
+  ctx: TenantContext,
+  name: string,
+  columns: ColumnMapping[] = [],
+) {
+  const sheet = await createSpreadsheet(ctx, name, columns);
   const row = await getOrCreateIntegration(ctx.companyId, "google-sheets");
   const config = parseConfig(row.config);
-  const sheet = {
-    id: `sheet-${Date.now()}`,
-    name,
-    modifiedAt: new Date().toISOString(),
-  };
   const spreadsheets = [sheet, ...(config.spreadsheets ?? [])];
+  const worksheets = {
+    ...(config.worksheets ?? {}),
+    [sheet.id]: [{ id: "0", name: "Sheet1", rowCount: 1 }],
+  };
+
+  const columnMappings =
+    columns.length > 0
+      ? columns.map((col, index) => ({
+          ...col,
+          spreadsheetColumn: `Column ${String.fromCharCode(65 + index)}`,
+        }))
+      : (config.sheetsConfig?.columnMappings ?? []);
+
+  const sheetsConfig: GoogleSheetsConfig = {
+    ...(config.sheetsConfig ?? DEFAULT_SHEETS_CONFIG),
+    spreadsheetId: sheet.id,
+    spreadsheetName: sheet.name,
+    worksheetId: "0",
+    worksheetName: "Sheet1",
+    columnMappings,
+  };
+
   await mergeConfig(ctx, "google-sheets", {
     spreadsheets,
-    worksheets: { ...config.worksheets, [sheet.id]: [{ id: "ws-1", name: "Sheet1", rowCount: 0 }] },
+    worksheets,
+    sheetsConfig,
   });
   return sheet;
 }
 
+export async function deleteSpreadsheetDb(
+  ctx: TenantContext,
+  spreadsheetId: string,
+) {
+  try {
+    await deleteSpreadsheet(ctx, spreadsheetId);
+  } catch {
+    /* still remove from local cache if file is already gone */
+  }
+
+  const row = await getOrCreateIntegration(ctx.companyId, "google-sheets");
+  const config = parseConfig(row.config);
+  const spreadsheets = (config.spreadsheets ?? []).filter(
+    (sheet) => sheet.id !== spreadsheetId,
+  );
+  const worksheets = { ...(config.worksheets ?? {}) };
+  delete worksheets[spreadsheetId];
+
+  const sheetsConfig = { ...(config.sheetsConfig ?? DEFAULT_SHEETS_CONFIG) };
+  if (sheetsConfig.spreadsheetId === spreadsheetId) {
+    sheetsConfig.spreadsheetId = null;
+    sheetsConfig.spreadsheetName = null;
+    sheetsConfig.worksheetId = null;
+    sheetsConfig.worksheetName = null;
+    sheetsConfig.columnMappings = [];
+  }
+
+  await mergeConfig(ctx, "google-sheets", {
+    spreadsheets,
+    worksheets,
+    sheetsConfig,
+  });
+
+  return getIntegrationById(ctx, "google-sheets");
+}
+
 export async function getWorksheetsDb(ctx: TenantContext, spreadsheetId: string) {
+  try {
+    const remote = await listWorksheets(ctx, spreadsheetId);
+    if (remote.length > 0) {
+      const row = await getOrCreateIntegration(ctx.companyId, "google-sheets");
+      const config = parseConfig(row.config);
+      await mergeConfig(ctx, "google-sheets", {
+        worksheets: {
+          ...(config.worksheets ?? {}),
+          [spreadsheetId]: remote,
+        },
+      });
+      return remote;
+    }
+  } catch {
+    /* fall back to cache */
+  }
   const row = await getOrCreateIntegration(ctx.companyId, "google-sheets");
   return parseConfig(row.config).worksheets?.[spreadsheetId] ?? [];
 }
@@ -237,12 +386,18 @@ export async function completeSheetsSyncDb(
   ctx: TenantContext,
   message: string,
   rowsSynced: number,
+  result: "success" | "partial" | "error" = "success",
 ) {
   const row = await getOrCreateIntegration(ctx.companyId, "google-sheets");
   await prisma.integrationSyncLog.create({
     data: {
       integration: { connect: { id: row.id } },
-      result: "SUCCESS",
+      result:
+        result === "success"
+          ? "SUCCESS"
+          : result === "partial"
+            ? "PARTIAL"
+            : "ERROR",
       rowsSynced,
       message,
       startedAt: new Date(),
@@ -251,7 +406,11 @@ export async function completeSheetsSyncDb(
   });
   await prisma.integration.update({
     where: { id: row.id },
-    data: { status: "CONNECTED", lastSyncAt: new Date() },
+    data: {
+      status: result === "error" ? "ERROR" : "CONNECTED",
+      lastSyncAt: new Date(),
+      errorMessage: result === "error" ? message : null,
+    },
   });
   return getIntegrationById(ctx, "google-sheets");
 }
@@ -272,9 +431,147 @@ export async function getSheetRowsDb(ctx: TenantContext): Promise<SheetRow[]> {
   return parseConfig(row.config).sheetRows ?? [];
 }
 
+export async function syncSheetsDataDb(ctx: TenantContext): Promise<number> {
+  const integration = await getIntegrationById(ctx, "google-sheets");
+  const config = integration?.sheetsConfig;
+  if (!config?.spreadsheetId || !config.worksheetName) {
+    throw new Error("Spreadsheet and worksheet must be configured before sync");
+  }
+  if (config.columnMappings.length === 0) {
+    throw new Error("Column mappings must be configured before sync");
+  }
+
+  const leads = await prisma.lead.findMany({
+    where: { companyId: ctx.companyId },
+    include: {
+      stage: true,
+      notes: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 100,
+  });
+
+  let rowsSynced = 0;
+  for (const lead of leads) {
+    const values = mapLeadToRow(lead, config.columnMappings);
+    await appendSheetRow(
+      ctx,
+      config.spreadsheetId,
+      config.worksheetName,
+      values,
+    );
+    rowsSynced += 1;
+  }
+
+  return rowsSynced;
+}
+
+export type DialerSheetsSyncResult =
+  | { skipped: true; reason: string }
+  | { success: true; spreadsheetId: string; rowsAppended: number };
+
+export async function syncDialerCallToSheetDb(
+  ctx: TenantContext,
+  callId: string,
+): Promise<DialerSheetsSyncResult> {
+  const integrationRow = await prisma.integration.findFirst({
+    where: {
+      companyId: ctx.companyId,
+      type: "GOOGLE_SHEETS",
+      status: "CONNECTED",
+    },
+  });
+
+  if (!integrationRow) {
+    return { skipped: true, reason: "Google Sheets integration is not connected" };
+  }
+
+  const config = parseConfig(integrationRow.config);
+  const sheetsConfig = config.sheetsConfig;
+
+  if (!sheetsConfig?.spreadsheetId || !sheetsConfig.worksheetName) {
+    return {
+      skipped: true,
+      reason: "Spreadsheet and worksheet are not configured",
+    };
+  }
+
+  if (sheetsConfig.columnMappings.length === 0) {
+    return { skipped: true, reason: "Column mappings are not configured" };
+  }
+
+  const dialerCall = await prisma.dialerCall.findFirst({
+    where: { id: callId, companyId: ctx.companyId },
+    include: {
+      lead: {
+        include: {
+          stage: true,
+          notes: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
+      },
+      analysis: true,
+    },
+  });
+
+  if (!dialerCall) {
+    throw new Error(`Dialer call not found: ${callId}`);
+  }
+
+  const values = mapDialerCallToRow(
+    dialerCall,
+    dialerCall.lead,
+    dialerCall.analysis,
+    sheetsConfig.columnMappings,
+  );
+
+  await appendSheetRow(
+    ctx,
+    sheetsConfig.spreadsheetId,
+    sheetsConfig.worksheetName,
+    values,
+  );
+
+  await prisma.integrationSyncLog.create({
+    data: {
+      integration: { connect: { id: integrationRow.id } },
+      result: "SUCCESS",
+      rowsSynced: 1,
+      message: `Post-call sync for dialer call ${callId}`,
+      startedAt: new Date(),
+      completedAt: new Date(),
+    },
+  });
+
+  await prisma.integration.update({
+    where: { id: integrationRow.id },
+    data: { lastSyncAt: new Date(), errorMessage: null },
+  });
+
+  return {
+    success: true,
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    rowsAppended: 1,
+  };
+}
+
 export async function readSheetRowDb(ctx: TenantContext, rowIndex: number) {
-  const rows = await getSheetRowsDb(ctx);
-  return rows[rowIndex] ?? null;
+  const integration = await getIntegrationById(ctx, "google-sheets");
+  const config = integration?.sheetsConfig;
+  if (!config?.spreadsheetId || !config.worksheetName) {
+    return null;
+  }
+  if (config.columnMappings.length === 0) {
+    return null;
+  }
+
+  const rowNumber = rowIndex + 2;
+  const endCol = String.fromCharCode(
+    64 + Math.max(config.columnMappings.length, 1),
+  );
+  const range = `${config.worksheetName}!A${rowNumber}:${endCol}${rowNumber}`;
+  const rows = await readSheetRange(ctx, config.spreadsheetId, range);
+  if (!rows[0]) return null;
+  return rowToRecord(rows[0], config.columnMappings);
 }
 
 export async function writeSheetRowDb(
@@ -282,11 +579,46 @@ export async function writeSheetRowDb(
   rowIndex: number,
   data: SheetRow,
 ) {
-  const row = await getOrCreateIntegration(ctx.companyId, "google-sheets");
-  const config = parseConfig(row.config);
-  const sheetRows = [...(config.sheetRows ?? [])];
-  sheetRows[rowIndex] = data;
-  await mergeConfig(ctx, "google-sheets", { sheetRows });
+  const integration = await getIntegrationById(ctx, "google-sheets");
+  const config = integration?.sheetsConfig;
+  if (!config?.spreadsheetId || !config.worksheetName) {
+    throw new Error("Spreadsheet not configured");
+  }
+  if (config.columnMappings.length === 0) {
+    throw new Error("Column mappings not configured");
+  }
+
+  const values = mapDataToRow(data, config.columnMappings);
+  const rowNumber = rowIndex + 2;
+  const endCol = String.fromCharCode(
+    64 + Math.max(config.columnMappings.length, 1),
+  );
+  const range = `${config.worksheetName}!A${rowNumber}:${endCol}${rowNumber}`;
+
+  await updateSheetRange(ctx, config.spreadsheetId, range, [values]);
+  return data;
+}
+
+export async function appendSheetRowDb(
+  ctx: TenantContext,
+  data: SheetRow,
+) {
+  const integration = await getIntegrationById(ctx, "google-sheets");
+  const config = integration?.sheetsConfig;
+  if (!config?.spreadsheetId || !config.worksheetName) {
+    throw new Error("Spreadsheet not configured");
+  }
+  if (config.columnMappings.length === 0) {
+    throw new Error("Column mappings not configured");
+  }
+
+  const values = mapDataToRow(data, config.columnMappings);
+  await appendSheetRow(
+    ctx,
+    config.spreadsheetId,
+    config.worksheetName,
+    values,
+  );
   return data;
 }
 

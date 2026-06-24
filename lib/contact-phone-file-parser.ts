@@ -5,10 +5,8 @@ import * as XLSX from "xlsx";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 
-import {
-  guessColumnMapping,
-  isValidE164Phone,
-} from "@/lib/csv-import";
+import { normalizeContactPhone } from "@/lib/contact-phone-validation";
+import { guessColumnMapping } from "@/lib/csv-import";
 import {
   parsePhonesFromStructuredRows,
   type ParsedPhoneImport,
@@ -21,7 +19,7 @@ export const SERVER_PARSE_EXTENSIONS = [
   ".docx",
 ] as const;
 
-const FORMATTED_PHONE_REGEX = /\+[\d\s().-]{7,24}/g;
+const TEN_DIGIT_PHONE_REGEX = /\b\d{10}\b/g;
 
 let pdfWorkerConfigured = false;
 
@@ -41,19 +39,7 @@ function ensurePdfWorkerConfigured(): void {
 }
 
 export function normalizePhoneCandidate(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-
-  if (isValidE164Phone(trimmed)) {
-    return trimmed;
-  }
-
-  if (!trimmed.startsWith("+")) {
-    return null;
-  }
-
-  const compact = `+${trimmed.slice(1).replace(/\D/g, "")}`;
-  return isValidE164Phone(compact) ? compact : null;
+  return normalizeContactPhone(raw);
 }
 
 export function parsePhonesFromText(text: string): ParsedPhoneImport {
@@ -61,20 +47,8 @@ export function parsePhonesFromText(text: string): ParsedPhoneImport {
   const phones: string[] = [];
   let invalid = 0;
 
-  const e164Matches = text.match(/\+[1-9]\d{1,14}/g) ?? [];
-  for (const match of e164Matches) {
-    const normalized = normalizePhoneCandidate(match);
-    if (!normalized) {
-      invalid++;
-      continue;
-    }
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-    phones.push(normalized);
-  }
-
-  const formattedMatches = text.match(FORMATTED_PHONE_REGEX) ?? [];
-  for (const match of formattedMatches) {
+  const matches = text.match(TEN_DIGIT_PHONE_REGEX) ?? [];
+  for (const match of matches) {
     const normalized = normalizePhoneCandidate(match);
     if (!normalized) {
       invalid++;

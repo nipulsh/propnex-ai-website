@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertCircle, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { IntegrationCard } from "@/components/integrations/integration-card";
 import { IntegrationDetailSheet } from "@/components/integrations/integration-detail-sheet";
+import {
+  useActionNotification,
+  usePageStatusNotification,
+} from "@/hooks/use-page-status-notification";
 import { INTEGRATION_DEFINITIONS } from "@/lib/integrations/registry";
 import type { IntegrationId } from "@/lib/integrations/types";
-import { cn } from "@/lib/utils";
 import { useIntegrationsStore } from "@/stores/integrations-store";
 
 export function IntegrationsSection() {
+  const searchParams = useSearchParams();
   const integrations = useIntegrationsStore((s) => s.integrations);
   const isLoading = useIntegrationsStore((s) => s.isLoading);
   const isConnecting = useIntegrationsStore((s) => s.isConnecting);
@@ -27,9 +31,48 @@ export function IntegrationsSection() {
   const [confirmDisconnect, setConfirmDisconnect] =
     useState<IntegrationId | null>(null);
 
+  const hasLoadedOnceRef = useRef(false);
+  const isInitialLoading = isLoading && !hasLoadedOnceRef.current;
+
+  useEffect(() => {
+    if (!isLoading) {
+      hasLoadedOnceRef.current = true;
+    }
+  }, [isLoading]);
+
+  usePageStatusNotification({
+    isInitialLoading,
+    loadingMessage: "Loading integrations…",
+    loadingId: "integrations-loading",
+  });
+
+  useActionNotification({
+    message: banner?.message ?? null,
+    type: banner?.type === "success" ? "success" : "error",
+    onClear: clearBanner,
+  });
+
   useEffect(() => {
     fetchIntegrations();
   }, [fetchIntegrations]);
+
+  useEffect(() => {
+    const oauthSuccess = searchParams.get("oauth_success");
+    const oauthError = searchParams.get("oauth_error");
+    if (oauthSuccess) {
+      fetchIntegrations();
+      setSelectedId(oauthSuccess as IntegrationId);
+      setDetailOpen(true);
+    }
+    if (oauthError) {
+      useIntegrationsStore.setState({
+        banner: {
+          type: "error",
+          message: `Google connection failed: ${oauthError}`,
+        },
+      });
+    }
+  }, [searchParams, fetchIntegrations]);
 
   const selectedIntegration = integrations.find((i) => i.id === selectedId) ?? null;
   const connectedCount = integrations.filter(
@@ -69,27 +112,6 @@ export function IntegrationsSection() {
         </p>
       </div>
 
-      {banner ? (
-        <div
-          className={cn(
-            "flex items-center justify-between rounded-lg px-4 py-3 text-sm",
-            banner.type === "success"
-              ? "bg-success/10 text-success"
-              : "bg-destructive/10 text-destructive",
-          )}
-        >
-          <span className="flex items-center gap-2">
-            {banner.type === "error" ? (
-              <AlertCircle className="size-4" />
-            ) : null}
-            {banner.message}
-          </span>
-          <button type="button" onClick={clearBanner}>
-            <X className="size-4" />
-          </button>
-        </div>
-      ) : null}
-
       {confirmDisconnect ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           <p className="text-foreground">
@@ -115,35 +137,24 @@ export function IntegrationsSection() {
         </div>
       ) : null}
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="h-48 animate-pulse rounded-xl border border-propnex-border bg-propnex-panel"
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {INTEGRATION_DEFINITIONS.map((definition) => {
+          const integration = integrations.find(
+            (i) => i.id === definition.id,
+          );
+          return (
+            <IntegrationCard
+              key={definition.id}
+              definition={definition}
+              integration={integration}
+              isConnecting={isConnecting}
+              onConnect={() => handleConnect(definition.id)}
+              onManage={() => handleManage(definition.id)}
+              onDisconnect={() => handleDisconnect(definition.id)}
             />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {INTEGRATION_DEFINITIONS.map((definition) => {
-            const integration = integrations.find(
-              (i) => i.id === definition.id,
-            );
-            return (
-              <IntegrationCard
-                key={definition.id}
-                definition={definition}
-                integration={integration}
-                isConnecting={isConnecting}
-                onConnect={() => handleConnect(definition.id)}
-                onManage={() => handleManage(definition.id)}
-                onDisconnect={() => handleDisconnect(definition.id)}
-              />
-            );
-          })}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       <IntegrationDetailSheet
         integration={selectedIntegration}

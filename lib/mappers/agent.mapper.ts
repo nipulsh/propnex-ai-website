@@ -162,5 +162,8 @@ export function mapGraphQLCallLogToUI(
     provider: "—",
     summarySnippet: "—",
     hasRecording: false,
+    recordingUrl: null,
+    sentimentOutcome: null,
+    hasTranscript: false,
   };
 }

@@ -1,8 +1,5 @@
-import {
-  guessColumnMapping,
-  isValidE164Phone,
-  parseCsv,
-} from "@/lib/csv-import";
+import { normalizeContactPhone } from "@/lib/contact-phone-validation";
+import { guessColumnMapping, parseCsv } from "@/lib/csv-import";
 
 export type ParsedPhoneImport = {
   phones: string[];
@@ -60,15 +57,16 @@ export function parsePhonesFromStructuredRows(
       invalid++;
       continue;
     }
-    if (!isValidE164Phone(raw)) {
+    const normalized = normalizeContactPhone(raw);
+    if (!normalized) {
       invalid++;
       continue;
     }
-    if (seen.has(raw)) {
+    if (seen.has(normalized)) {
       continue;
     }
-    seen.add(raw);
-    phones.push(raw);
+    seen.add(normalized);
+    phones.push(normalized);
   }
 
   return { phones, invalid };
@@ -120,11 +118,11 @@ export async function parsePhonesFromUploadFile(
 
 export const CONTACT_PHONES_SAMPLE_FILENAME = "propnex-phone-contacts-sample.csv";
 
-export const CONTACT_PHONES_SAMPLE_CONTENT = `phone_e164
-+15550123456
-+15550987654
-+447911123456
-+61412345678
+export const CONTACT_PHONES_SAMPLE_CONTENT = `phone
+9876543210
+9123456789
+8765432109
+7654321098
 `;
 
 export function downloadContactPhonesSampleCsv(): void {
@@ -142,6 +140,6 @@ export function downloadContactPhonesSampleCsv(): void {
 export function contactsToCsv(
   contacts: { phone: string }[],
 ): string {
-  const lines = ["phone_e164", ...contacts.map((c) => c.phone)];
+  const lines = ["phone", ...contacts.map((c) => c.phone)];
   return lines.join("\n");
 }

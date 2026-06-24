@@ -18,6 +18,7 @@ export type RecommendationPriority = "high" | "medium" | "low";
 export type CallDetail = CallLog & {
   leadName: string;
   callCost: number;
+  creditsUsed: number;
   provider: string;
   outcome: CallOutcome;
   leadScore: number;
@@ -179,5 +180,5 @@ export function formatTranscriptTimestamp(seconds: number): string {
 }
 
 export function formatCallCost(cost: number): string {
-  return `$${cost.toFixed(2)}`;
+  return `₹${cost.toFixed(2)}`;
 }

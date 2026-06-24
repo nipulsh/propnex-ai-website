@@ -40,21 +40,6 @@ type HomeDashboardStore = {
   resetError: () => void;
 };
 
-const LOADING_DELAY_MS = 400;
-
-let loadingTimer: ReturnType<typeof setTimeout> | null = null;
-
-function triggerLoading(
-  set: (partial: Partial<HomeDashboardStore>) => void,
-) {
-  if (loadingTimer) clearTimeout(loadingTimer);
-  set({ isLoading: true, hasError: false });
-  loadingTimer = setTimeout(() => {
-    set({ isLoading: false });
-    loadingTimer = null;
-  }, LOADING_DELAY_MS);
-}
-
 export const useHomeDashboardStore = create<HomeDashboardStore>((set) => ({
   dateRange: "last-7-days",
   chartGranularity: "daily",
@@ -67,15 +52,9 @@ export const useHomeDashboardStore = create<HomeDashboardStore>((set) => ({
   events: [],
   schedulerEvents: [],
 
-  setDateRange: (range) => {
-    triggerLoading(set);
-    set({ dateRange: range });
-  },
+  setDateRange: (range) => set({ dateRange: range }),
 
-  setChartGranularity: (granularity) => {
-    triggerLoading(set);
-    set({ chartGranularity: granularity });
-  },
+  setChartGranularity: (granularity) => set({ chartGranularity: granularity }),
 
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ hasError: error, isLoading: false }),

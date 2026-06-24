@@ -72,7 +72,7 @@ export function AgentToolCatalogCard({
             <p className="mt-3 text-xs text-propnex-muted">
               Requires a connected{" "}
               <Link
-                href="/settings"
+                href="/settings?tab=integrations"
                 onClick={(event) => event.stopPropagation()}
                 className="text-propnex-accent hover:underline"
               >

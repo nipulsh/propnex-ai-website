@@ -87,6 +87,7 @@ export class CallLogsService {
       engagement: log.engagement,
       recordingUrl: log.recordingUrl,
       cost: log.cost,
+      creditsUsed: log.creditsUsed,
       provider: log.provider,
       transcript: log.transcript,
       phoneNumber: log.phoneNumber

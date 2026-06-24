@@ -5,8 +5,7 @@ import { UploadedContactsRepository } from "@/server/repositories/uploaded-conta
 import type { TenantContext } from "@/server/types/context";
 import { PERMISSIONS } from "@/server/types/permissions";
 import { tenantService } from "@/server/services/tenant.service";
-
-const E164_REGEX = /^\+[1-9]\d{1,14}$/;
+import { normalizeContactPhone } from "@/lib/contact-phone-validation";
 const MAX_IMPORT_ROWS = 5000;
 
 function mapUploadedContact(row: {
@@ -33,20 +32,20 @@ export class UploadedContactsService {
   async create(ctx: TenantContext, phone: string) {
     tenantService.requirePermission(ctx, PERMISSIONS.LEADS_WRITE);
 
-    const trimmed = phone.trim();
-    if (!E164_REGEX.test(trimmed)) {
+    const normalized = normalizeContactPhone(phone);
+    if (!normalized) {
       throw new AppError(
-        "Phone number must be in E.164 format (e.g. +15550123456).",
+        "Phone number must be exactly 10 digits.",
         "INVALID_PHONE",
       );
     }
 
-    const existing = await this.repo.findByPhones(ctx.companyId, [trimmed]);
+    const existing = await this.repo.findByPhones(ctx.companyId, [normalized]);
     if (existing.length > 0) {
       throw new AppError("This phone number already exists.", "DUPLICATE_PHONE");
     }
 
-    const row = await this.repo.create(ctx.companyId, trimmed);
+    const row = await this.repo.create(ctx.companyId, normalized);
     await cacheService.invalidateUploadedContactPages(ctx.companyId);
     return mapUploadedContact(row);
   }
@@ -59,16 +58,16 @@ export class UploadedContactsService {
     const seen = new Set<string>();
 
     for (const raw of phones.slice(0, MAX_IMPORT_ROWS)) {
-      const trimmed = raw.trim();
-      if (!E164_REGEX.test(trimmed)) {
+      const normalized = normalizeContactPhone(raw);
+      if (!normalized) {
         invalid++;
         continue;
       }
-      if (seen.has(trimmed)) {
+      if (seen.has(normalized)) {
         continue;
       }
-      seen.add(trimmed);
-      validPhones.push(trimmed);
+      seen.add(normalized);
+      validPhones.push(normalized);
     }
 
     const { created, skipped } = await this.repo.createMany(

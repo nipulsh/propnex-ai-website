@@ -27,9 +27,12 @@ type CallLog {
   startedAt: String!
   durationSeconds: Int!
   recordingUrl: String
+  transcriptUrl: String
   cost: Float
+  creditsUsed: Int
   provider: String
   aiSummary: JSON
+  sentiment: JSON
   leadId: ID
   aiAgentId: ID
   phoneNumberId: ID
@@ -47,6 +50,7 @@ type CallLogDetail {
   durationSeconds: Int!
   recordingUrl: String
   cost: Float
+  creditsUsed: Int
   provider: String
   aiSummary: JSON
   sentiment: JSON

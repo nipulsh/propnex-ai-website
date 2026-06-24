@@ -5,6 +5,8 @@ import { useCallback, useState } from "react";
 import { fetchCachedPage } from "@/lib/page-cache/client";
 import type { CallLogsPageResult } from "@/lib/graphql/queries/call-logs";
 import type { CallOutcome, LeadTemperature } from "@/lib/call-detail-data";
+import type { SentimentOutcome } from "@/lib/call-logs-data";
+import { extractSentimentOutcome } from "@/lib/call-logs-data";
 import { getLeadTemperatureForCall } from "@/lib/call-detail-data";
 import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 
@@ -27,9 +29,13 @@ export type GraphQLCallLog = {
   leadTemperature: LeadTemperature;
   leadScore: number;
   callCost: number;
+  creditsUsed: number;
   provider: string;
   summarySnippet: string;
   hasRecording: boolean;
+  recordingUrl: string | null;
+  sentimentOutcome: SentimentOutcome | null;
+  hasTranscript: boolean;
 };
 
 function toOutcome(value?: string | null): CallOutcome | null {
@@ -78,9 +84,13 @@ function mapNode(node: CallLogNode): GraphQLCallLog {
     leadTemperature: toTemperature(node.lead?.temperature, node.id),
     leadScore: node.lead?.score ?? 0,
     callCost: node.cost ?? 0,
+    creditsUsed: node.creditsUsed ?? 0,
     provider: node.provider ?? "—",
     summarySnippet: extractAiSummary(node.aiSummary),
     hasRecording: Boolean(node.recordingUrl),
+    recordingUrl: node.recordingUrl,
+    sentimentOutcome: extractSentimentOutcome(node.sentiment),
+    hasTranscript: Boolean(node.transcriptUrl),
   };
 }
 
@@ -118,7 +128,6 @@ export function useCallLogsGraphQL(filter?: Record<string, unknown>) {
 
   const loadMore = useCallback(async () => {
     if (!endCursor || !hasNextPage) return;
-    setIsLoading(true);
     try {
       const data = await fetchCachedPage<CallLogsPageResult>("call-logs", {
         after: endCursor,
@@ -132,8 +141,6 @@ export function useCallLogsGraphQL(filter?: Record<string, unknown>) {
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load call logs");
-    } finally {
-      setIsLoading(false);
     }
   }, [endCursor, filter, hasNextPage]);
 

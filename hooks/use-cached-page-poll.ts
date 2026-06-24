@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef } from "react";
 
 const DEFAULT_INTERVAL_MS = 10_000;
 
+type ReloadOptions = {
+  silent?: boolean;
+  showLoading?: boolean;
+};
+
 type UseCachedPagePollOptions<T> = {
   enabled?: boolean;
   intervalMs?: number;
@@ -37,14 +42,20 @@ export function useCachedPagePoll<T>({
   const onLoadingRef = useRef(onLoading);
   onLoadingRef.current = onLoading;
 
+  const hasLoadedOnceRef = useRef(false);
+
   const reload = useCallback(
-    async (options?: { silent?: boolean }) => {
+    async (options?: ReloadOptions) => {
       if (skipHidden && document.visibilityState === "hidden") {
         return;
       }
 
       const silent = options?.silent ?? false;
-      if (!silent) {
+      const showLoading =
+        options?.showLoading ??
+        (!silent && !hasLoadedOnceRef.current);
+
+      if (showLoading) {
         onLoadingRef.current?.(true);
       }
       try {
@@ -55,9 +66,10 @@ export function useCachedPagePoll<T>({
           error instanceof Error ? error.message : "Failed to load page data",
         );
       } finally {
-        if (!silent) {
+        if (showLoading) {
           onLoadingRef.current?.(false);
         }
+        hasLoadedOnceRef.current = true;
       }
     },
     [skipHidden],
@@ -73,6 +85,7 @@ export function useCachedPagePoll<T>({
 
     return () => {
       window.clearInterval(intervalId);
+      hasLoadedOnceRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deps array controls refetch identity
   }, [enabled, intervalMs, reload, ...deps]);

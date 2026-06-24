@@ -13,6 +13,7 @@ import { PhoneNumbersTable } from "@/components/phone-numbers/phone-numbers-tabl
 import { PhoneNumbersToolbar } from "@/components/phone-numbers/phone-numbers-toolbar";
 import { filterPhoneNumbers } from "@/lib/phone-numbers-data";
 import { usePhoneNumbersGraphQL } from "@/hooks/use-phone-numbers-graphql";
+import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
 import {
   PHONE_NUMBERS_PAGE_SIZE,
   usePhoneNumbersStore,
@@ -21,6 +22,8 @@ import {
 export function PhoneNumbersPageContent() {
   usePhoneNumbersGraphQL();
   const numbers = usePhoneNumbersStore((state) => state.numbers);
+  const isLoading = usePhoneNumbersStore((state) => state.isLoading);
+  const error = usePhoneNumbersStore((state) => state.error);
   const searchQuery = usePhoneNumbersStore((state) => state.searchQuery);
   const direction = usePhoneNumbersStore((state) => state.direction);
   const status = usePhoneNumbersStore((state) => state.status);
@@ -28,6 +31,14 @@ export function PhoneNumbersPageContent() {
   const showFilters = usePhoneNumbersStore((state) => state.showFilters);
   const currentPage = usePhoneNumbersStore((state) => state.currentPage);
   const setPage = usePhoneNumbersStore((state) => state.setPage);
+
+  usePageStatusNotification({
+    isInitialLoading: isLoading,
+    loadingMessage: "Loading phone numbers…",
+    loadingId: "phone-numbers-loading",
+    error: error ?? undefined,
+    onErrorClear: () => usePhoneNumbersStore.setState({ error: null }),
+  });
 
   const { pageNumbers, totalPages, totalCount } = useMemo(() => {
     const filtered = filterPhoneNumbers(

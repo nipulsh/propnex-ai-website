@@ -1,5 +1,6 @@
 import {
   Clock,
+  Coins,
   DollarSign,
   Phone,
   Target,
@@ -38,10 +39,14 @@ export function CallDetailOverview({ detail }: CallDetailOverviewProps) {
           icon={DollarSign}
         />
         <StatCard
-          title="Lead Score"
-          value={`${detail.leadScore}/100`}
-          footer={`${detail.conversionProbability}% conversion probability`}
-          icon={Phone}
+          title="Credits Used"
+          value={detail.creditsUsed > 0 ? String(detail.creditsUsed) : "—"}
+          footer={
+            detail.creditsUsed > 0
+              ? `${formatCallCost(detail.callCost)} at pulse rate`
+              : "No credits charged"
+          }
+          icon={Coins}
         />
       </div>
 
@@ -58,6 +63,15 @@ export function CallDetailOverview({ detail }: CallDetailOverviewProps) {
           footer="AI-classified result"
           icon={Target}
         />
+        <StatCard
+          title="Lead Score"
+          value={`${detail.leadScore}/100`}
+          footer={`${detail.conversionProbability}% conversion probability`}
+          icon={Phone}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           title="Lead Status"
           value={LEAD_TEMPERATURE_STYLES[detail.leadTemperature].label}

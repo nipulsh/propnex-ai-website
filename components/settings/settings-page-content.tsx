@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import {
   Bell,
   Building2,
-  Key,
   Plug,
   Shield,
   User,
@@ -31,15 +31,27 @@ const SECTIONS = [
   { id: "security", label: "Security", icon: Shield },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "api-keys", label: "API Keys", icon: Key },
   { id: "workspace", label: "Workspace", icon: Building2 },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
 
+const SECTION_IDS = new Set<string>(SECTIONS.map((s) => s.id));
+
+function parseSectionId(value: string | null): SectionId {
+  if (value && SECTION_IDS.has(value)) {
+    return value as SectionId;
+  }
+  return "profile";
+}
+
 export function SettingsPageContent() {
   useSettingsGraphQL();
-  const [activeSection, setActiveSection] = useState<SectionId>("profile");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeSection, setActiveSection] = useState<SectionId>(() =>
+    parseSectionId(searchParams.get("tab")),
+  );
   const { user } = useUser();
   const viewer = useSettingsStore((s) => s.viewer);
   const metadata = getUserMetadata(
@@ -50,6 +62,24 @@ export function SettingsPageContent() {
 
   const displayName =
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Account";
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const next = parseSectionId(tab);
+    setActiveSection(next);
+  }, [searchParams]);
+
+  function handleSectionChange(sectionId: SectionId) {
+    setActiveSection(sectionId);
+    const params = new URLSearchParams(searchParams.toString());
+    if (sectionId === "profile") {
+      params.delete("tab");
+    } else {
+      params.set("tab", sectionId);
+    }
+    const query = params.toString();
+    router.replace(query ? `/settings?${query}` : "/settings", { scroll: false });
+  }
 
   return (
     <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
@@ -64,7 +94,7 @@ export function SettingsPageContent() {
             <button
               key={section.id}
               type="button"
-              onClick={() => setActiveSection(section.id)}
+              onClick={() => handleSectionChange(section.id)}
               className={cn(
                 "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                 activeSection === section.id
@@ -143,16 +173,6 @@ export function SettingsPageContent() {
 
           {activeSection === "integrations" ? (
             <IntegrationsSection />
-          ) : null}
-
-          {activeSection === "api-keys" ? (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">API Keys</h2>
-              <div className="rounded-lg border border-propnex-border bg-propnex-bg px-4 py-3 font-mono text-sm text-propnex-muted">
-                pn_live_••••••••••••••••
-              </div>
-              <Button size="sm">Generate new key</Button>
-            </div>
           ) : null}
 
           {activeSection === "workspace" ? (

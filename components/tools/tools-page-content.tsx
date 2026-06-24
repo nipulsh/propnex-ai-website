@@ -53,7 +53,7 @@ export function ToolsPageContent() {
             variant="outline"
             size="sm"
             nativeButton={false}
-            render={<Link href="/settings" />}
+            render={<Link href="/settings?tab=integrations" />}
           >
             <Plug className="mr-1.5 size-4" />
             Manage integrations
@@ -80,7 +80,7 @@ export function ToolsPageContent() {
                 size="sm"
                 className="mt-4 w-fit"
                 nativeButton={false}
-                render={<Link href="/settings" />}
+                render={<Link href="/settings?tab=integrations" />}
               >
                 Configure in Settings
               </Button>

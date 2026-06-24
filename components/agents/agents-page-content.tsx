@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { filterAgents } from "@/lib/agents-data";
 import { useAgentsGraphQL } from "@/hooks/use-agents-graphql";
+import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
 import {
   AGENTS_PAGE_SIZE,
   useAgentsStore,
@@ -23,6 +24,7 @@ export function AgentsPageContent() {
   useAgentsGraphQL();
   const agents = useAgentsStore((s) => s.agents);
   const isLoading = useAgentsStore((s) => s.isLoading);
+  const error = useAgentsStore((s) => s.error);
   const searchQuery = useAgentsStore((s) => s.searchQuery);
   const statusFilter = useAgentsStore((s) => s.statusFilter);
   const categoryFilter = useAgentsStore((s) => s.categoryFilter);
@@ -30,6 +32,14 @@ export function AgentsPageContent() {
   const showFilters = useAgentsStore((s) => s.showFilters);
   const page = useAgentsStore((s) => s.currentPage);
   const setPage = useAgentsStore((s) => s.setPage);
+
+  usePageStatusNotification({
+    isInitialLoading: isLoading,
+    loadingMessage: "Loading agents…",
+    loadingId: "agents-loading",
+    error: error ?? undefined,
+    onErrorClear: () => useAgentsStore.setState({ error: null }),
+  });
 
   const hasActiveFilters =
     searchQuery.trim() !== "" ||

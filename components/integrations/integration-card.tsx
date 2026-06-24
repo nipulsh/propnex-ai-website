@@ -66,7 +66,7 @@ export function IntegrationCard({
           <div className="flex justify-between">
             <span className="text-propnex-muted">Account</span>
             <span className="font-medium text-foreground">
-              {integration.connectedAccount}
+              {integration.connectedAccount ?? "—"}
             </span>
           </div>
           <div className="flex justify-between">

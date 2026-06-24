@@ -3,11 +3,11 @@
 import { useMemo } from "react";
 
 import { PageHeader } from "@/components/common/page-header";
-import { BillingBanner } from "@/components/billing/billing-banner";
 import { LeadReactivationFilters } from "@/components/lead-reactivation/lead-reactivation-filters";
 import { LeadReactivationStats } from "@/components/lead-reactivation/lead-reactivation-stats";
 import { LeadReactivationTable } from "@/components/lead-reactivation/lead-reactivation-table";
 import { useLeadReactivationGraphQL } from "@/hooks/use-lead-reactivation-graphql";
+import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
 import {
   LEAD_REACTIVATION_PAGE_SIZE,
   useLeadReactivationStore,
@@ -41,6 +41,14 @@ function LeadReactivationPageContentInner() {
   const error = useLeadReactivationStore((s) => s.error);
   const currentPage = useLeadReactivationStore((s) => s.currentPage);
 
+  usePageStatusNotification({
+    isInitialLoading: isLoading,
+    loadingMessage: "Loading dormant leads…",
+    loadingId: "lead-reactivation-loading",
+    error: error ?? undefined,
+    onErrorClear: () => useLeadReactivationStore.setState({ error: null }),
+  });
+
   const pageLeads = useMemo(() => {
     const start = (currentPage - 1) * LEAD_REACTIVATION_PAGE_SIZE;
     return leads.slice(start, start + LEAD_REACTIVATION_PAGE_SIZE);
@@ -52,11 +60,6 @@ function LeadReactivationPageContentInner() {
         title="Lead Reactivation"
         description="Re-engage dormant leads with automated AI voice outreach."
       />
-
-      {error ? <BillingBanner type="error" message={error} /> : null}
-      {isLoading ? (
-        <BillingBanner type="info" message="Loading dormant leads..." />
-      ) : null}
 
       <LeadReactivationStats leads={leads} />
       <LeadReactivationFilters />
