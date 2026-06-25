@@ -4,6 +4,7 @@ import { cacheService } from "@/server/cache/cache.service";
 import { CACHE_TTL, cacheKeys } from "@/server/cache/keys";
 import prisma from "@/server/lib/prisma";
 import { AnalyticsRepository } from "@/server/repositories/billing.repository";
+import { CallLogsRepository } from "@/server/repositories/call-logs.repository";
 import type { TenantContext } from "@/server/types/context";
 import { PERMISSIONS } from "@/server/types/permissions";
 import { tenantService } from "@/server/services/tenant.service";
@@ -22,39 +23,72 @@ function endOfDay(date = new Date()) {
   return d;
 }
 
+function resolvePeriod(
+  granularity: AnalyticsGranularity,
+  dateFrom?: Date,
+  dateTo?: Date,
+) {
+  if (dateFrom || dateTo) {
+    return {
+      start: dateFrom ?? startOfDay(),
+      end: dateTo ?? endOfDay(),
+    };
+  }
+
+  const end = endOfDay();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  switch (granularity) {
+    case "WEEKLY":
+      return { start: new Date(end.getTime() - 7 * dayMs), end };
+    case "MONTHLY":
+      return { start: new Date(end.getTime() - 30 * dayMs), end };
+    default:
+      return { start: startOfDay(), end };
+  }
+}
+
 export class AnalyticsService {
   private readonly repo = new AnalyticsRepository(prisma);
+  private readonly callLogsRepo = new CallLogsRepository(prisma);
 
   async getSummary(
     ctx: TenantContext,
     granularity: AnalyticsGranularity = "DAILY",
+    dateFrom?: Date,
+    dateTo?: Date,
   ) {
     tenantService.requirePermission(ctx, PERMISSIONS.ANALYTICS_READ);
 
-    const cacheKey = `${cacheKeys.companyAnalytics(ctx.companyId)}:${granularity}`;
+    const period = resolvePeriod(granularity, dateFrom, dateTo);
+    const cacheKey = `${cacheKeys.companyAnalytics(ctx.companyId)}:${granularity}:${period.start.toISOString()}:${period.end.toISOString()}`;
 
     return cacheService.getOrSet(cacheKey, CACHE_TTL.ANALYTICS, async () => {
-      const snapshot = await this.repo.getLatestSnapshot(
-        ctx.companyId,
-        granularity,
-      );
+      const { totalCalls, connectedCalls } =
+        await this.callLogsRepo.countSummary(
+          ctx.companyId,
+          period.start,
+          period.end,
+        );
 
-      const metrics = (snapshot?.metrics as MetricsJson) ?? {};
-
-      const totalCalls = metrics.totalCalls ?? 0;
-      const connectedCalls = metrics.connectedCalls ?? 0;
       const conversionRate =
         totalCalls > 0
           ? Math.round((connectedCalls / totalCalls) * 1000) / 10
           : 0;
+
+      const snapshot = await this.repo.getLatestSnapshot(
+        ctx.companyId,
+        granularity,
+      );
+      const metrics = (snapshot?.metrics as MetricsJson) ?? {};
 
       return {
         totalCalls,
         connectedCalls,
         conversionRate,
         generatedLeads: metrics.generatedLeads ?? 0,
-        periodStart: snapshot?.periodStart?.toISOString() ?? null,
-        periodEnd: snapshot?.periodEnd?.toISOString() ?? null,
+        periodStart: period.start.toISOString(),
+        periodEnd: period.end.toISOString(),
       };
     });
   }

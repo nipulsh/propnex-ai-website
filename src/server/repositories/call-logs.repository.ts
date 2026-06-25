@@ -124,6 +124,17 @@ export class CallLogsRepository extends BaseRepository {
     });
   }
 
+  countSummary(companyId: string, dateFrom?: Date, dateTo?: Date) {
+    const where = this.buildWhere(companyId, { dateFrom, dateTo });
+
+    return Promise.all([
+      this.prisma.callLog.count({ where }),
+      this.prisma.callLog.count({
+        where: { ...where, status: "COMPLETED" },
+      }),
+    ]).then(([totalCalls, connectedCalls]) => ({ totalCalls, connectedCalls }));
+  }
+
   findLeadsByIds(companyId: string, ids: string[]) {
     return this.prisma.lead.findMany({
       where: { companyId, id: { in: ids } },

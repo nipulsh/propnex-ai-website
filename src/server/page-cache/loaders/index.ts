@@ -23,9 +23,16 @@ export type PageLoader = (
 
 export async function loadHomePage(
   request: Request,
-  _params: PageCacheParams,
+  params: PageCacheParams,
 ) {
-  return executeGraphQLFromRequest(request, HOME_PAGE_QUERY);
+  const filter = params.filter as
+    | { dateFrom?: string; dateTo?: string }
+    | undefined;
+
+  return executeGraphQLFromRequest(request, HOME_PAGE_QUERY, {
+    dateFrom: filter?.dateFrom,
+    dateTo: filter?.dateTo,
+  });
 }
 
 export async function loadBillingPage(

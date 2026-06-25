@@ -153,9 +153,19 @@ export const resolvers = {
   AnalyticsQueries: {
     summary: (
       _: unknown,
-      args: { granularity?: "DAILY" | "WEEKLY" | "MONTHLY" },
+      args: {
+        granularity?: "DAILY" | "WEEKLY" | "MONTHLY";
+        dateFrom?: string;
+        dateTo?: string;
+      },
       ctx: TenantContext,
-    ) => analyticsService.getSummary(ctx, args.granularity),
+    ) =>
+      analyticsService.getSummary(
+        ctx,
+        args.granularity,
+        args.dateFrom ? new Date(args.dateFrom) : undefined,
+        args.dateTo ? new Date(args.dateTo) : undefined,
+      ),
   },
 
   AgentsQueries: {

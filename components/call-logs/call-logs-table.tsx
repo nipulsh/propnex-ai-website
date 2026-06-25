@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquareText } from "lucide-react";
-
-import { CallLogsRecordingButton } from "@/components/call-logs/call-logs-recording-button";
+import { Eye } from "lucide-react";
 import {
   formatCallDate,
   formatCallStatus,
@@ -23,7 +21,7 @@ type CallLogsTableProps = {
   logs: CallLog[];
 };
 
-const TABLE_COLUMNS = 12;
+const TABLE_COLUMNS = 11;
 
 function DirectionBadge({ direction }: { direction: CallDirection }) {
   return (
@@ -86,7 +84,7 @@ function OutcomeBadge({ outcome }: { outcome: SentimentOutcome | null }) {
 export function CallLogsTable({ logs }: CallLogsTableProps) {
   return (
     <div className="propnex-scrollbar overflow-x-auto">
-      <table className="w-full min-w-[1480px] text-left text-sm">
+      <table className="w-full min-w-[1320px] text-left text-sm">
         <thead>
           <tr className="border-b border-propnex-border text-[0.65rem] tracking-[0.12em] text-propnex-muted uppercase">
             <th className="px-4 py-3 font-medium whitespace-nowrap">Call ID</th>
@@ -107,16 +105,11 @@ export function CallLogsTable({ logs }: CallLogsTableProps) {
             <th className="px-4 py-3 font-medium whitespace-nowrap">
               Direction
             </th>
-            <th className="px-4 py-3 font-medium whitespace-nowrap">
-              Recording
-            </th>
             <th className="min-w-[220px] px-4 py-3 font-medium whitespace-nowrap">
               Summary
             </th>
             <th className="px-4 py-3 font-medium whitespace-nowrap">Outcome</th>
-            <th className="px-4 py-3 font-medium whitespace-nowrap">
-              Transcription
-            </th>
+            <th className="px-4 py-3 font-medium whitespace-nowrap">Details</th>
           </tr>
         </thead>
         <tbody>
@@ -173,12 +166,6 @@ export function CallLogsTable({ logs }: CallLogsTableProps) {
                 <td className="px-4 py-3 whitespace-nowrap">
                   <DirectionBadge direction={log.direction} />
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <CallLogsRecordingButton
-                    recordingUrl={log.recordingUrl}
-                    hasRecording={log.hasRecording}
-                  />
-                </td>
                 <td className="max-w-[280px] px-4 py-3 text-propnex-muted">
                   <p className="line-clamp-2 text-xs leading-relaxed">
                     {log.summarySnippet}
@@ -188,17 +175,13 @@ export function CallLogsTable({ logs }: CallLogsTableProps) {
                   <OutcomeBadge outcome={log.sentimentOutcome} />
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  {log.hasTranscript ? (
-                    <Link
-                      href={`/call-logs/${log.id}#call-transcript`}
-                      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-propnex-border bg-propnex-panel px-2.5 text-xs font-medium text-propnex-accent transition-colors hover:bg-propnex-accent/10"
-                    >
-                      <MessageSquareText className="size-3.5" />
-                      View
-                    </Link>
-                  ) : (
-                    <span className="text-xs text-propnex-muted">—</span>
-                  )}
+                  <Link
+                    href={`/call-logs/${log.id}`}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-propnex-border bg-propnex-panel px-2.5 text-xs font-medium text-propnex-accent transition-colors hover:bg-propnex-accent/10"
+                  >
+                    <Eye className="size-3.5" />
+                    Details
+                  </Link>
                 </td>
               </tr>
             ))

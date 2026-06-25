@@ -64,6 +64,8 @@ export const cacheKeys = {
         return `${base}:${params?.id ?? "missing"}:${hashValue({ after: params?.after })}`;
       case "billing":
         return `${base}:${hashValue({ after: params?.after })}`;
+      case "home":
+        return `${base}:${hashValue(params?.filter)}`;
       default:
         return base;
     }

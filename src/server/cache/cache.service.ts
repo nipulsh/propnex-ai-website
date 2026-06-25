@@ -64,7 +64,26 @@ export class CacheService {
   }
 
   async invalidateCompanyAnalytics(companyId: string): Promise<void> {
-    await this.del(cacheKeys.companyAnalytics(companyId));
+    if (!redis) return;
+    const prefix = cacheKeys.companyAnalytics(companyId);
+    try {
+      let cursor = "0";
+      do {
+        const [nextCursor, keys] = await redis.scan(
+          cursor,
+          "MATCH",
+          `${prefix}*`,
+          "COUNT",
+          100,
+        );
+        cursor = nextCursor;
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+      } while (cursor !== "0");
+    } catch {
+      gqlDebug("redis:invalidate-company-analytics:error", { prefix });
+    }
   }
 
   async invalidateCompanyAgentStatus(companyId: string): Promise<void> {

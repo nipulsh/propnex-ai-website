@@ -1,5 +1,9 @@
 type AnalyticsQueries {
-  summary(granularity: AnalyticsGranularity): AnalyticsSummary!
+  summary(
+    granularity: AnalyticsGranularity
+    dateFrom: String
+    dateTo: String
+  ): AnalyticsSummary!
 }
 
 type AnalyticsSummary {

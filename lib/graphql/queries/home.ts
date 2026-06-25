@@ -1,5 +1,5 @@
 export const HOME_PAGE_QUERY = `
-  query HomePage {
+  query HomePage($dateFrom: String, $dateTo: String) {
     callLogs {
       recent(limit: 10) {
         id
@@ -14,7 +14,7 @@ export const HOME_PAGE_QUERY = `
       }
     }
     analytics {
-      summary(granularity: DAILY) {
+      summary(granularity: DAILY, dateFrom: $dateFrom, dateTo: $dateTo) {
         totalCalls
         connectedCalls
         conversionRate
