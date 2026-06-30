@@ -1,124 +1,128 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "@clerk/nextjs";
-import { ArrowLeft, ArrowRight, Building2, Phone, Target } from "lucide-react";
-
-import { completeOnboarding } from "@/actions/onboarding";
+import {
+  ArrowLeft,
+  ArrowRight,
+  FileKey2,
+  Loader2,
+  LogIn,
+  Sparkles,
+  UserPlus,
+} from "lucide-react";
 
 import { BrandLogo } from "@/components/common/brand-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CallVolumeRange, PrimaryUseCase } from "@/lib/user-metadata";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 
-const USE_CASE_OPTIONS: { value: PrimaryUseCase; label: string }[] = [
-  { value: PrimaryUseCase.LEAD_QUALIFICATION, label: "Lead Qualification" },
-  { value: PrimaryUseCase.CUSTOMER_SUPPORT, label: "Customer Support" },
-  { value: PrimaryUseCase.APPOINTMENT_BOOKING, label: "Appointment Booking" },
-];
-
-const CALL_VOLUME_OPTIONS: { value: CallVolumeRange; label: string }[] = [
-  { value: CallVolumeRange.RANGE_1_100, label: "1–100" },
-  { value: CallVolumeRange.RANGE_100_500, label: "100–500" },
-  { value: CallVolumeRange.RANGE_500_1000, label: "500–1000" },
-  { value: CallVolumeRange.RANGE_1000_PLUS, label: "1000+" },
-];
-
 const STEPS = [
-  { id: 1, title: "Company", icon: Building2 },
-  { id: 2, title: "Use Case", icon: Target },
-  { id: 3, title: "Call Volume", icon: Phone },
+  { id: 1, title: "Welcome", icon: Sparkles },
+  { id: 2, title: "Contract ID", icon: FileKey2 },
+  { id: 3, title: "Create Account", icon: UserPlus },
 ];
-
-function OptionCard({
-  selected,
-  onClick,
-  label,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-xl border p-4 text-left text-sm font-medium transition-colors",
-        selected
-          ? "border-propnex-accent bg-propnex-accent/10 text-foreground"
-          : "border-propnex-border bg-propnex-panel text-foreground hover:border-propnex-accent/40",
-      )}
-    >
-      {label}
-    </button>
-  );
-}
 
 export function OnboardingWizard() {
   const router = useRouter();
-  const { session } = useSession();
+  const step = useOnboardingStore((state) => state.step);
+  const contractId = useOnboardingStore((state) => state.contractId);
+  const companyName = useOnboardingStore((state) => state.companyName);
+  const validationState = useOnboardingStore((state) => state.validationState);
+  const validationError = useOnboardingStore((state) => state.validationError);
+  const isSubmitting = useOnboardingStore((state) => state.isSubmitting);
+  const setStep = useOnboardingStore((state) => state.setStep);
+  const setContractId = useOnboardingStore((state) => state.setContractId);
+  const setCompanyName = useOnboardingStore((state) => state.setCompanyName);
+  const setValidationState = useOnboardingStore(
+    (state) => state.setValidationState,
+  );
+  const setValidationError = useOnboardingStore(
+    (state) => state.setValidationError,
+  );
+  const setIsSubmitting = useOnboardingStore((state) => state.setIsSubmitting);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const step = useOnboardingStore((s) => s.step);
-  const companyName = useOnboardingStore((s) => s.companyName);
-  const phone = useOnboardingStore((s) => s.phone);
-  const primaryUseCase = useOnboardingStore((s) => s.primaryUseCase);
-  const callVolume = useOnboardingStore((s) => s.callVolume);
-  const isSubmitting = useOnboardingStore((s) => s.isSubmitting);
-  const setStep = useOnboardingStore((s) => s.setStep);
-  const setCompanyName = useOnboardingStore((s) => s.setCompanyName);
-  const setPhone = useOnboardingStore((s) => s.setPhone);
-  const setPrimaryUseCase = useOnboardingStore((s) => s.setPrimaryUseCase);
-  const setCallVolume = useOnboardingStore((s) => s.setCallVolume);
-  const setIsSubmitting = useOnboardingStore((s) => s.setIsSubmitting);
 
   const canContinue =
-    (step === 1 && companyName.trim().length > 0) ||
-    (step === 2 && primaryUseCase !== null) ||
-    (step === 3 && callVolume !== null);
+    step === 1 ||
+    (step === 2 && contractId.trim().length > 0) ||
+    (step === 3 && validationState === "valid");
 
-  async function handleComplete() {
-    if (!primaryUseCase || !callVolume) {
-      return;
+  async function validateContractId() {
+    const normalized = contractId.trim().toUpperCase();
+    if (!normalized) {
+      setValidationState("invalid");
+      setValidationError("Please enter your Contract ID.");
+      return false;
     }
 
     setIsSubmitting(true);
+    setValidationState("validating");
+    setValidationError(null);
     setSubmitError(null);
+
     try {
-      const result = await completeOnboarding({
-        companyName: companyName.trim(),
-        phone: phone.trim(),
-        primaryUseCase,
-        callVolume,
+      const response = await fetch("/api/contract-id/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractId: normalized }),
       });
 
-      if (!result.success) {
-        setSubmitError(result.error);
-        return;
+      const data = (await response.json()) as {
+        error?: string;
+        companyName?: string;
+      };
+
+      if (response.status === 409) {
+        setValidationState("claimed");
+        setValidationError(
+          data.error ?? "This Contract ID has already been claimed.",
+        );
+        return false;
       }
 
-      await session?.reload();
-      router.replace("/dashboard");
-    } catch (error) {
-      console.error("Onboarding completion failed:", error);
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong while setting up your account.",
-      );
+      if (!response.ok) {
+        setValidationState(response.status === 400 ? "invalid" : "error");
+        setValidationError(
+          data.error ??
+            (response.status === 400
+              ? "Invalid Contract ID."
+              : "An unexpected error occurred. Please try again."),
+        );
+        return false;
+      }
+
+      setContractId(normalized);
+      setCompanyName(data.companyName ?? null);
+      setValidationState("valid");
+      return true;
+    } catch {
+      setValidationState("error");
+      setValidationError("An unexpected error occurred. Please try again.");
+      return false;
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  function handleNext() {
-    if (step < 3) {
-      setStep(step + 1);
+  async function handleNext() {
+    if (step === 2) {
+      const isValid =
+        validationState === "valid" ? true : await validateContractId();
+      if (!isValid) {
+        return;
+      }
+      setStep(3);
       return;
     }
-    void handleComplete();
+
+    if (step === 3) {
+      router.push("/sign-up");
+      return;
+    }
+
+    setStep(step + 1);
   }
 
   return (
@@ -133,22 +137,22 @@ export function OnboardingWizard() {
             Welcome to PropNex AI
           </h1>
           <p className="mt-2 text-sm text-propnex-muted">
-            Tell us about your business so we can tailor your experience.
+            Activate your company account to get started.
           </p>
         </div>
 
         <div className="mb-8 flex items-center justify-center gap-2">
-          {STEPS.map((s) => (
+          {STEPS.map((currentStep) => (
             <div
-              key={s.id}
+              key={currentStep.id}
               className={cn(
                 "flex size-8 items-center justify-center rounded-full text-xs font-medium",
-                step >= s.id
+                step >= currentStep.id
                   ? "bg-propnex-accent text-propnex-bg"
                   : "bg-propnex-border text-propnex-muted",
               )}
             >
-              {s.id}
+              {currentStep.id}
             </div>
           ))}
         </div>
@@ -158,36 +162,19 @@ export function OnboardingWizard() {
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-medium text-foreground">
-                  Company Information
+                  Get started with PropNex
                 </h2>
                 <p className="mt-1 text-sm text-propnex-muted">
-                  What is your company name?
+                  Your admin will share a unique Contract ID after your company
+                  setup is complete. You&apos;ll use it once to create your
+                  account and access your dashboard.
                 </p>
               </div>
-              <input
-                id="company-name"
-                type="text"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Acme Realty"
-                className="w-full rounded-lg border border-propnex-border bg-propnex-bg px-3 py-2 text-sm text-foreground outline-none focus:border-propnex-accent"
-              />
-              <div className="space-y-2">
-                <label
-                  htmlFor="phone"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Phone Number (optional)
-                </label>
-                <input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
-                  className="w-full rounded-lg border border-propnex-border bg-propnex-bg px-3 py-2 text-sm text-foreground outline-none focus:border-propnex-accent"
-                />
-              </div>
+              <ul className="list-disc space-y-2 pl-5 text-sm text-propnex-muted">
+                <li>Enter your Contract ID</li>
+                <li>Create your account with Clerk</li>
+                <li>Verify your email and access your dashboard</li>
+              </ul>
             </div>
           ) : null}
 
@@ -195,22 +182,41 @@ export function OnboardingWizard() {
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-medium text-foreground">
-                  Primary Use Case
+                  Enter Contract ID
                 </h2>
                 <p className="mt-1 text-sm text-propnex-muted">
-                  What is the primary purpose of PropNex AI?
+                  Enter the 10-character code provided by your PropNex admin.
                 </p>
               </div>
-              <div className="grid gap-3">
-                {USE_CASE_OPTIONS.map((option) => (
-                  <OptionCard
-                    key={option.value}
-                    label={option.label}
-                    selected={primaryUseCase === option.value}
-                    onClick={() => setPrimaryUseCase(option.value)}
-                  />
-                ))}
-              </div>
+              <input
+                id="contract-id"
+                type="text"
+                value={contractId}
+                onChange={(event) => setContractId(event.target.value)}
+                placeholder="7KQ9A4XZP2"
+                className="w-full rounded-lg border border-propnex-border bg-propnex-bg px-3 py-2 font-mono text-sm uppercase tracking-widest text-foreground outline-none focus:border-propnex-accent"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {validationState === "validating" ? (
+                <p className="flex items-center gap-2 text-sm text-propnex-muted">
+                  <Loader2 className="size-4 animate-spin" />
+                  Validating Contract ID…
+                </p>
+              ) : null}
+              {validationState === "valid" && companyName ? (
+                <p className="text-sm text-propnex-accent">
+                  Valid for company: {companyName}
+                </p>
+              ) : null}
+              {validationError ? (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                >
+                  {validationError}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -218,22 +224,18 @@ export function OnboardingWizard() {
             <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-medium text-foreground">
-                  Call Volume
+                  Create your account
                 </h2>
                 <p className="mt-1 text-sm text-propnex-muted">
-                  How many calls do you make per day?
+                  {companyName
+                    ? `You're activating ${companyName}. Continue to create your account and verify your email.`
+                    : "Continue to create your account and verify your email."}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {CALL_VOLUME_OPTIONS.map((option) => (
-                  <OptionCard
-                    key={option.value}
-                    label={option.label}
-                    selected={callVolume === option.value}
-                    onClick={() => setCallVolume(option.value)}
-                  />
-                ))}
-              </div>
+              <p className="text-sm text-propnex-muted">
+                Your Contract ID has been validated and will be linked
+                automatically after signup.
+              </p>
             </div>
           ) : null}
         </div>
@@ -258,14 +260,42 @@ export function OnboardingWizard() {
             Back
           </Button>
           <Button
-            onClick={handleNext}
+            onClick={() => void handleNext()}
             disabled={!canContinue || isSubmitting}
             className="gap-2"
           >
-            {step === 3 ? (isSubmitting ? "Saving…" : "Get Started") : "Continue"}
-            {step < 3 ? <ArrowRight className="size-4" /> : null}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Please wait…
+              </>
+            ) : step === 3 ? (
+              "Continue to sign up"
+            ) : step === 2 ? (
+              "Validate & continue"
+            ) : (
+              "Continue"
+            )}
+            {step < 3 && !isSubmitting ? (
+              <ArrowRight className="size-4" />
+            ) : null}
           </Button>
         </div>
+
+        <Link
+          href="/sign-in"
+          className="mt-6 flex items-center justify-between rounded-2xl border border-propnex-border bg-propnex-panel p-4 transition-colors hover:border-propnex-accent/40 hover:bg-propnex-accent/5"
+        >
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Already signed up?
+            </p>
+            <p className="mt-0.5 text-sm text-propnex-muted">
+              Sign in to access your dashboard.
+            </p>
+          </div>
+          <LogIn className="size-5 shrink-0 text-propnex-accent" />
+        </Link>
       </div>
     </div>
   );

@@ -298,21 +298,6 @@ export async function syncTenantFromClerk(clerkUserId: string) {
     });
   }
 
-  if (
-    clerkUser.publicMetadata?.onboardingComplete &&
-    metadata.companyName &&
-    metadata.primaryUseCase &&
-    metadata.callVolume
-  ) {
-    const result = await provisionOrganizationForUser(clerkUserId, {
-      companyName: metadata.companyName,
-      phone: metadata.phone,
-      primaryUseCase: metadata.primaryUseCase,
-      callVolume: metadata.callVolume,
-    });
-    return result.company;
-  }
-
   return null;
 }
 
@@ -325,19 +310,7 @@ async function ensureMembershipFromWebhook(
   let user = await tenantRepo.findUserByClerkId(clerkUserId);
 
   if (!company) {
-    const client = await clerkClient();
-    try {
-      const org = await client.organizations.getOrganization({
-        organizationId: clerkOrganizationId,
-      });
-      company = await tenantRepo.upsertCompany({
-        clerkOrganizationId: org.id,
-        name: org.name,
-        slug: companySlugFromName(org.name),
-      });
-    } catch {
-      return;
-    }
+    return;
   }
 
   if (!user) {
@@ -391,6 +364,12 @@ export async function handleClerkWebhookEvent(
       const clerkOrganizationId = data.id as string;
       const name = (data.name as string) ?? "Company";
       if (!clerkOrganizationId) return;
+
+      const existing =
+        await tenantRepo.findCompanyByClerkOrgId(clerkOrganizationId);
+      if (!existing) {
+        return;
+      }
 
       await tenantRepo.upsertCompany({
         clerkOrganizationId,

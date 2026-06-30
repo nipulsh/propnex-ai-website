@@ -127,6 +127,8 @@ export class TenantService {
       throw new NotFoundError("Membership not found");
     }
 
+    const contact = await this.repo.findCompanyContact(ctx.companyId);
+
     return {
       id: membership.user.id,
       email: membership.user.email,
@@ -137,6 +139,14 @@ export class TenantService {
         id: membership.company.id,
         name: membership.company.name,
         slug: membership.company.slug,
+        contact: contact
+          ? {
+              name: contact.name,
+              email: contact.email,
+              phone: contact.phone,
+              title: contact.title,
+            }
+          : null,
       },
     };
   }

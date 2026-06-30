@@ -6,7 +6,17 @@ type SettingsViewer = {
   firstName: string | null;
   lastName: string | null;
   role: string;
-  company: { id: string; name: string; slug: string };
+  company: {
+    id: string;
+    name: string;
+    slug: string;
+    contact: {
+      name: string;
+      email: string;
+      phone: string | null;
+      title: string | null;
+    } | null;
+  };
 };
 
 type SettingsIntegration = {
@@ -22,6 +32,9 @@ type SettingsStore = {
   integrations: SettingsIntegration[];
   setViewer: (viewer: SettingsViewer) => void;
   setIntegrations: (integrations: SettingsIntegration[]) => void;
+  updateCompanyContact: (
+    contact: NonNullable<SettingsViewer["company"]["contact"]>,
+  ) => void;
 };
 
 export const useSettingsStore = create<SettingsStore>((set) => ({
@@ -29,4 +42,15 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   integrations: [],
   setViewer: (viewer) => set({ viewer }),
   setIntegrations: (integrations) => set({ integrations }),
+  updateCompanyContact: (contact) =>
+    set((state) =>
+      state.viewer
+        ? {
+            viewer: {
+              ...state.viewer,
+              company: { ...state.viewer.company, contact },
+            },
+          }
+        : {},
+    ),
 }));

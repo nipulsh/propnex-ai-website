@@ -1,32 +1,38 @@
 import { create } from "zustand";
 
-import type { CallVolumeRange, PrimaryUseCase } from "@prisma/client";
+export type ContractValidationState =
+  | "idle"
+  | "validating"
+  | "valid"
+  | "invalid"
+  | "claimed"
+  | "error";
 
 export type OnboardingState = {
   step: number;
-  companyName: string;
-  phone: string;
-  primaryUseCase: PrimaryUseCase | null;
-  callVolume: CallVolumeRange | null;
+  contractId: string;
+  companyName: string | null;
+  validationState: ContractValidationState;
+  validationError: string | null;
   isSubmitting: boolean;
 };
 
 export type OnboardingActions = {
   setStep: (step: number) => void;
-  setCompanyName: (name: string) => void;
-  setPhone: (phone: string) => void;
-  setPrimaryUseCase: (useCase: PrimaryUseCase) => void;
-  setCallVolume: (volume: CallVolumeRange) => void;
+  setContractId: (contractId: string) => void;
+  setCompanyName: (companyName: string | null) => void;
+  setValidationState: (state: ContractValidationState) => void;
+  setValidationError: (error: string | null) => void;
   setIsSubmitting: (value: boolean) => void;
   reset: () => void;
 };
 
 const initialState: OnboardingState = {
   step: 1,
-  companyName: "",
-  phone: "",
-  primaryUseCase: null,
-  callVolume: null,
+  contractId: "",
+  companyName: null,
+  validationState: "idle",
+  validationError: null,
   isSubmitting: false,
 };
 
@@ -34,10 +40,11 @@ export const useOnboardingStore = create<OnboardingState & OnboardingActions>(
   (set) => ({
     ...initialState,
     setStep: (step) => set({ step }),
+    setContractId: (contractId) =>
+      set({ contractId, validationState: "idle", validationError: null }),
     setCompanyName: (companyName) => set({ companyName }),
-    setPhone: (phone) => set({ phone }),
-    setPrimaryUseCase: (primaryUseCase) => set({ primaryUseCase }),
-    setCallVolume: (callVolume) => set({ callVolume }),
+    setValidationState: (validationState) => set({ validationState }),
+    setValidationError: (validationError) => set({ validationError }),
     setIsSubmitting: (isSubmitting) => set({ isSubmitting }),
     reset: () => set(initialState),
   }),

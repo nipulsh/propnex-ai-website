@@ -64,22 +64,3 @@ export async function isOnboardingComplete(
 
   return hasActiveTenant(userId);
 }
-
-export async function saveOnboarding(
-  userId: string,
-  input: OnboardingInput,
-): Promise<void> {
-  const client = await clerkClient();
-  await client.users.updateUserMetadata(userId, {
-    unsafeMetadata: {
-      onboardingComplete: true,
-      companyName: input.companyName.trim(),
-      phone: input.phone?.trim() ?? "",
-      primaryUseCase: input.primaryUseCase,
-      callVolume: input.callVolume,
-    },
-    publicMetadata: {
-      onboardingComplete: true,
-    },
-  });
-}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 
 import { BrandLogo } from "@/components/common/brand-logo";
 import { ModeToggle } from "@/components/common/mode-toggle";
@@ -31,9 +31,13 @@ export function PublicHeader() {
                 Sign in
               </Button>
             </SignInButton>
-            <SignUpButton mode="modal">
-              <Button size="sm">Get started</Button>
-            </SignUpButton>
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/onboarding" />}
+            >
+              Get started
+            </Button>
           </Show>
           <Show when="signed-in">
             <Button

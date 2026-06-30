@@ -76,10 +76,18 @@ type Viewer {
   company: Company!
 }
 
+type CompanyContact {
+  name: String!
+  email: String!
+  phone: String
+  title: String
+}
+
 type Company {
   id: ID!
   name: String!
   slug: String!
+  contact: CompanyContact
 }
 
 type Query {

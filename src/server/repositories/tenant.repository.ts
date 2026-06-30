@@ -7,10 +7,11 @@ import type {
 import { Prisma } from "@prisma/client";
 
 import { BaseRepository } from "@/server/repositories/base.repository";
+import { generateUniqueContractId } from "@/server/lib/contract-id";
 
 export class TenantRepository extends BaseRepository {
   findCompanyByClerkOrgId(clerkOrganizationId: string) {
-    return this.prisma.company.findUnique({
+    return this.prisma.company.findFirst({
       where: { clerkOrganizationId },
     });
   }
@@ -83,29 +84,35 @@ export class TenantRepository extends BaseRepository {
       ...(data.callVolume !== undefined ? { callVolume: data.callVolume } : {}),
     };
 
+    const existing = await this.findCompanyByClerkOrgId(data.clerkOrganizationId);
+    if (existing) {
+      return this.prisma.company.update({
+        where: { id: existing.id },
+        data: updateData,
+      });
+    }
+
+    const contractId = await generateUniqueContractId(this.prisma);
     try {
-      return await this.prisma.company.upsert({
-        where: { clerkOrganizationId: data.clerkOrganizationId },
-        create: {
+      return await this.prisma.company.create({
+        data: {
           clerkOrganizationId: data.clerkOrganizationId,
           name: data.name,
           slug: data.slug,
+          contractId,
           primaryUseCase: data.primaryUseCase ?? undefined,
           callVolume: data.callVolume ?? undefined,
         },
-        update: updateData,
       });
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        const existing = await this.findCompanyByClerkOrgId(
-          data.clerkOrganizationId,
-        );
-        if (existing) {
+        const raced = await this.findCompanyByClerkOrgId(data.clerkOrganizationId);
+        if (raced) {
           return this.prisma.company.update({
-            where: { id: existing.id },
+            where: { id: raced.id },
             data: updateData,
           });
         }
@@ -147,6 +154,23 @@ export class TenantRepository extends BaseRepository {
         id: { in: ids },
         memberships: { some: { companyId, status: "ACTIVE" } },
       },
+    });
+  }
+
+  findCompanyContact(companyId: string) {
+    return this.prisma.companyContact.findUnique({
+      where: { companyId },
+    });
+  }
+
+  upsertCompanyContact(
+    companyId: string,
+    data: { name: string; email: string; phone?: string; title?: string },
+  ) {
+    return this.prisma.companyContact.upsert({
+      where: { companyId },
+      create: { companyId, ...data },
+      update: data,
     });
   }
 }

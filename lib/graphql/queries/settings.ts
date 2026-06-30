@@ -10,6 +10,12 @@ export const SETTINGS_PAGE_QUERY = `
         id
         name
         slug
+        contact {
+          name
+          email
+          phone
+          title
+        }
       }
     }
     integrations {
@@ -31,7 +37,17 @@ export type SettingsPageResult = {
     firstName: string | null;
     lastName: string | null;
     role: string;
-    company: { id: string; name: string; slug: string };
+    company: {
+      id: string;
+      name: string;
+      slug: string;
+      contact: {
+        name: string;
+        email: string;
+        phone: string | null;
+        title: string | null;
+      } | null;
+    };
   };
   integrations: {
     list: {
