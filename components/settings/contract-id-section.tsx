@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
+import { useContractStatus } from "@/components/common/contract-status-provider";
 import { useSideNotification } from "@/components/common/side-notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ type ContractStatus =
 export function ContractIdSection() {
   const router = useRouter();
   const { notify } = useSideNotification();
+  const { refetch: refetchGlobalStatus } = useContractStatus();
   const [status, setStatus] = useState<ContractStatus | null>(null);
   const [contractId, setContractId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -87,6 +89,7 @@ export function ContractIdSection() {
           type: "success",
           message: "Contract ID linked successfully.",
         });
+        void refetchGlobalStatus();
         router.refresh();
       }
     } catch {
