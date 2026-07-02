@@ -1,13 +1,16 @@
-import { redirect } from "next/navigation";
+import { SignUp } from "@clerk/nextjs";
 
-import { ContractSignUp } from "@/components/onboarding/contract-sign-up";
-import { hasPendingContractCookie } from "@/lib/pending-contract-cookie";
+import { BrandLogo } from "@/components/common/brand-logo";
 
-export default async function SignUpPage() {
-  const hasPendingContract = await hasPendingContractCookie();
-  if (!hasPendingContract) {
-    redirect("/onboarding");
-  }
-
-  return <ContractSignUp />;
+export default function SignUpPage() {
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="border-b border-border px-6 py-4">
+        <BrandLogo />
+      </header>
+      <div className="flex flex-1 items-center justify-center px-6 py-12">
+        <SignUp forceRedirectUrl="/dashboard" />
+      </div>
+    </div>
+  );
 }

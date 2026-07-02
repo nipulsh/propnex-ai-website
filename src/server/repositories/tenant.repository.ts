@@ -22,6 +22,18 @@ export class TenantRepository extends BaseRepository {
     });
   }
 
+  findCompanyByContractId(contractId: string) {
+    return this.prisma.company.findFirst({
+      where: { contractId },
+    });
+  }
+
+  findCompanyByOwnerUserId(ownerUserId: string) {
+    return this.prisma.company.findFirst({
+      where: { ownerUserId },
+    });
+  }
+
   findUserByClerkId(clerkUserId: string) {
     return this.prisma.user.findUnique({
       where: { clerkUserId },

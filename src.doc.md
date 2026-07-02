@@ -353,15 +353,14 @@ Each service is a class with a singleton export (e.g. `agentsService`). All meth
 
 ### `clerk-provision.service.ts`
 
-Tenant provisioning from Clerk (used by webhooks, onboarding, context fallback).
+Tenant provisioning from Clerk (used by webhooks, contract linking, context fallback).
 
 | Export | Description |
 |--------|-------------|
-| `provisionOrganizationForUser(userId, input)` | Full org + company + membership + credits |
 | `syncTenantFromClerk(clerkUserId)` | Recover/provision tenant for signed-in user |
 | `handleClerkWebhookEvent(event)` | Processes Clerk webhook payloads |
 
-**Internal helpers:** `ensureCreditBalance`, `upsertDbUserFromClerk`, `ensureCompanyForClerkOrg`, `linkUserToCompany`, `recoverOrphanLocalCompany`, `provisionTenantInDatabase`
+Contract ID linking lives in `contract.service.ts` (`linkContractId`, `getContractLinkStatus`).
 
 ### `agents.service.ts` — `agentsService`
 

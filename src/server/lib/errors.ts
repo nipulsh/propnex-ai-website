@@ -30,6 +30,13 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class ConflictError extends AppError {
+  constructor(message = "Conflict") {
+    super(message, "CONFLICT", 409);
+    this.name = "ConflictError";
+  }
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }

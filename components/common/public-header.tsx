@@ -34,7 +34,7 @@ export function PublicHeader() {
             <Button
               size="sm"
               nativeButton={false}
-              render={<Link href="/onboarding" />}
+              render={<Link href="/sign-up" />}
             >
               Get started
             </Button>

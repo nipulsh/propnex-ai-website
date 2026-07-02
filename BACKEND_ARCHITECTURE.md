@@ -60,9 +60,9 @@ Several dashboard areas already call the real GraphQL API (home, billing, call l
 - Integrates **Clerk** via `clerkMiddleware`
 - Protects non-public routes (`auth.protect()`)
 - Redirects authenticated users from `/` → `/dashboard`
-- Redirects `/phone-numbers` → `/setup#phone-numbers`
-- Enforces **onboarding**: users without `onboardingComplete` metadata are sent to `/onboarding`
 - Allows public routes: `/`, `/pricing`, `/sign-in`, `/sign-up`, `/api/webhooks/*`
+
+Contract ID linking is configured from Settings and is independent of authentication middleware.
 
 Public API webhooks bypass auth so Clerk can POST signed events.
 
@@ -88,16 +88,13 @@ Next.js Route Handlers for operations that are not yet (or not suitable for) Gra
 | Agent tools    | `/api/agents/[agentId]/tools/**`                                                  | In-memory tool assignments                                  |
 | Tool execution | `/api/tools/faq/search`, `billing/lookup`, `google-calendar/*`, `google-sheets/*` | Mostly stub / keyword-matched responses                     |
 | Webhooks       | `/api/webhooks/clerk`                                                             | `src/server/services/clerk-provision.service.ts`            |
+| Contract ID    | `/api/company/contract`, `/api/company/contract/link`                             | `src/server/services/contract.service.ts` (auth-only)       |
 
 All REST handlers that need a logged-in user use `requireAuth()` from `lib/api/auth.ts` (Clerk `auth()` → 401 if missing).
 
-### 4. Server Actions — `actions/onboarding.ts`
+### 4. Contract ID linking — Settings + `/api/company/contract/**`
 
-Minimal use of Server Actions today:
-
-- `completeOnboarding` — saves Clerk user metadata, provisions Clerk org + MongoDB company/user/membership/credits
-
-Server-only helpers live in `lib/onboarding.server.ts`.
+Users link an admin-provided Contract ID from Settings. The link API uses Clerk auth only (no tenant context required). `contract.service.ts` validates format, checks eligibility, creates membership, and sets `ownerUserId` / `claimedAt` once.
 
 ---
 
@@ -150,18 +147,17 @@ GraphQL request
 
 - **Identity:** Clerk user sessions (cookies)
 - **Organizations:** Clerk org ↔ `Company.clerkOrganizationId` in MongoDB
-- **Onboarding:** `publicMetadata.onboardingComplete` on Clerk user; middleware blocks dashboard until set
+- **Contract ID:** Admin-created companies have a unique `contractId`; users claim via Settings (one-time, immutable)
 
 ### Provisioning flow
 
-1. User completes onboarding form → `actions/onboarding.ts`
-2. `saveOnboarding()` updates Clerk metadata
-3. `provisionOrganizationForUser()`:
+1. Admin creates company in admin panel → `contractId` generated
+2. User signs up / signs in → dashboard (no Contract ID gate)
+3. User links Contract ID in Settings → `contract.service.linkContractId()`:
    - Upserts `User` in MongoDB
-   - Creates Clerk organization
-   - Upserts `Company` with slug, use case, call volume
+   - Attaches Clerk organization (or local fallback) to the admin company
    - Creates `CompanyMember` with role `OWNER`
-   - Seeds `CreditBalance` (2000 credits)
+   - Sets `ownerUserId` and `claimedAt` (conditional on unclaimed)
 
 ### Webhook sync — `app/api/webhooks/clerk/route.ts`
 
@@ -289,8 +285,8 @@ Runs Node test runner against `src/server/__tests__/**/*.test.ts`. Current cover
 
 ```
 propnex-main-website/
-├── proxy.ts                          # Clerk middleware, onboarding gate
-├── actions/                          # Server Actions (onboarding)
+├── proxy.ts                          # Clerk middleware
+├── actions/                          # Server Actions (billing, etc.)
 ├── app/api/
 │   ├── graphql/route.ts              # GraphQL endpoint
 │   ├── webhooks/clerk/route.ts       # Clerk → DB sync
@@ -301,7 +297,6 @@ propnex-main-website/
 │   ├── api/auth.ts                   # REST auth helper
 │   ├── api/integration-state.ts      # In-memory integration state
 │   ├── graphql/                      # GraphQL client + query helpers
-│   ├── onboarding.server.ts          # Onboarding server logic
 │   ├── mongodb.ts                    # Raw Mongo client (secondary)
 │   └── *-data.ts                     # Mock/static UI data
 ├── prisma/schema.prisma              # MongoDB data model
@@ -323,7 +318,7 @@ propnex-main-website/
 1. **Tenant-first queries** — `companyId` is required in repositories; never trust client-supplied tenant ids without matching session context.
 2. **Thin resolvers, fat services** — GraphQL stays a transport layer; rules live in services.
 3. **Graceful cache degradation** — Redis absence must not break requests.
-4. **Clerk as source of truth for identity** — MongoDB users/orgs are synced via onboarding + webhooks.
+4. **Clerk as source of truth for identity** — MongoDB users/orgs are synced via Contract ID linking + webhooks.
 5. **Incremental migration** — Mock `lib/*` modules allow UI progress while `src/server` grows domain by domain.
 
 ---

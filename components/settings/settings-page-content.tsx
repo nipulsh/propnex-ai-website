@@ -26,6 +26,7 @@ import { useSettingsGraphQL } from "@/hooks/use-settings-graphql";
 import { useSetupStore } from "@/stores/setup-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { PointOfContactSection } from "@/components/settings/point-of-contact-section";
+import { ContractIdSection } from "@/components/settings/contract-id-section";
 
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: User },
@@ -205,7 +206,8 @@ export function SettingsPageContent() {
                   </p>
                 </div>
               </div>
-              <PointOfContactSection />
+              <ContractIdSection />
+              {viewer ? <PointOfContactSection /> : null}
               <div className="space-y-4 border-t border-propnex-border pt-4">
                 <h3 className="text-sm font-medium text-foreground">
                   Call handling

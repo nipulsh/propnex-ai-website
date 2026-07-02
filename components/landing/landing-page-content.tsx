@@ -47,7 +47,7 @@ export function LandingPageContent() {
           <Button
             size="lg"
             nativeButton={false}
-            render={<Link href="/onboarding" />}
+            render={<Link href="/sign-up" />}
             className="h-10 px-6 shadow-[0_0_20px_color-mix(in_srgb,var(--propnex-accent)_35%,transparent)]"
           >
             Get started free
@@ -94,7 +94,7 @@ export function LandingPageContent() {
           <Button
             size="lg"
             nativeButton={false}
-            render={<Link href="/onboarding" />}
+            render={<Link href="/sign-up" />}
             className="mt-6 h-10 px-6"
           >
             Create your account
