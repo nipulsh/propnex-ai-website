@@ -1,10 +1,12 @@
 import {
   Bot,
+  Building2,
   HelpCircle,
   Home,
   Phone,
   Settings,
   PhoneCall,
+  Users,
   type LucideIcon,
   CreditCard,
   RefreshCw,
@@ -16,10 +18,18 @@ export type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
+  permission?: string;
 };
 
 export const mainNavItems: NavItem[] = [
   { title: "Home", href: "/dashboard", icon: Home },
+  { title: "Branches", href: "/branches", icon: Building2 },
+  {
+    title: "Employees",
+    href: "/employees",
+    icon: Users,
+    permission: "employees:read",
+  },
   { title: "Agents", href: "/agents", icon: Bot },
   { title: "Setup", href: "/setup", icon: ServerCog },
   { title: "Phone Numbers", href: "/phone-numbers", icon: Phone },

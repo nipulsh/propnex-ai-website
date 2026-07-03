@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 
 import { gqlDebug, gqlDebugTimed, gqlLogError } from "@/server/graphql/debug";
-import { createDataLoaders } from "@/server/graphql/dataloaders";
 import { isAppError, UnauthorizedError } from "@/server/lib/errors";
+import { buildTenantContext } from "@/server/lib/tenant-context-builder";
 import prisma from "@/server/lib/prisma";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
 import { syncTenantFromClerk } from "@/server/services/clerk-provision.service";
@@ -108,6 +108,8 @@ export async function createGraphQLContext(): Promise<GraphQLContext> {
       tenantService.getPermissions(user.id, membership.role, customPermissions),
     );
 
+    const tenantContext = await buildTenantContext(userId, company.id, membership);
+
     gqlDebug("context:done", {
       companyId: company.id,
       userId: user.id,
@@ -116,12 +118,8 @@ export async function createGraphQLContext(): Promise<GraphQLContext> {
 
     return {
       isAuthenticated: true,
-      userId: user.id,
-      clerkUserId: userId,
-      companyId: company.id,
-      role: membership.role,
+      ...tenantContext,
       permissions,
-      loaders: createDataLoaders(company.id),
     };
   });
 }

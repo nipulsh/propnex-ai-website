@@ -20,15 +20,34 @@ export function localClerkOrganizationId(clerkUserId: string): string {
 
 export function mapClerkRoleToUserRole(
   role: string,
-): "OWNER" | "ADMIN" | "MANAGER" | "AGENT" {
+): "OWNER" | "ADMIN" | "MANAGER" | "AGENT" | "SALES" | "SUPPORT" {
   switch (role) {
     case "org:admin":
       return "ADMIN";
     case "org:member":
       return "AGENT";
     default:
+      if (role.includes("owner")) return "OWNER";
       if (role.includes("admin")) return "ADMIN";
       if (role.includes("manager")) return "MANAGER";
+      if (role.includes("sales")) return "SALES";
+      if (role.includes("support")) return "SUPPORT";
       return "AGENT";
+  }
+}
+
+export function mapUserRoleToClerkRole(role: string): string {
+  switch (role) {
+    case "OWNER":
+    case "ADMIN":
+      return "org:admin";
+    case "MANAGER":
+      return "org:manager";
+    case "SALES":
+      return "org:sales";
+    case "SUPPORT":
+      return "org:support";
+    default:
+      return "org:member";
   }
 }

@@ -22,6 +22,7 @@ export class CallLogsRepository extends BaseRepository {
   private buildWhere(
     companyId: string,
     filter?: CallLogFilter,
+    scopeWhere?: Prisma.CallLogWhereInput,
   ): Prisma.CallLogWhereInput {
     const where: Prisma.CallLogWhereInput = this.scope(companyId);
 
@@ -47,6 +48,10 @@ export class CallLogsRepository extends BaseRepository {
       ];
     }
 
+    if (scopeWhere && Object.keys(scopeWhere).length > 0) {
+      return { AND: [where, scopeWhere] };
+    }
+
     return where;
   }
 
@@ -55,11 +60,12 @@ export class CallLogsRepository extends BaseRepository {
     limit: number,
     after?: string,
     filter?: CallLogFilter,
+    scopeWhere?: Prisma.CallLogWhereInput,
   ) {
     const cursor = after ? decodeCursor(after) : undefined;
 
     return this.prisma.callLog.findMany({
-      where: this.buildWhere(companyId, filter),
+      where: this.buildWhere(companyId, filter, scopeWhere),
       orderBy: [{ startedAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(cursor
@@ -93,9 +99,13 @@ export class CallLogsRepository extends BaseRepository {
     });
   }
 
-  findRecent(companyId: string, limit: number) {
+  findRecent(companyId: string, limit: number, scopeWhere?: Prisma.CallLogWhereInput) {
+    const where =
+      scopeWhere && Object.keys(scopeWhere).length > 0
+        ? { AND: [this.scope(companyId), scopeWhere] }
+        : this.scope(companyId);
     return this.prisma.callLog.findMany({
-      where: this.scope(companyId),
+      where,
       orderBy: { startedAt: "desc" },
       take: limit,
       select: {
@@ -124,8 +134,13 @@ export class CallLogsRepository extends BaseRepository {
     });
   }
 
-  countSummary(companyId: string, dateFrom?: Date, dateTo?: Date) {
-    const where = this.buildWhere(companyId, { dateFrom, dateTo });
+  countSummary(
+    companyId: string,
+    dateFrom?: Date,
+    dateTo?: Date,
+    scopeWhere?: Prisma.CallLogWhereInput,
+  ) {
+    const where = this.buildWhere(companyId, { dateFrom, dateTo }, scopeWhere);
 
     return Promise.all([
       this.prisma.callLog.count({ where }),

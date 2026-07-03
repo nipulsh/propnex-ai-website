@@ -135,6 +135,7 @@ export class TenantService {
       firstName: membership.user.firstName,
       lastName: membership.user.lastName,
       role: membership.role,
+      permissions: ctx.permissions,
       company: {
         id: membership.company.id,
         name: membership.company.name,

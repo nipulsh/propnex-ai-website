@@ -11,8 +11,10 @@ export function createServiceTenantContext(companyId: string): TenantContext {
     userId: SERVICE_USER_ID,
     clerkUserId: SERVICE_CLERK_USER_ID,
     companyId,
+    membershipId: "service",
     role: UserRole.OWNER,
     permissions: [],
+    branchAccess: { type: "ALL", branchIds: [] },
     loaders: createDataLoaders(companyId),
   };
 }

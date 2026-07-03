@@ -1,4 +1,4 @@
-import type { CallVolumeRange, Company, PrimaryUseCase, User, UserRole } from "@prisma/client";
+import type { BranchAccessType, CallVolumeRange, Company, PrimaryUseCase, User, UserRole } from "@prisma/client";
 import { clerkClient } from "@clerk/nextjs/server";
 
 import { getUserMetadata } from "@/lib/user-metadata";
@@ -190,10 +190,30 @@ export async function syncTenantFromClerk(clerkUserId: string) {
   return null;
 }
 
+async function applyBranchAccessFromInvitation(
+  memberId: string,
+  branchAccessType: BranchAccessType,
+  branchIds: string[],
+) {
+  await prisma.memberBranchAccess.deleteMany({ where: { memberId } });
+  if (branchAccessType === "SELECTED" && branchIds.length > 0) {
+    await prisma.memberBranchAccess.createMany({
+      data: branchIds.map((branchId) => ({ memberId, branchId })),
+    });
+  }
+}
+
 async function ensureMembershipFromWebhook(
   clerkOrganizationId: string,
   clerkUserId: string,
   role: UserRole,
+  metadata?: {
+    propnexRole?: UserRole;
+    branchAccessType?: BranchAccessType;
+    branchIds?: string[];
+    jobTitle?: string | null;
+    inviteName?: string;
+  },
 ) {
   let company = await tenantRepo.findCompanyByClerkOrgId(clerkOrganizationId);
   let user = await tenantRepo.findUserByClerkId(clerkUserId);
@@ -212,11 +232,69 @@ async function ensureMembershipFromWebhook(
     }
   }
 
-  await tenantRepo.upsertMembership({
-    companyId: company.id,
-    userId: user.id,
-    role,
+  const resolvedRole = metadata?.propnexRole ?? role;
+  let branchAccessType = metadata?.branchAccessType ?? "ALL";
+  let branchIds = metadata?.branchIds ?? [];
+
+  if (!metadata?.branchAccessType) {
+    const pendingInvite = await prisma.invitation.findFirst({
+      where: {
+        companyId: company.id,
+        email: { equals: user.email, mode: "insensitive" },
+        status: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (pendingInvite) {
+      branchAccessType = pendingInvite.branchAccessType;
+      branchIds = pendingInvite.branchIds;
+    }
+  }
+
+  const membership = await prisma.companyMember.upsert({
+    where: {
+      companyId_userId: { companyId: company.id, userId: user.id },
+    },
+    create: {
+      companyId: company.id,
+      userId: user.id,
+      role: resolvedRole,
+      status: "ACTIVE",
+      jobTitle: metadata?.jobTitle ?? null,
+      branchAccessType,
+      joinedAt: new Date(),
+    },
+    update: {
+      role: resolvedRole,
+      status: "ACTIVE",
+      jobTitle: metadata?.jobTitle ?? undefined,
+      branchAccessType,
+      joinedAt: new Date(),
+    },
   });
+
+  await applyBranchAccessFromInvitation(
+    membership.id,
+    branchAccessType,
+    branchIds,
+  );
+
+  const email = user.email;
+  await prisma.invitation.updateMany({
+    where: {
+      companyId: company.id,
+      email: { equals: email, mode: "insensitive" },
+      status: "PENDING",
+    },
+    data: { status: "ACCEPTED" },
+  });
+
+  if (user.clerkUserId.startsWith("pending:")) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { clerkUserId, status: "ACTIVE" },
+    });
+  }
 
   await ensureCreditBalance(company.id);
 }
@@ -275,10 +353,22 @@ export async function handleClerkWebhookEvent(
         ? (data.public_user_data as { user_id: string }).user_id
         : (data.user_id as string);
       const role = mapClerkRoleToUserRole((data.role as string) ?? "org:member");
+      const publicMetadata = (data.public_metadata ?? {}) as {
+        propnexRole?: UserRole;
+        branchAccessType?: BranchAccessType;
+        branchIds?: string[];
+        jobTitle?: string | null;
+        inviteName?: string;
+      };
 
       if (!clerkOrganizationId || !clerkUserId) return;
 
-      await ensureMembershipFromWebhook(clerkOrganizationId, clerkUserId, role);
+      await ensureMembershipFromWebhook(
+        clerkOrganizationId,
+        clerkUserId,
+        role,
+        publicMetadata,
+      );
       break;
     }
 
@@ -296,6 +386,16 @@ export async function handleClerkWebhookEvent(
       await prisma.companyMember.updateMany({
         where: { companyId: company.id, userId: user.id },
         data: { status: "REMOVED" },
+      });
+      break;
+    }
+
+    case "session.created": {
+      const clerkUserId = data.user_id as string;
+      if (!clerkUserId) return;
+      await prisma.user.updateMany({
+        where: { clerkUserId },
+        data: { lastLoginAt: new Date() },
       });
       break;
     }

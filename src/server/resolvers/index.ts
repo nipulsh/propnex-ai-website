@@ -3,9 +3,11 @@ import { agentsService } from "@/server/services/agents.service";
 import { agentLibraryService } from "@/server/services/agent-library.service";
 import { analyticsService } from "@/server/services/analytics.service";
 import { billingService } from "@/server/services/billing.service";
+import { branchesService } from "@/server/services/branches.service";
 import { callLogsService } from "@/server/services/call-logs.service";
 import { campaignsService } from "@/server/services/campaigns.service";
 import { creditsService } from "@/server/services/credits.service";
+import { employeesService } from "@/server/services/employees.service";
 import { eventsService } from "@/server/services/events.service";
 import { leadsService } from "@/server/services/leads.service";
 import { phoneNumbersService } from "@/server/services/phone-numbers.service";
@@ -71,6 +73,8 @@ export const resolvers = {
     integrations: () => ({}),
     scheduler: () => ({}),
     events: () => ({}),
+    branches: () => ({}),
+    employees: () => ({}),
   },
 
   Mutation: {
@@ -80,6 +84,8 @@ export const resolvers = {
     phoneNumbers: () => ({}),
     uploadedContacts: () => ({}),
     leads: () => ({}),
+    branches: () => ({}),
+    employees: () => ({}),
   },
 
   CreditsQueries: {
@@ -315,6 +321,110 @@ export const resolvers = {
   EventQueries: {
     recent: (_: unknown, args: { limit?: number }, ctx: TenantContext) =>
       eventsService.listRecent(ctx, args.limit),
+  },
+
+  BranchesQueries: {
+    connection: (
+      _: unknown,
+      args: {
+        first?: number;
+        after?: string;
+        filter?: { search?: string; status?: string; aiEnabled?: boolean };
+      },
+      ctx: TenantContext,
+    ) =>
+      branchesService.getConnection(ctx, {
+        first: args.first,
+        after: args.after,
+        filter: args.filter
+          ? {
+              search: args.filter.search,
+              status: args.filter.status as never,
+              aiEnabled: args.filter.aiEnabled,
+            }
+          : undefined,
+      }),
+    byId: (_: unknown, args: { id: string }, ctx: TenantContext) =>
+      branchesService.getById(ctx, args.id),
+    contacts: (
+      _: unknown,
+      args: { branchId: string; first?: number; after?: string },
+      ctx: TenantContext,
+    ) => branchesService.getContacts(ctx, args.branchId, args.first, args.after),
+    callLogs: (
+      _: unknown,
+      args: { branchId: string; first?: number; after?: string },
+      ctx: TenantContext,
+    ) => branchesService.getCallLogs(ctx, args.branchId, args.first, args.after),
+    documents: (
+      _: unknown,
+      args: { branchId: string },
+      ctx: TenantContext,
+    ) => branchesService.getDocuments(ctx, args.branchId),
+    activities: (
+      _: unknown,
+      args: { branchId: string; limit?: number },
+      ctx: TenantContext,
+    ) => branchesService.getActivities(ctx, args.branchId, args.limit),
+  },
+
+  BranchesMutations: {
+    create: (
+      _: unknown,
+      args: { input: Record<string, unknown> },
+      ctx: TenantContext,
+    ) => branchesService.create(ctx, args.input as never),
+    update: (
+      _: unknown,
+      args: { id: string; input: Record<string, unknown> },
+      ctx: TenantContext,
+    ) => branchesService.update(ctx, args.id, args.input as never),
+    updateAi: (
+      _: unknown,
+      args: { id: string; input: Record<string, unknown> },
+      ctx: TenantContext,
+    ) => branchesService.updateAi(ctx, args.id, args.input as never),
+    bulkUpdate: (
+      _: unknown,
+      args: { input: Record<string, unknown> },
+      ctx: TenantContext,
+    ) => branchesService.bulkUpdate(ctx, args.input as never),
+    archive: (_: unknown, args: { id: string }, ctx: TenantContext) =>
+      branchesService.archive(ctx, args.id),
+  },
+
+  EmployeesQueries: {
+    connection: (
+      _: unknown,
+      args: { first?: number; after?: string; filter?: Record<string, unknown> },
+      ctx: TenantContext,
+    ) => employeesService.getConnection(ctx, args),
+    byId: (_: unknown, args: { id: string }, ctx: TenantContext) =>
+      employeesService.getById(ctx, args.id),
+    permissionsForRole: (
+      _: unknown,
+      args: { role: TenantContext["role"] },
+      ctx: TenantContext,
+    ) => employeesService.getPermissionsForRole(ctx, args.role),
+  },
+
+  EmployeesMutations: {
+    invite: (
+      _: unknown,
+      args: { input: Record<string, unknown> },
+      ctx: TenantContext,
+    ) => employeesService.invite(ctx, args.input as never),
+    update: (
+      _: unknown,
+      args: { id: string; input: Record<string, unknown> },
+      ctx: TenantContext,
+    ) => employeesService.update(ctx, args.id, args.input as never),
+    deactivate: (_: unknown, args: { id: string }, ctx: TenantContext) =>
+      employeesService.deactivate(ctx, args.id),
+    delete: (_: unknown, args: { id: string }, ctx: TenantContext) =>
+      employeesService.delete(ctx, args.id),
+    resendInvite: (_: unknown, args: { id: string }, ctx: TenantContext) =>
+      employeesService.resendInvite(ctx, args.id),
   },
 
   CallLog: {

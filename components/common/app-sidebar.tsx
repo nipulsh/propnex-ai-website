@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { BrandLogo } from "@/components/common/brand-logo";
+import { fetchViewerRole } from "@/lib/graphql/api";
 import { footerNavItems, mainNavItems } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -25,6 +27,17 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const [permissions, setPermissions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchViewerRole()
+      .then((res) => setPermissions(res.viewer.permissions ?? []))
+      .catch(() => setPermissions([]));
+  }, []);
+
+  const visibleNavItems = mainNavItems.filter(
+    (item) => !item.permission || permissions.includes(item.permission),
+  );
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -46,7 +59,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     render={<Link href={item.href} />}

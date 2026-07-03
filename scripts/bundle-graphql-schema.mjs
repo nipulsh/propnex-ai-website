@@ -13,6 +13,8 @@ const files = [
   "call-logs.graphql",
   "domains.graphql",
   "agent-library.graphql",
+  "branches.graphql",
+  "employees.graphql",
 ];
 
 const typeDefs = files.map((file) =>

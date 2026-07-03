@@ -38,6 +38,37 @@ import {
   type ImportedContactInput,
   type AgentLibraryBySlugResult,
   type AgentLibraryListResult,
+  BRANCHES_PAGE_QUERY,
+  BRANCH_DETAIL_QUERY,
+  BRANCH_CONTACTS_QUERY,
+  BRANCH_CALL_LOGS_QUERY,
+  BRANCH_DOCUMENTS_QUERY,
+  CREATE_BRANCH_MUTATION,
+  UPDATE_BRANCH_MUTATION,
+  UPDATE_BRANCH_AI_MUTATION,
+  BULK_UPDATE_BRANCHES_MUTATION,
+  ARCHIVE_BRANCH_MUTATION,
+  type BranchesConnectionResult,
+  type BranchDetailResult,
+  type BranchContactNode,
+  type BranchCallLogNode,
+  type BranchDocumentNode,
+  type BranchNode,
+  VIEWER_ROLE_QUERY,
+  type ViewerRoleResult,
+  EMPLOYEES_PAGE_QUERY,
+  EMPLOYEE_DETAIL_QUERY,
+  INVITE_EMPLOYEE_MUTATION,
+  UPDATE_EMPLOYEE_MUTATION,
+  DEACTIVATE_EMPLOYEE_MUTATION,
+  DELETE_EMPLOYEE_MUTATION,
+  RESEND_EMPLOYEE_INVITE_MUTATION,
+  type EmployeesConnectionResult,
+  type EmployeeDetailResult,
+  type EmployeeNode,
+  type UserRole,
+  type MemberStatus,
+  type BranchAccessType,
 } from "@/lib/graphql/queries";
 
 export async function fetchCreditsSummary() {
@@ -194,9 +225,7 @@ export async function createUploadedContact(phone: string) {
   }>(CREATE_UPLOADED_CONTACT_MUTATION, { phone });
 }
 
-export async function importUploadedContacts(
-  contacts: ImportedContactInput[],
-) {
+export async function importUploadedContacts(contacts: ImportedContactInput[]) {
   return gqlRequest<UploadedContactImportResult>(
     IMPORT_UPLOADED_CONTACTS_MUTATION,
     { contacts },
@@ -213,6 +242,177 @@ export async function bulkDeleteUploadedContacts(ids: string[]) {
   return gqlRequest<{
     uploadedContacts: { bulkDelete: number };
   }>(BULK_DELETE_UPLOADED_CONTACTS_MUTATION, { ids });
+}
+
+export async function fetchViewerRole() {
+  return gqlRequest<ViewerRoleResult>(VIEWER_ROLE_QUERY);
+}
+
+export type BranchFilterInput = {
+  search?: string;
+  status?: string;
+  aiEnabled?: boolean;
+};
+
+export async function fetchBranchesPage(
+  first = 25,
+  after?: string,
+  filter?: BranchFilterInput,
+) {
+  return gqlRequest<BranchesConnectionResult>(BRANCHES_PAGE_QUERY, {
+    first,
+    after,
+    filter,
+  });
+}
+
+export async function fetchBranchDetail(id: string) {
+  return gqlRequest<BranchDetailResult>(BRANCH_DETAIL_QUERY, { id });
+}
+
+export async function fetchBranchContacts(
+  branchId: string,
+  first = 50,
+  after?: string,
+) {
+  return gqlRequest<{ branches: { contacts: BranchContactNode[] } }>(
+    BRANCH_CONTACTS_QUERY,
+    { branchId, first, after },
+  );
+}
+
+export async function fetchBranchCallLogs(
+  branchId: string,
+  first = 50,
+  after?: string,
+) {
+  return gqlRequest<{ branches: { callLogs: BranchCallLogNode[] } }>(
+    BRANCH_CALL_LOGS_QUERY,
+    { branchId, first, after },
+  );
+}
+
+export async function fetchBranchDocuments(branchId: string) {
+  return gqlRequest<{ branches: { documents: BranchDocumentNode[] } }>(
+    BRANCH_DOCUMENTS_QUERY,
+    { branchId },
+  );
+}
+
+export async function createBranch(input: Record<string, unknown>) {
+  return gqlRequest<{ branches: { create: BranchNode } }>(
+    CREATE_BRANCH_MUTATION,
+    { input },
+  );
+}
+
+export async function updateBranch(id: string, input: Record<string, unknown>) {
+  return gqlRequest<{ branches: { update: BranchNode } }>(
+    UPDATE_BRANCH_MUTATION,
+    { id, input },
+  );
+}
+
+export async function updateBranchAi(
+  id: string,
+  input: Record<string, unknown>,
+) {
+  return gqlRequest<{ branches: { updateAi: BranchNode } }>(
+    UPDATE_BRANCH_AI_MUTATION,
+    { id, input },
+  );
+}
+
+export async function bulkUpdateBranches(input: {
+  ids: string[];
+  action:
+    | "ENABLE_AI"
+    | "DISABLE_AI"
+    | "UPDATE_PROMPT"
+    | "CHANGE_STATUS"
+    | "ARCHIVE";
+  systemPrompt?: string;
+  status?: string;
+}) {
+  return gqlRequest<{ branches: { bulkUpdate: { updated: number } } }>(
+    BULK_UPDATE_BRANCHES_MUTATION,
+    { input },
+  );
+}
+
+export async function archiveBranch(id: string) {
+  return gqlRequest<{ branches: { archive: BranchNode } }>(
+    ARCHIVE_BRANCH_MUTATION,
+    { id },
+  );
+}
+
+export type EmployeeFilterInput = {
+  search?: string;
+  role?: UserRole;
+  status?: MemberStatus;
+  branchId?: string;
+};
+
+export async function fetchEmployeesPage(
+  first = 25,
+  after?: string,
+  filter?: EmployeeFilterInput,
+) {
+  return gqlRequest<EmployeesConnectionResult>(EMPLOYEES_PAGE_QUERY, {
+    first,
+    after,
+    filter,
+  });
+}
+
+export async function fetchEmployeeDetail(id: string, role: UserRole) {
+  return gqlRequest<EmployeeDetailResult>(EMPLOYEE_DETAIL_QUERY, { id, role });
+}
+
+export async function inviteEmployee(input: {
+  name: string;
+  email: string;
+  role: UserRole;
+  jobTitle?: string;
+  branchAccessType: BranchAccessType;
+  branchIds?: string[];
+}) {
+  return gqlRequest<{ employees: { invite: EmployeeNode } }>(
+    INVITE_EMPLOYEE_MUTATION,
+    { input },
+  );
+}
+
+export async function updateEmployee(
+  id: string,
+  input: Record<string, unknown>,
+) {
+  return gqlRequest<{ employees: { update: EmployeeNode } }>(
+    UPDATE_EMPLOYEE_MUTATION,
+    { id, input },
+  );
+}
+
+export async function deactivateEmployee(id: string) {
+  return gqlRequest<{ employees: { deactivate: EmployeeNode } }>(
+    DEACTIVATE_EMPLOYEE_MUTATION,
+    { id },
+  );
+}
+
+export async function deleteEmployee(id: string) {
+  return gqlRequest<{ employees: { delete: boolean } }>(
+    DELETE_EMPLOYEE_MUTATION,
+    { id },
+  );
+}
+
+export async function resendEmployeeInvite(id: string) {
+  return gqlRequest<{ employees: { resendInvite: EmployeeNode } }>(
+    RESEND_EMPLOYEE_INVITE_MUTATION,
+    { id },
+  );
 }
 
 /** @deprecated Use fetchHomePage */

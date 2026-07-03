@@ -13,6 +13,7 @@ import {
 import type { TenantContext } from "@/server/types/context";
 import { PERMISSIONS } from "@/server/types/permissions";
 import { tenantService } from "@/server/services/tenant.service";
+import { branchAccessService } from "@/server/services/branch-access.service";
 import { analyticsService } from "@/server/services/analytics.service";
 
 export class CallLogsService {
@@ -27,7 +28,11 @@ export class CallLogsService {
       cacheKeys.companyTopCallLogs(ctx.companyId),
       CACHE_TTL.TOP_CALL_LOGS,
       async () => {
-        const logs = await this.repo.findRecent(ctx.companyId, capped);
+        const logs = await this.repo.findRecent(
+          ctx.companyId,
+          capped,
+          branchAccessService.callLogBranchFilter(ctx),
+        );
         return logs.map((log) => ({
           ...log,
           startedAt: log.startedAt.toISOString(),
@@ -52,6 +57,7 @@ export class CallLogsService {
       limit,
       args.after,
       args.filter,
+      branchAccessService.callLogBranchFilter(ctx),
     );
 
     const connection = buildConnection(items, limit, (item) =>
@@ -77,6 +83,7 @@ export class CallLogsService {
     if (!log) {
       throw new NotFoundError("Call log not found");
     }
+    branchAccessService.assertCallLogBranchAccess(ctx, log.branchId);
 
     return {
       ...log,

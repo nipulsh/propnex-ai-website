@@ -49,6 +49,7 @@ export class TenantRepository extends BaseRepository {
         customRole: true,
         user: true,
         company: true,
+        branchAccess: true,
       },
     });
   }
@@ -112,6 +113,7 @@ export class TenantRepository extends BaseRepository {
           name: data.name,
           slug: data.slug,
           contractId,
+          ownerUserId: null,
           primaryUseCase: data.primaryUseCase ?? undefined,
           callVolume: data.callVolume ?? undefined,
         },

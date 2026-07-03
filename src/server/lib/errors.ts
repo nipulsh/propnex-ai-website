@@ -30,6 +30,13 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class ValidationError extends AppError {
+  constructor(message = "Invalid input") {
+    super(message, "VALIDATION", 400);
+    this.name = "ValidationError";
+  }
+}
+
 export class ConflictError extends AppError {
   constructor(message = "Conflict") {
     super(message, "CONFLICT", 409);

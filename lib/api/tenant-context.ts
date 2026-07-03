@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-import { createDataLoaders } from "@/server/graphql/dataloaders";
 import { isAppError } from "@/server/lib/errors";
+import { buildTenantContext } from "@/server/lib/tenant-context-builder";
 import prisma from "@/server/lib/prisma";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
 import { syncTenantFromClerk } from "@/server/services/clerk-provision.service";
@@ -53,21 +53,7 @@ export async function resolveTenantContext(): Promise<TenantContext | null> {
     userId,
   );
 
-  const customPermissions = membership.customRole?.permissions ?? [];
-  const permissions = await tenantService.getPermissions(
-    user.id,
-    membership.role,
-    customPermissions,
-  );
-
-  return {
-    userId: user.id,
-    clerkUserId: userId,
-    companyId: company.id,
-    role: membership.role,
-    permissions,
-    loaders: createDataLoaders(company.id),
-  };
+  return buildTenantContext(userId, company.id, membership);
 }
 
 export async function requireTenantContext() {

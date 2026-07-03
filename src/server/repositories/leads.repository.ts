@@ -45,7 +45,11 @@ export class LeadsRepository extends BaseRepository {
     });
   }
 
-  private buildWhere(companyId: string, filter?: LeadFilter): Prisma.LeadWhereInput {
+  private buildWhere(
+    companyId: string,
+    filter?: LeadFilter,
+    scopeWhere?: Prisma.LeadWhereInput,
+  ): Prisma.LeadWhereInput {
     const where: Prisma.LeadWhereInput = this.scope(companyId);
 
     if (filter?.temperature) {
@@ -62,6 +66,10 @@ export class LeadsRepository extends BaseRepository {
       ];
     }
 
+    if (scopeWhere && Object.keys(scopeWhere).length > 0) {
+      return { AND: [where, scopeWhere] };
+    }
+
     return where;
   }
 
@@ -70,11 +78,12 @@ export class LeadsRepository extends BaseRepository {
     limit: number,
     after?: string,
     filter?: LeadFilter,
+    scopeWhere?: Prisma.LeadWhereInput,
   ) {
     const cursor = after ? decodeIdCursor(after) : undefined;
 
     return this.prisma.lead.findMany({
-      where: this.buildWhere(companyId, filter),
+      where: this.buildWhere(companyId, filter, scopeWhere),
       include: {
         source: true,
         stage: true,
@@ -95,10 +104,13 @@ export class LeadsRepository extends BaseRepository {
     });
   }
 
-  countByTemperature(companyId: string) {
+  countByTemperature(companyId: string, scopeWhere?: Prisma.LeadWhereInput) {
+    const where = scopeWhere && Object.keys(scopeWhere).length > 0
+      ? { AND: [this.scope(companyId), scopeWhere] }
+      : this.scope(companyId);
     return this.prisma.lead.groupBy({
       by: ["temperature"],
-      where: this.scope(companyId),
+      where,
       _count: { id: true },
     });
   }

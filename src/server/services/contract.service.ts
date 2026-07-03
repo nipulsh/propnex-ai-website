@@ -173,7 +173,10 @@ export class ContractService {
       });
 
       const claimResult = await tx.company.updateMany({
-        where: { id: company.id, ownerUserId: null },
+        where: {
+          id: company.id,
+          OR: [{ ownerUserId: null }, { ownerUserId: { isSet: false } }],
+        },
         data: {
           ownerUserId: clerkUserId,
           claimedAt,

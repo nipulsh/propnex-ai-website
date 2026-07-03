@@ -39,11 +39,31 @@ enum UserRole {
   ADMIN
   MANAGER
   AGENT
+  SALES
+  SUPPORT
+}
+
+enum MemberStatus {
+  ACTIVE
+  INVITED
+  DEACTIVATED
+  REMOVED
+}
+
+enum BranchAccessType {
+  ALL
+  SELECTED
 }
 
 enum AgentStatus {
   ACTIVE
   INACTIVE
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
 }
 
 enum IntegrationStatus {
@@ -73,6 +93,7 @@ type Viewer {
   firstName: String
   lastName: String
   role: UserRole!
+  permissions: [String!]!
   company: Company!
 }
 
@@ -105,6 +126,8 @@ type Query {
   integrations: IntegrationQueries!
   scheduler: SchedulerQueries!
   events: EventQueries!
+  branches: BranchesQueries!
+  employees: EmployeesQueries!
 }
 
 type Mutation {
@@ -114,4 +137,6 @@ type Mutation {
   phoneNumbers: PhoneNumbersMutations!
   uploadedContacts: UploadedContactsMutations!
   leads: LeadsMutations!
+  branches: BranchesMutations!
+  employees: EmployeesMutations!
 }

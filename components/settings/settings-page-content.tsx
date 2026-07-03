@@ -15,7 +15,6 @@ import { PageHeader } from "@/components/common/page-header";
 import { IntegrationsSection } from "@/components/integrations/integrations-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { OVERFLOW_OPTIONS } from "@/lib/setup-data";
 import {
   formatCallVolumeRange,
   formatPrimaryUseCase,
@@ -23,7 +22,6 @@ import {
 } from "@/lib/user-metadata";
 import { cn } from "@/lib/utils";
 import { useSettingsGraphQL } from "@/hooks/use-settings-graphql";
-import { useSetupStore } from "@/stores/setup-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { PointOfContactSection } from "@/components/settings/point-of-contact-section";
 import { ContractIdSection } from "@/components/settings/contract-id-section";
@@ -59,8 +57,6 @@ export function SettingsPageContent() {
   const metadata = getUserMetadata(
     user?.unsafeMetadata as Record<string, unknown> | undefined,
   );
-  const channelSettings = useSetupStore((s) => s.channelSettings);
-  const updateChannelSettings = useSetupStore((s) => s.updateChannelSettings);
 
   const displayName =
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Account";
@@ -208,57 +204,6 @@ export function SettingsPageContent() {
               </div>
               <ContractIdSection />
               {viewer ? <PointOfContactSection /> : null}
-              <div className="space-y-4 border-t border-propnex-border pt-4">
-                <h3 className="text-sm font-medium text-foreground">
-                  Call handling
-                </h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="max-concurrent"
-                      className="text-xs text-propnex-muted"
-                    >
-                      Max concurrent calls
-                    </label>
-                    <input
-                      id="max-concurrent"
-                      type="number"
-                      value={channelSettings.maxConcurrentCalls}
-                      onChange={(e) =>
-                        updateChannelSettings({
-                          maxConcurrentCalls: Number(e.target.value),
-                        })
-                      }
-                      className="h-10 w-full rounded-lg border border-propnex-border bg-propnex-bg px-3 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="overflow"
-                      className="text-xs text-propnex-muted"
-                    >
-                      Overflow handling
-                    </label>
-                    <select
-                      id="overflow"
-                      value={channelSettings.overflowHandling}
-                      onChange={(e) =>
-                        updateChannelSettings({
-                          overflowHandling: e.target
-                            .value as typeof channelSettings.overflowHandling,
-                        })
-                      }
-                      className="h-10 w-full rounded-lg border border-propnex-border bg-propnex-bg px-3 text-sm"
-                    >
-                      {OVERFLOW_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
             </div>
           ) : null}
         </div>
