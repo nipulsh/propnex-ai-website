@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 
 import { AssignAgentDialog } from "@/components/phone-numbers/assign-agent-dialog";
 import { PhoneNumberAgentAssignment } from "@/components/phone-numbers/detail/phone-number-agent-assignment";
@@ -11,7 +10,6 @@ import { PhoneNumberDetailHeader } from "@/components/phone-numbers/detail/phone
 import { PhoneNumberOverview } from "@/components/phone-numbers/detail/phone-number-overview";
 import { PhoneNumberQuickActions } from "@/components/phone-numbers/detail/phone-number-quick-actions";
 import { PhoneNumberRoutingCard } from "@/components/phone-numbers/detail/phone-number-routing-card";
-import { Button } from "@/components/ui/button";
 import { usePhoneNumberDetailGraphQL } from "@/hooks/use-phone-number-detail-graphql";
 import {
   useActionNotification,
@@ -129,15 +127,7 @@ export function PhoneNumberDetailPageContent({
 
   if (!phoneNumber) {
     return (
-      <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overscroll-contain p-6">
-        <Button
-          nativeButton={false}
-          render={<Link href="/phone-numbers" />}
-          variant="outline"
-        >
-          Back to Phone Numbers
-        </Button>
-      </div>
+      <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto overscroll-contain p-6" />
     );
   }
 

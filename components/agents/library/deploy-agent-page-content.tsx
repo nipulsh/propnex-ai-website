@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 import { WizardStepper } from "@/components/agents/common/wizard-stepper";
 import { PageHeader } from "@/components/common/page-header";
@@ -74,9 +73,6 @@ export function DeployAgentPageContent({
         <p className="text-sm text-propnex-muted">
           {error ?? "Template not found."}
         </p>
-        <Button nativeButton={false} render={<Link href="/agents/library" />}>
-          Back to Library
-        </Button>
       </div>
     );
   }
@@ -152,17 +148,6 @@ export function DeployAgentPageContent({
 
   return (
     <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        render={<Link href="/agents/library" />}
-        className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Back to Library
-      </Button>
-
       <PageHeader
         title={`Deploy ${template.name}`}
         description="Configure your agent and deploy in minutes."

@@ -1,15 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Bot, BotOff } from "lucide-react";
+import { Bot, BotOff } from "lucide-react";
 
 import { useSideNotification } from "@/components/common/side-notification";
 import { BranchOverviewTab } from "@/components/branches/detail/branch-overview-tab";
 import { BranchAiTab } from "@/components/branches/detail/branch-ai-tab";
 import { BranchRelatedTab } from "@/components/branches/detail/branch-related-tab";
 import { BranchActivityTab } from "@/components/branches/detail/branch-activity-tab";
-import { Button } from "@/components/ui/button";
+import { BranchStats } from "@/components/branches/detail/branch-stats";
 import { fetchBranchDetail } from "@/lib/graphql/api";
 import type { BranchActivityNode, BranchNode } from "@/lib/graphql/queries";
 import { cn } from "@/lib/utils";
@@ -40,6 +39,14 @@ const STATUS_STYLES: Record<string, string> = {
   INACTIVE: "border-propnex-border bg-propnex-bg text-propnex-muted",
   ARCHIVED: "border-destructive/30 bg-destructive/10 text-destructive",
 };
+
+function TabLoadingPanel() {
+  return (
+    <div className="rounded-xl border border-propnex-border bg-propnex-panel p-8 text-center text-sm text-propnex-muted">
+      Loading…
+    </div>
+  );
+}
 
 export function BranchDetailPageContent({
   branchId,
@@ -79,30 +86,12 @@ export function BranchDetailPageContent({
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6">
         <p className="text-propnex-muted">Branch not found.</p>
-        <Button
-          nativeButton={false}
-          render={<Link href="/branches" />}
-          variant="outline"
-        >
-          Back to Branches
-        </Button>
       </div>
     );
   }
 
   return (
     <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
-      <Button
-        nativeButton={false}
-        render={<Link href="/branches" />}
-        variant="ghost"
-        size="sm"
-        className="mb-4 w-fit text-propnex-muted"
-      >
-        <ArrowLeft className="size-4" />
-        Back to Branches
-      </Button>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -134,6 +123,24 @@ export function BranchDetailPageContent({
         ) : null}
       </div>
 
+      {branch ? (
+        <div className="mt-5">
+          <BranchStats
+            branch={branch}
+            onTabSelect={(tab) => setActiveTab(tab)}
+          />
+        </div>
+      ) : isLoading ? (
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-24 animate-pulse rounded-xl border border-propnex-border bg-propnex-panel"
+            />
+          ))}
+        </div>
+      ) : null}
+
       <div className="mt-5 flex gap-1 border-b border-propnex-border">
         {TABS.map((tab) => (
           <button
@@ -156,19 +163,27 @@ export function BranchDetailPageContent({
       </div>
 
       <div className="mt-5">
-        {activeTab === "overview" && branch ? (
-          <BranchOverviewTab
-            branch={branch}
-            onSaved={() => void load()}
-            onNotify={(message, type) => notify({ type, message })}
-          />
+        {activeTab === "overview" ? (
+          branch ? (
+            <BranchOverviewTab
+              branch={branch}
+              onSaved={() => void load()}
+              onNotify={(message, type) => notify({ type, message })}
+            />
+          ) : isLoading ? (
+            <TabLoadingPanel />
+          ) : null
         ) : null}
-        {activeTab === "ai" && branch ? (
-          <BranchAiTab
-            branch={branch}
-            onSaved={() => void load()}
-            onNotify={(message, type) => notify({ type, message })}
-          />
+        {activeTab === "ai" ? (
+          branch ? (
+            <BranchAiTab
+              branch={branch}
+              onSaved={() => void load()}
+              onNotify={(message, type) => notify({ type, message })}
+            />
+          ) : isLoading ? (
+            <TabLoadingPanel />
+          ) : null
         ) : null}
         {activeTab === "contacts" ? (
           <BranchRelatedTab branchId={branchId} kind="contacts" />

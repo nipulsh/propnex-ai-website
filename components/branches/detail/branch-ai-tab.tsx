@@ -39,7 +39,7 @@ export function BranchAiTab({ branch, onSaved, onNotify }: BranchAiTabProps) {
   }
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 rounded-xl border border-propnex-border bg-propnex-panel p-5">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">

@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { useSideNotification } from "@/components/common/side-notification";
 import { Button } from "@/components/ui/button";
@@ -176,9 +175,6 @@ export function EmployeeDetailPageContent({
     return (
       <div className="p-6">
         <p className="text-propnex-muted">Employee not found.</p>
-        <Button render={<Link href="/employees" />} variant="link" className="mt-2 px-0">
-          Back to Employees
-        </Button>
       </div>
     );
   }
@@ -186,14 +182,6 @@ export function EmployeeDetailPageContent({
   return (
     <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="flex items-center gap-3">
-        <Button
-          render={<Link href="/employees" />}
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Back to employees"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
         <div className="flex flex-1 items-center gap-4">
           {employee.imageUrl ? (
             <img

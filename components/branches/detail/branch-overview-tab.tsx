@@ -62,7 +62,7 @@ export function BranchOverviewTab({
   }
 
   return (
-    <div className="max-w-3xl space-y-5 rounded-xl border border-propnex-border bg-propnex-panel p-6">
+    <div className="space-y-5 rounded-xl border border-propnex-border bg-propnex-panel p-6">
       <div className="space-y-2">
         <label htmlFor="ov-name" className={LABEL_CLASS}>
           Branch Name

@@ -8,5 +8,9 @@ export default async function BranchDetailPage({
   params,
 }: BranchDetailPageProps) {
   const { id } = await params;
-  return <BranchDetailPageContent branchId={id} />;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <BranchDetailPageContent branchId={id} />
+    </div>
+  );
 }

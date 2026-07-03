@@ -15,6 +15,7 @@ import {
   ValidationError,
 } from "@/server/lib/errors";
 import { mapUserRoleToClerkRole } from "@/server/lib/clerk-sync";
+import { ensureRealClerkOrganizationId } from "@/server/lib/clerk-org";
 import prisma from "@/server/lib/prisma";
 import {
   EmployeesRepository,
@@ -190,11 +191,8 @@ export class EmployeesService {
     const company = await prisma.company.findUnique({
       where: { id: ctx.companyId },
     });
-    if (!company?.clerkOrganizationId?.startsWith("org_")) {
-      throw new ValidationError(
-        "Organization invitations require Clerk Organizations to be enabled",
-      );
-    }
+    if (!company) throw new NotFoundError("Company not found");
+    const clerkOrganizationId = await ensureRealClerkOrganizationId(company);
 
     const [firstName, ...rest] = input.name.trim().split(/\s+/);
     const lastName = rest.join(" ") || null;
@@ -216,7 +214,7 @@ export class EmployeesService {
 
     const client = await clerkClient();
     await client.organizations.createOrganizationInvitation({
-      organizationId: company.clerkOrganizationId,
+      organizationId: clerkOrganizationId,
       emailAddress: email,
       role: mapUserRoleToClerkRole(input.role),
       publicMetadata: {
@@ -449,15 +447,12 @@ export class EmployeesService {
     const company = await prisma.company.findUnique({
       where: { id: ctx.companyId },
     });
-    if (!company?.clerkOrganizationId?.startsWith("org_")) {
-      throw new ValidationError(
-        "Organization invitations require Clerk Organizations to be enabled",
-      );
-    }
+    if (!company) throw new NotFoundError("Company not found");
+    const clerkOrganizationId = await ensureRealClerkOrganizationId(company);
 
     const client = await clerkClient();
     await client.organizations.createOrganizationInvitation({
-      organizationId: company.clerkOrganizationId,
+      organizationId: clerkOrganizationId,
       emailAddress: existing.user.email,
       role: mapUserRoleToClerkRole(existing.role),
       publicMetadata: {

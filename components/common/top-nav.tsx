@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Show,
   SignInButton,
@@ -11,14 +12,18 @@ import {
 import { Coins } from "lucide-react";
 
 import { AssistantChatPanel } from "@/components/common/assistant-chat-panel";
+import { NavBackLink } from "@/components/common/nav-back-link";
 import { ModeToggle } from "@/components/common/mode-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { getNavBackLink } from "@/lib/navigation";
 import { getUserMetadata } from "@/lib/user-metadata";
 import { useUsageStore } from "@/stores/usage-store";
 
 export function TopNav() {
+  const pathname = usePathname();
+  const backLink = getNavBackLink(pathname);
   const { isLoaded, user } = useUser();
   const remainingCredits = useUsageStore((s) => s.remainingCredits);
   const creditsHydrated = useUsageStore((s) => s.creditsHydrated);
@@ -45,7 +50,14 @@ export function TopNav() {
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger className="-ml-1" />
+        {backLink ? <NavBackLink href={backLink.href} label={backLink.label} /> : null}
         <Show when="signed-in">
+          {backLink ? (
+            <span
+              aria-hidden
+              className="hidden h-6 w-px shrink-0 bg-propnex-border sm:block"
+            />
+          ) : null}
           <Link
             href="/settings"
             className="flex min-w-0 items-center gap-3 rounded-lg border border-transparent px-2 py-1 transition-colors hover:border-propnex-border hover:bg-propnex-panel/50"

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Calendar, Clock, Globe } from "lucide-react";
+import { Calendar, Clock, Globe, Pencil } from "lucide-react";
 
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { DisableAgentDialog } from "@/components/agents/disable-agent-dialog";
@@ -13,37 +13,44 @@ import { cn } from "@/lib/utils";
 
 type AgentDetailHeaderProps = {
   agent: Agent;
-  onToggleEnabled: (enabled: boolean) => void;
+  canWrite?: boolean;
+  onToggleEnabled: (enabled: boolean) => void | Promise<void>;
 };
 
 export function AgentDetailHeader({
   agent,
+  canWrite = false,
   onToggleEnabled,
 }: AgentDetailHeaderProps) {
   const isActive = agent.enabled && agent.status === "active";
   const [disableOpen, setDisableOpen] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
-  function handleToggle() {
+  async function handleToggle() {
+    if (isToggling) return;
     if (isActive) {
       setDisableOpen(true);
-    } else {
-      onToggleEnabled(true);
+      return;
+    }
+    setIsToggling(true);
+    try {
+      await onToggleEnabled(true);
+    } finally {
+      setIsToggling(false);
+    }
+  }
+
+  async function handleConfirmDisable() {
+    setIsToggling(true);
+    try {
+      await onToggleEnabled(false);
+    } finally {
+      setIsToggling(false);
     }
   }
 
   return (
     <div className={cn("flex flex-col gap-4", !isActive && "opacity-80")}>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        render={<Link href="/agents" />}
-        className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Back to Agents
-      </Button>
-
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-3">
           <div>
@@ -79,10 +86,22 @@ export function AgentDetailHeader({
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {canWrite ? (
+            <Button
+              nativeButton={false}
+              render={<Link href={`/agents/${agent.id}/edit`} />}
+              variant="outline"
+              className="gap-2 border-propnex-border bg-propnex-panel"
+            >
+              <Pencil className="size-4" />
+              Edit Agent
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
-            onClick={handleToggle}
+            onClick={() => void handleToggle()}
+            disabled={isToggling}
             className={cn(
               "border-propnex-border bg-propnex-panel",
               isActive && "text-destructive hover:text-destructive",
@@ -97,7 +116,7 @@ export function AgentDetailHeader({
         open={disableOpen}
         onOpenChange={setDisableOpen}
         agentName={agent.name}
-        onConfirm={() => onToggleEnabled(false)}
+        onConfirm={() => void handleConfirmDisable()}
       />
     </div>
   );

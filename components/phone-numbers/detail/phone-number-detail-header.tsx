@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Calendar, Clock, Server } from "lucide-react";
+import { Calendar, Clock, Server } from "lucide-react";
 
 import { PhoneNumberStatusBadge } from "@/components/phone-numbers/phone-number-status-badge";
-import { Button } from "@/components/ui/button";
 import {
   formatCreatedDate,
   formatLastActivity,
@@ -22,17 +20,6 @@ export function PhoneNumberDetailHeader({
 }: PhoneNumberDetailHeaderProps) {
   return (
     <div className="flex flex-col gap-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-            render={<Link href="/setup#phone-numbers" />}
-        className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Back to Phone Numbers
-      </Button>
-
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-3">
           <div>

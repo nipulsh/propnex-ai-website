@@ -43,3 +43,70 @@ export const footerNavItems: NavItem[] = [
   { title: "How It Works", href: "/how-it-works", icon: HelpCircle },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
+
+export type NavBackLink = {
+  href: string;
+  label: string;
+};
+
+const NAV_BACK_ROUTES: { pattern: RegExp; href: string; label: string }[] = [
+  {
+    pattern: /^\/agents\/library\/[^/]+\/deploy$/,
+    href: "/agents/library",
+    label: "Back to Library",
+  },
+  {
+    pattern: /^\/agents\/library$/,
+    href: "/agents",
+    label: "Back to Agents",
+  },
+  {
+    pattern: /^\/agents\/create$/,
+    href: "/agents",
+    label: "Back to Agents",
+  },
+  {
+    pattern: /^\/agents\/[^/]+\/edit$/,
+    href: "/agents",
+    label: "Back to Agents",
+  },
+  {
+    pattern: /^\/agents\/[^/]+$/,
+    href: "/agents",
+    label: "Back to Agents",
+  },
+  {
+    pattern: /^\/branches\/[^/]+$/,
+    href: "/branches",
+    label: "Back to Branches",
+  },
+  {
+    pattern: /^\/employees\/[^/]+$/,
+    href: "/employees",
+    label: "Back to Employees",
+  },
+  {
+    pattern: /^\/phone-numbers\/[^/]+$/,
+    href: "/phone-numbers",
+    label: "Back to Phone Numbers",
+  },
+  {
+    pattern: /^\/call-logs\/[^/]+$/,
+    href: "/call-logs",
+    label: "Back to Call Logs",
+  },
+  {
+    pattern: /^\/contact$/,
+    href: "/billing",
+    label: "Back to Billing",
+  },
+];
+
+export function getNavBackLink(pathname: string): NavBackLink | null {
+  for (const route of NAV_BACK_ROUTES) {
+    if (route.pattern.test(pathname)) {
+      return { href: route.href, label: route.label };
+    }
+  }
+  return null;
+}

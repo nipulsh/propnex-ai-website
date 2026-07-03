@@ -135,8 +135,23 @@ export const UPDATE_AGENT_MUTATION = `
       update(id: $id, input: $input) {
         id
         name
+        type
+        category
         status
+        environment
         enabled
+        languages
+        firstMessage
+        systemPrompt
+        voiceConfig
+        modelConfig
+        transcriberConfig
+        serverConfig
+        structuredOutputs
+        scorecards
+        monitors
+        demoAudioUrl
+        createdAt
         updatedAt
       }
     }

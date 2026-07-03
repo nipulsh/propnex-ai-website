@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AgentCallActivitySection } from "@/components/agents/detail/agent-call-activity-section";
 import { AgentConfigurationSection } from "@/components/agents/detail/agent-configuration-section";
@@ -12,13 +11,15 @@ import { AgentKnowledgeSection } from "@/components/agents/detail/agent-knowledg
 import { AgentOverviewSection } from "@/components/agents/detail/agent-overview-section";
 import { AgentResourcesSection } from "@/components/agents/detail/agent-resources-section";
 import { AgentSectionNav } from "@/components/agents/detail/agent-section-nav";
-import { Button } from "@/components/ui/button";
+import { useSideNotification } from "@/components/common/side-notification";
 import type { AgentListMetrics } from "@/lib/agent-detail-data";
 import { useAgentDetailGraphQL } from "@/hooks/use-agent-detail-graphql";
+import { setAgentEnabledOnServer } from "@/hooks/use-agents-graphql";
 import {
   useActionNotification,
   usePageStatusNotification,
 } from "@/hooks/use-page-status-notification";
+import { fetchViewerRole } from "@/lib/graphql/api";
 import { useAgentDetailStore } from "@/stores/agent-detail-store";
 import { useAgentsStore } from "@/stores/agents-store";
 
@@ -59,15 +60,46 @@ export function AgentDetailPageContent({
   agentId,
 }: AgentDetailPageContentProps) {
   useAgentDetailGraphQL(agentId);
+  const { notify } = useSideNotification();
 
   const agent = useAgentsStore((s) => s.agents.find((a) => a.id === agentId));
-  const setAgentEnabled = useAgentsStore((s) => s.setAgentEnabled);
+  const upsertAgent = useAgentsStore((s) => s.upsertAgent);
   const isLoading = useAgentDetailStore((s) => s.isLoading);
   const error = useAgentDetailStore((s) => s.error);
   const successBanner = useAgentDetailStore((s) => s.successBanner);
   const setSuccessBanner = useAgentDetailStore((s) => s.setSuccessBanner);
   const calls = useAgentDetailStore((s) => s.calls);
   const assignedNumbers = useAgentDetailStore((s) => s.assignedNumbers);
+  const [canWrite, setCanWrite] = useState(false);
+
+  useEffect(() => {
+    fetchViewerRole()
+      .then((res) =>
+        setCanWrite(res.viewer.permissions.includes("agents:write")),
+      )
+      .catch(() => setCanWrite(false));
+  }, []);
+
+  const handleToggleEnabled = useCallback(
+    async (enabled: boolean) => {
+      try {
+        const updated = await setAgentEnabledOnServer(agentId, enabled);
+        upsertAgent(updated);
+        notify({
+          type: "success",
+          message: enabled ? "Agent enabled." : "Agent disabled.",
+        });
+      } catch (err) {
+        notify({
+          type: "error",
+          message:
+            err instanceof Error ? err.message : "Unable to update agent.",
+        });
+        throw err;
+      }
+    },
+    [agentId, notify, upsertAgent],
+  );
 
   usePageStatusNotification({
     isInitialLoading: isLoading,
@@ -88,16 +120,18 @@ export function AgentDetailPageContent({
     [agent, agentId, calls],
   );
 
+  if (isLoading) {
+    return (
+      <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overscroll-contain p-6">
+        <p className="text-sm text-propnex-muted">Loading agent…</p>
+      </div>
+    );
+  }
+
   if (!agent || !metrics) {
     return (
       <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overscroll-contain p-6">
-        <Button
-          nativeButton={false}
-          render={<Link href="/agents" />}
-          variant="outline"
-        >
-          Back to Agents
-        </Button>
+        <p className="text-sm text-propnex-muted">Agent not found.</p>
       </div>
     );
   }
@@ -107,7 +141,8 @@ export function AgentDetailPageContent({
       <div className="flex flex-col gap-6 p-6 pb-24">
         <AgentDetailHeader
           agent={agent}
-          onToggleEnabled={(enabled) => setAgentEnabled(agent.id, enabled)}
+          canWrite={canWrite}
+          onToggleEnabled={handleToggleEnabled}
         />
 
         <AgentSectionNav />

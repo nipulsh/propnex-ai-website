@@ -199,16 +199,6 @@ export function BillingRequestForm({ className }: BillingRequestFormProps) {
             <Mail className="size-4" />
             Email billing team
           </Button>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={
-              <Link href="/billing" className="inline-flex items-center gap-2" />
-            }
-          >
-            <ArrowLeft className="size-4" />
-            Back to Billing
-          </Button>
         </div>
       </div>
     );

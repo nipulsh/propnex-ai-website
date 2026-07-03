@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 
 import { CallAiSummary } from "@/components/call-details/call-ai-summary";
 import { CallDetailHeader } from "@/components/call-details/call-detail-header";
@@ -57,9 +56,6 @@ export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
             onClick={() => void reload({ showLoading: true })}
           >
             Retry
-          </Button>
-          <Button nativeButton={false} render={<Link href="/call-logs" />}>
-            Back to Call Logs
           </Button>
         </div>
       </div>

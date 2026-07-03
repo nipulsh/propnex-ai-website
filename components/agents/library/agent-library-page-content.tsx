@@ -1,14 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Crown, Search } from "lucide-react";
+import { Crown, Search } from "lucide-react";
 
 import { LibraryTemplateCard } from "@/components/agents/library/library-template-card";
 import { TemplatePreviewDialog } from "@/components/agents/library/template-preview-dialog";
 import { PageHeader } from "@/components/common/page-header";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   filterLibraryTemplates,
@@ -38,17 +36,6 @@ export function AgentLibraryPageContent() {
 
   return (
     <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-24">
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        render={<Link href="/agents" />}
-        className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Back to Agents
-      </Button>
-
       <PageHeader
         title="Voice Agent Library"
         description="Ready-to-use PropNex AI voice agents with demo audio — preview and hear each agent."

@@ -37,7 +37,7 @@ export function BranchActivityTab({
   }
 
   return (
-    <div className="max-w-2xl rounded-xl border border-propnex-border bg-propnex-panel p-6">
+    <div className="rounded-xl border border-propnex-border bg-propnex-panel p-6">
       <ol className="relative space-y-5 border-l border-propnex-border pl-6">
         {activities.map((item) => (
           <li key={item.id} className="relative">

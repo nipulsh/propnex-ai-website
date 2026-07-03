@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bot } from "lucide-react";
 
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { DisableAgentDialog } from "@/components/agents/disable-agent-dialog";
 import { HearAgentButton } from "@/components/agents/hear-agent-button";
+import { useSideNotification } from "@/components/common/side-notification";
 import type { Agent } from "@/lib/agents-data";
+import { setAgentEnabledOnServer } from "@/hooks/use-agents-graphql";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/agents-store";
 
@@ -26,7 +30,11 @@ function AgentToggle({
       type="button"
       role="switch"
       aria-checked={enabled}
-      onClick={() => onChange(!enabled)}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onChange(!enabled);
+      }}
       className={cn(
         "relative h-6 w-11 shrink-0 rounded-full transition-colors",
         enabled ? "bg-propnex-accent" : "bg-propnex-border",
@@ -56,28 +64,63 @@ function LeadSummaryCard() {
 }
 
 export function AgentCard({ agent }: AgentCardProps) {
-  const setAgentEnabled = useAgentsStore((s) => s.setAgentEnabled);
+  const router = useRouter();
+  const { notify } = useSideNotification();
+  const upsertAgent = useAgentsStore((s) => s.upsertAgent);
   const [disableDialogOpen, setDisableDialogOpen] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   const isActive = agent.enabled && agent.status === "active";
 
+  function handleCardClick() {
+    router.push(`/agents/${agent.id}`);
+  }
+
+  function handleCardKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleCardClick();
+    }
+  }
+
+  async function persistEnabled(enabled: boolean) {
+    setIsToggling(true);
+    try {
+      const updated = await setAgentEnabledOnServer(agent.id, enabled);
+      upsertAgent(updated);
+    } catch (err) {
+      notify({
+        type: "error",
+        message:
+          err instanceof Error ? err.message : "Unable to update agent.",
+      });
+    } finally {
+      setIsToggling(false);
+    }
+  }
+
   function handleToggle(next: boolean) {
+    if (isToggling) return;
     if (!next) {
       setDisableDialogOpen(true);
       return;
     }
-    setAgentEnabled(agent.id, true);
+    void persistEnabled(true);
   }
 
   function handleConfirmDisable() {
-    setAgentEnabled(agent.id, false);
+    void persistEnabled(false);
   }
 
   return (
     <>
       <article
+        role="link"
+        tabIndex={0}
+        onClick={handleCardClick}
+        onKeyDown={handleCardKeyDown}
         className={cn(
-          "flex flex-col overflow-hidden rounded-2xl border border-propnex-border bg-propnex-panel transition-all",
+          "flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-propnex-border bg-propnex-panel transition-all hover:border-propnex-accent/40",
           !isActive && "opacity-60 grayscale-[0.3]",
         )}
       >
@@ -107,7 +150,13 @@ export function AgentCard({ agent }: AgentCardProps) {
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-base font-semibold text-foreground">
-                {agent.name}
+                <Link
+                  href={`/agents/${agent.id}`}
+                  className="hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {agent.name}
+                </Link>
               </h3>
               <AgentStatusBadge agent={agent} />
             </div>
@@ -118,7 +167,9 @@ export function AgentCard({ agent }: AgentCardProps) {
 
           <LeadSummaryCard />
 
-          <HearAgentButton agent={agent} className="w-full" />
+          <div onClick={(e) => e.stopPropagation()}>
+            <HearAgentButton agent={agent} className="w-full" />
+          </div>
         </div>
       </article>
 

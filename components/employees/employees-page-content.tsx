@@ -34,7 +34,27 @@ const STATUS_OPTIONS: { value: MemberStatus | ""; label: string }[] = [
   { value: "DEACTIVATED", label: "Deactivated" },
 ];
 
+const EMPLOYEES_COMING_SOON = true;
+
 export function EmployeesPageContent() {
+  if (EMPLOYEES_COMING_SOON) {
+    return (
+      <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
+        <PageHeader
+          title="Employees"
+          description="Manage your company workforce, roles, and branch access."
+        />
+        <div className="flex flex-1 items-center justify-center rounded-xl border border-propnex-border bg-propnex-panel py-24">
+          <p className="text-lg text-propnex-muted">Coming soon</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <EmployeesPageContentInner />;
+}
+
+function EmployeesPageContentInner() {
   const { notify } = useSideNotification();
 
   const [employees, setEmployees] = useState<EmployeeNode[]>([]);

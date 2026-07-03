@@ -67,3 +67,10 @@ export async function updateAgentOnServer(
   const result = await updateAgentApi(id, input);
   return mapGraphQLAgentToUI(result.agents.update as never);
 }
+
+export async function setAgentEnabledOnServer(id: string, enabled: boolean) {
+  return updateAgentOnServer(id, {
+    enabled,
+    status: enabled ? "ACTIVE" : "INACTIVE",
+  });
+}

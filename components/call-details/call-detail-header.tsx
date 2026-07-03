@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import {
-  ArrowLeft,
   Calendar,
   Download,
   FileText,
@@ -46,17 +44,6 @@ function StatusBadge({ status }: { status: CallLog["status"] }) {
 export function CallDetailHeader({ detail }: CallDetailHeaderProps) {
   return (
     <div className="flex flex-col gap-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        render={<Link href="/call-logs" />}
-        className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Back to Call Logs
-      </Button>
-
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-3">
           <div>

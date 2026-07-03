@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronDown, Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 
 import { AgentIdentitySection } from "@/components/agents/agent-architect/agent-identity-section";
 import { LanguageTagsInput } from "@/components/agents/agent-architect/language-tags-input";
@@ -28,6 +28,8 @@ import {
   updateAgentOnServer,
 } from "@/hooks/use-agents-graphql";
 import { useAgentsStore } from "@/stores/agents-store";
+import { fetchAgentDetail } from "@/lib/graphql/api";
+import { mapGraphQLAgentToUI } from "@/lib/mappers/agent.mapper";
 
 const fieldClassName =
   "h-11 w-full appearance-none rounded-lg border border-propnex-border bg-propnex-bg px-3 text-sm text-foreground outline-none focus:border-propnex-accent";
@@ -55,10 +57,10 @@ function StepHeader({
   );
 }
 
-function CreateAgentWizardInner() {
+function CreateAgentWizardInner({ editId: editIdProp }: { editId?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const editId = searchParams.get("edit");
+  const editId = editIdProp ?? searchParams.get("edit") ?? undefined;
 
   const agents = useAgentsStore((s) => s.agents);
   const upsertAgent = useAgentsStore((s) => s.upsertAgent);
@@ -84,12 +86,27 @@ function CreateAgentWizardInner() {
   const [newOutputName, setNewOutputName] = useState("");
 
   useEffect(() => {
-    if (editId) {
-      const agent = agents.find((a) => a.id === editId);
-      if (agent) loadFromAgent(agent);
+    if (!editId) return;
+
+    const agent = agents.find((a) => a.id === editId);
+    if (agent) {
+      loadFromAgent(agent);
+      return () => reset();
     }
-    return () => reset();
-  }, [editId, agents, loadFromAgent, reset]);
+
+    let cancelled = false;
+    void fetchAgentDetail(editId).then((res) => {
+      if (cancelled || !res.agents.byId) return;
+      const mapped = mapGraphQLAgentToUI(res.agents.byId as never);
+      upsertAgent(mapped);
+      loadFromAgent(mapped);
+    });
+
+    return () => {
+      cancelled = true;
+      reset();
+    };
+  }, [editId, agents, loadFromAgent, reset, upsertAgent]);
 
   function handleNext() {
     if (currentStep < CREATE_AGENT_STEPS.length) setStep(currentStep + 1);
@@ -126,17 +143,6 @@ function CreateAgentWizardInner() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 space-y-4 border-b border-propnex-border px-6 pt-6 pb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          nativeButton={false}
-          render={<Link href="/agents" />}
-          className="w-fit gap-2 px-0 text-propnex-muted hover:bg-transparent hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Agents
-        </Button>
-
         <PageHeader
           title={isEdit ? "Edit Agent" : "Add Agent"}
           description="Full configuration wizard for power users who need complete control."
@@ -634,7 +640,7 @@ function CreateAgentWizardInner() {
   );
 }
 
-export function CreateAgentPageContent() {
+export function CreateAgentPageContent({ editId }: { editId?: string } = {}) {
   return (
     <Suspense
       fallback={
@@ -643,7 +649,7 @@ export function CreateAgentPageContent() {
         </div>
       }
     >
-      <CreateAgentWizardInner />
+      <CreateAgentWizardInner editId={editId} />
     </Suspense>
   );
 }
