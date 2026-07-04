@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Library } from "lucide-react";
+import { Library, Loader2 } from "lucide-react";
 
 import { AgentCard } from "@/components/agents/agent-card";
 import { AgentsEmptyState } from "@/components/agents/agents-empty-state";
@@ -103,7 +103,11 @@ export function AgentsPageContent() {
       <AgentsStats />
 
       <div className="rounded-xl border border-propnex-border bg-propnex-panel">
-        {pageAgents.length === 0 ? (
+        {isLoading ? (
+          <div className="flex min-h-[320px] items-center justify-center py-16">
+            <Loader2 className="size-5 animate-spin text-propnex-muted" />
+          </div>
+        ) : pageAgents.length === 0 ? (
           <AgentsEmptyState hasFilters={hasActiveFilters} />
         ) : (
           <div className="grid grid-cols-1 gap-4 p-5 xl:grid-cols-2 2xl:grid-cols-3">

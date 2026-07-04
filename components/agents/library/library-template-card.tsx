@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, Crown, Eye, Rocket } from "lucide-react";
+import { Clock, Crown, Eye, Settings2 } from "lucide-react";
 
 import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { Button } from "@/components/ui/button";
 import type { AgentLibraryTemplate } from "@/lib/agent-library-data";
 import { cn } from "@/lib/utils";
-
-const DEPLOY_UI_ENABLED = false;
 
 type LibraryTemplateCardProps = {
   template: AgentLibraryTemplate;
@@ -89,19 +87,15 @@ export function LibraryTemplateCard({
           <Eye className="size-3.5" />
           Preview
         </Button>
-        {DEPLOY_UI_ENABLED ? (
-          <Button
-            nativeButton={false}
-            render={
-              <Link href={`/agents/library/${template.id}/deploy`} />
-            }
-            size="sm"
-            className="flex-1 gap-1.5 text-xs"
-          >
-            <Rocket className="size-3.5" />
-            Deploy
-          </Button>
-        ) : null}
+        <Button
+          nativeButton={false}
+          render={<Link href={`/agents/library/${template.id}`} />}
+          size="sm"
+          className="flex-1 gap-1.5 text-xs"
+        >
+          <Settings2 className="size-3.5" />
+          Configure
+        </Button>
       </div>
     </article>
   );

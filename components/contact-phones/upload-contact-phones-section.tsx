@@ -10,10 +10,7 @@ import {
   isSupportedContactPhoneUpload,
   parsePhonesFromUploadFile,
 } from "@/lib/contact-phone-import";
-import {
-  CONTACT_PHONE_COUNTRIES,
-  DEFAULT_CONTACT_PHONE_COUNTRY,
-} from "@/lib/country-dial-codes";
+import { DEFAULT_CONTACT_PHONE_COUNTRY } from "@/lib/country-dial-codes";
 import { importUploadedContacts } from "@/lib/graphql/api";
 import { cn } from "@/lib/utils";
 
@@ -119,31 +116,10 @@ export function UploadContactPhonesButtons({
 }: {
   upload: UploadContactPhonesState;
 }) {
-  const {
-    inputRef,
-    defaultCountry,
-    setDefaultCountry,
-    isProcessing,
-    processFile,
-    openFilePicker,
-  } = upload;
+  const { inputRef, isProcessing, processFile, openFilePicker } = upload;
 
   return (
     <>
-      <select
-        value={defaultCountry}
-        onChange={(event) => setDefaultCountry(event.target.value)}
-        className="h-9 shrink-0 rounded-md border border-propnex-border bg-propnex-panel px-2 text-sm text-foreground"
-        disabled={isProcessing}
-        aria-label="Default country for files without a country column"
-        title="Default country for PDF, Word, or files without a country column"
-      >
-        {CONTACT_PHONE_COUNTRIES.map((option) => (
-          <option key={option.code} value={option.code}>
-            {option.code} (+{option.dialCode})
-          </option>
-        ))}
-      </select>
       <Button
         type="button"
         variant="outline"

@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Phone, Search, UserPlus } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import {
   useSideNotification,
   type SideNotificationType,
 } from "@/components/common/side-notification";
-import { AddContactPhoneForm } from "@/components/contact-phones/add-contact-phone-form";
+import { AddContactDialog } from "@/components/contact-phones/add-contact-dialog";
+import { AddContactPhoneDialog } from "@/components/contact-phones/add-contact-phone-dialog";
 import { ContactPhonesBulkBar } from "@/components/contact-phones/contact-phones-bulk-bar";
 import { ContactPhonesTable } from "@/components/contact-phones/contact-phones-table";
 import { DeleteContactPhoneDialog } from "@/components/contact-phones/delete-contact-phone-dialog";
@@ -17,6 +18,7 @@ import {
   useUploadContactPhones,
 } from "@/components/contact-phones/upload-contact-phones-section";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useContactPhonesGraphQL } from "@/hooks/use-contact-phones-graphql";
 import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
 import {
@@ -47,6 +49,9 @@ export function ContactPhonesPageContent() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ContactPhone | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [addNumberOpen, setAddNumberOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const lastUploadErrorRef = useRef<string | null>(null);
   const lastUploadResultsKeyRef = useRef<string | null>(null);
@@ -59,18 +64,36 @@ export function ContactPhonesPageContent() {
     onErrorClear: () => useContactPhonesStore.setState({ error: null }),
   });
 
+  const filteredContacts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return contacts;
+
+    return contacts.filter((contact) =>
+      [contact.name, contact.email, contact.address, contact.phone]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(query)),
+    );
+  }, [contacts, searchQuery]);
+
   const { pageContacts, totalPages, totalCount } = useMemo(() => {
-    const total = contacts.length;
+    const total = filteredContacts.length;
     const pages = Math.max(1, Math.ceil(total / CONTACT_PHONES_PAGE_SIZE));
     const safePage = Math.min(currentPage, pages);
     const start = (safePage - 1) * CONTACT_PHONES_PAGE_SIZE;
 
     return {
-      pageContacts: contacts.slice(start, start + CONTACT_PHONES_PAGE_SIZE),
+      pageContacts: filteredContacts.slice(
+        start,
+        start + CONTACT_PHONES_PAGE_SIZE,
+      ),
       totalPages: pages,
       totalCount: total,
     };
-  }, [contacts, currentPage]);
+  }, [filteredContacts, currentPage]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, setPage]);
 
   useEffect(() => {
     if (upload.isProcessing) {
@@ -176,7 +199,7 @@ export function ContactPhonesPageContent() {
   const deletePhoneLabel = deleteTarget ? deleteTarget.phone : undefined;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-6">
+    <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-6">
       <div className="shrink-0">
         <PageHeader
           title="Phone Numbers"
@@ -184,15 +207,39 @@ export function ContactPhonesPageContent() {
         />
       </div>
 
-      <div className="shrink-0 rounded-lg border border-propnex-border bg-propnex-panel px-3 py-2">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-          <AddContactPhoneForm
-            onAdded={() => void reload()}
-            onNotify={handleNotify}
+      <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-propnex-muted" />
+          <Input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search contacts by name, email, phone, or address..."
+            className="h-11 border-propnex-border bg-propnex-panel pl-10"
           />
-          <div className="flex flex-wrap gap-2 lg:shrink-0">
-            <UploadContactPhonesButtons upload={upload} />
-          </div>
+        </div>
+        <Button
+          type="button"
+          onClick={() => setAddContactOpen(true)}
+          className="h-11 shrink-0 gap-2 sm:w-auto"
+        >
+          <UserPlus className="size-4" />
+          Add Contact
+        </Button>
+      </div>
+
+      <div className="shrink-0 rounded-lg border border-propnex-border bg-propnex-panel px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setAddNumberOpen(true)}
+            className="h-9 gap-2 border-propnex-border bg-propnex-panel text-foreground"
+          >
+            <Phone className="size-4" />
+            Add Number
+          </Button>
+          <UploadContactPhonesButtons upload={upload} />
         </div>
       </div>
 
@@ -201,12 +248,13 @@ export function ContactPhonesPageContent() {
       </div>
 
       <div className="shrink-0 overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
-        <div className="propnex-scrollbar max-h-72 overflow-y-auto">
-          <ContactPhonesTable
-            contacts={pageContacts}
-            onDelete={openSingleDelete}
-          />
-        </div>
+        <ContactPhonesTable
+          contacts={pageContacts}
+          onDelete={openSingleDelete}
+          emptyMessage={
+            searchQuery.trim() ? "No contacts match your search." : undefined
+          }
+        />
         {totalCount > CONTACT_PHONES_PAGE_SIZE ? (
           <div className="flex shrink-0 items-center justify-between border-t border-propnex-border px-5 py-3">
             <p className="text-sm text-propnex-muted">
@@ -253,6 +301,24 @@ export function ContactPhonesPageContent() {
         phoneLabel={deletePhoneLabel}
         onConfirm={() => void handleConfirmDelete()}
         isDeleting={isDeleting}
+      />
+
+      <AddContactDialog
+        open={addContactOpen}
+        onOpenChange={setAddContactOpen}
+        onAdded={() => {
+          handleNotify("Contact added.", "success");
+          void reload();
+        }}
+      />
+
+      <AddContactPhoneDialog
+        open={addNumberOpen}
+        onOpenChange={setAddNumberOpen}
+        onAdded={() => {
+          handleNotify("Phone number added.", "success");
+          void reload();
+        }}
       />
     </div>
   );

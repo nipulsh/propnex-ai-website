@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 type ContactPhonesTableProps = {
   contacts: ContactPhone[];
   onDelete: (contact: ContactPhone) => void;
+  emptyMessage?: string;
 };
 
 function displayValue(value: string | null): string {
@@ -20,6 +21,7 @@ function displayValue(value: string | null): string {
 export function ContactPhonesTable({
   contacts,
   onDelete,
+  emptyMessage = "No phone numbers yet. Add a number or upload a CSV to get started.",
 }: ContactPhonesTableProps) {
   const selectedIds = useContactPhonesStore((s) => s.selectedIds);
   const toggleSelect = useContactPhonesStore((s) => s.toggleSelect);
@@ -65,8 +67,7 @@ export function ContactPhonesTable({
                 colSpan={6}
                 className="px-5 py-8 text-center text-propnex-muted"
               >
-                No phone numbers yet. Add a number or upload a CSV to get
-                started.
+                {emptyMessage}
               </td>
             </tr>
           ) : (
