@@ -77,12 +77,21 @@ export class BranchesRepository extends BaseRepository {
   }
 
   async countRelations(companyId: string, branchId: string) {
-    const [contactsCount, callLogsCount, documentsCount] = await Promise.all([
-      this.prisma.lead.count({ where: { companyId, branchId } }),
-      this.prisma.callLog.count({ where: { companyId, branchId } }),
-      this.prisma.branchDocument.count({ where: { companyId, branchId } }),
-    ]);
-    return { contactsCount, callLogsCount, documentsCount };
+    const [contactsCount, callLogsCount, documentsCount, agentsCount] =
+      await Promise.all([
+        this.prisma.lead.count({ where: { companyId, branchId } }),
+        this.prisma.callLog.count({ where: { companyId, branchId } }),
+        this.prisma.branchDocument.count({ where: { companyId, branchId } }),
+        this.prisma.aiAgent.count({ where: { companyId, branchId } }),
+      ]);
+    return { contactsCount, callLogsCount, documentsCount, agentsCount };
+  }
+
+  findAgents(companyId: string, branchId: string) {
+    return this.prisma.aiAgent.findMany({
+      where: { companyId, branchId },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   create(companyId: string, data: Prisma.BranchCreateWithoutCompanyInput) {

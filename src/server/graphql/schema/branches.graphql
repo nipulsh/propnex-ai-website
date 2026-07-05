@@ -13,6 +13,7 @@ type Branch {
   contactsCount: Int!
   callLogsCount: Int!
   documentsCount: Int!
+  agentsCount: Int!
   lastActivityAt: String
   createdAt: String!
   updatedAt: String!
@@ -125,6 +126,7 @@ type BranchesQueries {
   callLogs(branchId: ID!, first: Int, after: String): [BranchCallLog!]!
   documents(branchId: ID!): [BranchDocument!]!
   activities(branchId: ID!, limit: Int): [BranchActivity!]!
+  agents(branchId: ID!): [AiAgent!]!
 }
 
 type BranchesMutations {

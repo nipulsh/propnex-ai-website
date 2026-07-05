@@ -29,6 +29,7 @@ export type BranchNode = {
   contactsCount: number;
   callLogsCount: number;
   documentsCount: number;
+  agentsCount: number;
   lastActivityAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -79,6 +80,20 @@ export type BranchActivityNode = {
   createdAt: string;
 };
 
+export type BranchAgentNode = {
+  id: string;
+  name: string;
+  type: string;
+  category: string | null;
+  status: string;
+  environment: string;
+  enabled: boolean;
+  demoAudioUrl: string | null;
+  branchId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type BranchDetailResult = {
   branches: {
     byId: BranchNode | null;
@@ -101,6 +116,7 @@ const BRANCH_FIELDS = `
   contactsCount
   callLogsCount
   documentsCount
+  agentsCount
   lastActivityAt
   createdAt
   updatedAt
@@ -179,6 +195,26 @@ export const BRANCH_DOCUMENTS_QUERY = `
         mimeType
         sizeBytes
         createdAt
+      }
+    }
+  }
+`;
+
+export const BRANCH_AGENTS_QUERY = `
+  query BranchAgents($branchId: ID!) {
+    branches {
+      agents(branchId: $branchId) {
+        id
+        name
+        type
+        category
+        status
+        environment
+        enabled
+        demoAudioUrl
+        branchId
+        createdAt
+        updatedAt
       }
     }
   }

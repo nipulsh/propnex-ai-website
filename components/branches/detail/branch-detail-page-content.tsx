@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bot, BotOff } from "lucide-react";
+import { Bot, BotOff, Plus } from "lucide-react";
 
 import { useSideNotification } from "@/components/common/side-notification";
 import { BranchOverviewTab } from "@/components/branches/detail/branch-overview-tab";
@@ -9,6 +9,8 @@ import { BranchAiTab } from "@/components/branches/detail/branch-ai-tab";
 import { BranchRelatedTab } from "@/components/branches/detail/branch-related-tab";
 import { BranchActivityTab } from "@/components/branches/detail/branch-activity-tab";
 import { BranchStats } from "@/components/branches/detail/branch-stats";
+import { AssignAgentDialog } from "@/components/branches/detail/assign-agent-dialog";
+import { Button } from "@/components/ui/button";
 import { fetchBranchDetail } from "@/lib/graphql/api";
 import type { BranchActivityNode, BranchNode } from "@/lib/graphql/queries";
 import { cn } from "@/lib/utils";
@@ -19,18 +21,18 @@ type BranchDetailPageContentProps = {
 
 type TabKey =
   | "overview"
-  | "ai"
   | "contacts"
   | "call-logs"
   | "documents"
+  | "agents"
   | "activity";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
-  { key: "ai", label: "AI Agent" },
   { key: "contacts", label: "Contacts" },
   { key: "call-logs", label: "Call Logs" },
   { key: "documents", label: "Documents" },
+  { key: "agents", label: "AI Agents" },
   { key: "activity", label: "Activity" },
 ];
 
@@ -57,6 +59,8 @@ export function BranchDetailPageContent({
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [assignAgentOpen, setAssignAgentOpen] = useState(false);
+  const [agentsRefreshKey, setAgentsRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -109,17 +113,28 @@ export function BranchDetailPageContent({
           ) : null}
         </div>
         {branch ? (
-          <span className="inline-flex items-center gap-1.5 text-sm text-propnex-muted">
-            {branch.aiEnabled ? (
-              <>
-                <Bot className="size-4 text-success" /> AI Enabled
-              </>
-            ) : (
-              <>
-                <BotOff className="size-4" /> AI Disabled
-              </>
-            )}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-sm text-propnex-muted">
+              {branch.aiEnabled ? (
+                <>
+                  <Bot className="size-4 text-success" /> AI Enabled
+                </>
+              ) : (
+                <>
+                  <BotOff className="size-4" /> AI Disabled
+                </>
+              )}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              className="h-9"
+              onClick={() => setAssignAgentOpen(true)}
+            >
+              <Plus className="size-4" />
+              Add Agent
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -174,17 +189,6 @@ export function BranchDetailPageContent({
             <TabLoadingPanel />
           ) : null
         ) : null}
-        {activeTab === "ai" ? (
-          branch ? (
-            <BranchAiTab
-              branch={branch}
-              onSaved={() => void load()}
-              onNotify={(message, type) => notify({ type, message })}
-            />
-          ) : isLoading ? (
-            <TabLoadingPanel />
-          ) : null
-        ) : null}
         {activeTab === "contacts" ? (
           <BranchRelatedTab branchId={branchId} kind="contacts" />
         ) : null}
@@ -194,10 +198,51 @@ export function BranchDetailPageContent({
         {activeTab === "documents" ? (
           <BranchRelatedTab branchId={branchId} kind="documents" />
         ) : null}
+        {activeTab === "agents" ? (
+          <div className="space-y-5">
+
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-foreground">
+                Assigned Agents
+              </h3>
+              <p className="mb-3 text-sm text-propnex-muted">
+                Each agent has its own prompt and voice — select
+                &ldquo;Configure&rdquo; to edit an agent directly.
+              </p>
+              <BranchRelatedTab
+                branchId={branchId}
+                kind="agents"
+                refreshKey={agentsRefreshKey}
+                onNotify={(message, type) => notify({ type, message })}
+                onAgentsChanged={() => void load()}
+              />
+            </div>
+            {branch ? (
+              <BranchAiTab
+                branch={branch}
+                onSaved={() => void load()}
+                onNotify={(message, type) => notify({ type, message })}
+              />
+            ) : isLoading ? (
+              <TabLoadingPanel />
+            ) : null}
+          </div>
+        ) : null}
         {activeTab === "activity" ? (
           <BranchActivityTab activities={activities} isLoading={isLoading} />
         ) : null}
       </div>
+
+      <AssignAgentDialog
+        open={assignAgentOpen}
+        branchId={branchId}
+        onOpenChange={setAssignAgentOpen}
+        onAssigned={() => {
+          void load();
+          setAgentsRefreshKey((k) => k + 1);
+        }}
+        onNotify={(message, type) => notify({ type, message })}
+      />
     </div>
   );
 }

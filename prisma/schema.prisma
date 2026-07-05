@@ -720,6 +720,7 @@ model AiAgent {
   id                String           @id @default(auto()) @map("_id") @db.ObjectId
   companyId         String           @db.ObjectId
   libraryEntryId    String?          @db.ObjectId
+  branchId          String?          @db.ObjectId
   name              String
   type              AgentType
   category          String?
@@ -742,6 +743,7 @@ model AiAgent {
 
   company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   libraryEntry         AgentLibraryEntry?    @relation(fields: [libraryEntryId], references: [id])
+  branch               Branch?               @relation(fields: [branchId], references: [id])
   promptTemplates      AgentPromptTemplate[]
   toolAssignments      AgentToolAssignment[]
   knowledgeSources     KnowledgeSource[]
@@ -757,6 +759,7 @@ model AiAgent {
   @@index([companyId, type])
   @@index([companyId, enabled, status])
   @@index([libraryEntryId])
+  @@index([companyId, branchId])
 }
 
 model AgentPromptTemplate {
@@ -1307,6 +1310,7 @@ model Branch {
   documents    BranchDocument[]
   activities   BranchActivity[]
   memberAccess MemberBranchAccess[]
+  agents       AiAgent[]
 
   @@index([companyId, status])
   @@index([companyId, name])

@@ -43,6 +43,7 @@ import {
   BRANCH_CONTACTS_QUERY,
   BRANCH_CALL_LOGS_QUERY,
   BRANCH_DOCUMENTS_QUERY,
+  BRANCH_AGENTS_QUERY,
   CREATE_BRANCH_MUTATION,
   UPDATE_BRANCH_MUTATION,
   UPDATE_BRANCH_AI_MUTATION,
@@ -53,6 +54,7 @@ import {
   type BranchContactNode,
   type BranchCallLogNode,
   type BranchDocumentNode,
+  type BranchAgentNode,
   type BranchNode,
   VIEWER_ROLE_QUERY,
   type ViewerRoleResult,
@@ -295,6 +297,13 @@ export async function fetchBranchCallLogs(
 export async function fetchBranchDocuments(branchId: string) {
   return gqlRequest<{ branches: { documents: BranchDocumentNode[] } }>(
     BRANCH_DOCUMENTS_QUERY,
+    { branchId },
+  );
+}
+
+export async function fetchBranchAgents(branchId: string) {
+  return gqlRequest<{ branches: { agents: BranchAgentNode[] } }>(
+    BRANCH_AGENTS_QUERY,
     { branchId },
   );
 }

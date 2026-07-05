@@ -366,6 +366,11 @@ export const resolvers = {
       args: { branchId: string; limit?: number },
       ctx: TenantContext,
     ) => branchesService.getActivities(ctx, args.branchId, args.limit),
+    agents: (
+      _: unknown,
+      args: { branchId: string },
+      ctx: TenantContext,
+    ) => branchesService.getAgents(ctx, args.branchId),
   },
 
   BranchesMutations: {

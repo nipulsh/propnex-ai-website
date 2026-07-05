@@ -1,30 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FileText } from "lucide-react";
 
 import {
+  fetchBranchAgents,
   fetchBranchCallLogs,
   fetchBranchContacts,
   fetchBranchDocuments,
+  updateAgent,
 } from "@/lib/graphql/api";
 import type {
+  BranchAgentNode,
   BranchCallLogNode,
   BranchContactNode,
   BranchDocumentNode,
 } from "@/lib/graphql/queries";
 
-type Kind = "contacts" | "call-logs" | "documents";
+type Kind = "contacts" | "call-logs" | "documents" | "agents";
 
 type BranchRelatedTabProps = {
   branchId: string;
   kind: Kind;
+  onNotify?: (message: string, type: "success" | "error") => void;
+  onAgentsChanged?: () => void;
+  refreshKey?: number;
 };
 
 const EMPTY_LABEL: Record<Kind, string> = {
   contacts: "No contacts are associated with this branch yet.",
   "call-logs": "No calls have been recorded for this branch yet.",
   documents: "No documents have been uploaded for this branch yet.",
+  agents: "No agents are assigned to this branch yet.",
 };
 
 function formatDate(iso: string | null): string {
@@ -41,48 +48,71 @@ function formatDuration(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
-export function BranchRelatedTab({ branchId, kind }: BranchRelatedTabProps) {
+export function BranchRelatedTab({
+  branchId,
+  kind,
+  onNotify,
+  onAgentsChanged,
+  refreshKey,
+}: BranchRelatedTabProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [contacts, setContacts] = useState<BranchContactNode[]>([]);
   const [callLogs, setCallLogs] = useState<BranchCallLogNode[]>([]);
   const [documents, setDocuments] = useState<BranchDocumentNode[]>([]);
+  const [agents, setAgents] = useState<BranchAgentNode[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [unassigningId, setUnassigningId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-
-    const run = async () => {
-      try {
-        if (kind === "contacts") {
-          const res = await fetchBranchContacts(branchId);
-          if (!cancelled) setContacts(res.branches.contacts);
-        } else if (kind === "call-logs") {
-          const res = await fetchBranchCallLogs(branchId);
-          if (!cancelled) setCallLogs(res.branches.callLogs);
-        } else {
-          const res = await fetchBranchDocuments(branchId);
-          if (!cancelled) setDocuments(res.branches.documents);
-        }
-      } catch (err) {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : "Failed to load.");
-      } finally {
-        if (!cancelled) setIsLoading(false);
+    try {
+      if (kind === "contacts") {
+        const res = await fetchBranchContacts(branchId);
+        setContacts(res.branches.contacts);
+      } else if (kind === "call-logs") {
+        const res = await fetchBranchCallLogs(branchId);
+        setCallLogs(res.branches.callLogs);
+      } else if (kind === "documents") {
+        const res = await fetchBranchDocuments(branchId);
+        setDocuments(res.branches.documents);
+      } else {
+        const res = await fetchBranchAgents(branchId);
+        setAgents(res.branches.agents);
       }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [branchId, kind]);
+
+  useEffect(() => {
+    void load();
+  }, [load, refreshKey]);
+
+  async function handleUnassign(agent: BranchAgentNode) {
+    setUnassigningId(agent.id);
+    try {
+      await updateAgent(agent.id, { branchId: null });
+      setAgents((prev) => prev.filter((a) => a.id !== agent.id));
+      onNotify?.(`${agent.name} removed from this branch.`, "success");
+      onAgentsChanged?.();
+    } catch (err) {
+      onNotify?.(
+        err instanceof Error ? err.message : "Unable to unassign agent.",
+        "error",
+      );
+    } finally {
+      setUnassigningId(null);
+    }
+  }
 
   const isEmpty =
     (kind === "contacts" && contacts.length === 0) ||
     (kind === "call-logs" && callLogs.length === 0) ||
-    (kind === "documents" && documents.length === 0);
+    (kind === "documents" && documents.length === 0) ||
+    (kind === "agents" && agents.length === 0);
 
   if (isLoading) {
     return (
@@ -201,6 +231,49 @@ export function BranchRelatedTab({ branchId, kind }: BranchRelatedTabProps) {
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {kind === "agents" ? (
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-propnex-border text-left text-[0.7rem] tracking-[0.08em] text-propnex-muted uppercase">
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Enabled</th>
+                <th className="px-4 py-3 font-medium">Added</th>
+                <th className="px-4 py-3 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {agents.map((agent) => (
+                <tr
+                  key={agent.id}
+                  className="border-b border-propnex-border/60 hover:bg-propnex-bg/50"
+                >
+                  <td className="px-4 py-3 text-foreground">{agent.name}</td>
+                  <td className="px-4 py-3 text-propnex-muted">{agent.type}</td>
+                  <td className="px-4 py-3 text-propnex-muted">{agent.status}</td>
+                  <td className="px-4 py-3 text-propnex-muted">
+                    {agent.enabled ? "Yes" : "No"}
+                  </td>
+                  <td className="px-4 py-3 text-propnex-muted">
+                    {formatDate(agent.createdAt)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => void handleUnassign(agent)}
+                      disabled={unassigningId === agent.id}
+                      className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
+                    >
+                      {unassigningId === agent.id ? "Removing…" : "Remove"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : null}
       </div>
     </div>

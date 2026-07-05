@@ -18,7 +18,12 @@ type BranchRow = Awaited<
 
 function mapBranch(
   row: NonNullable<BranchRow>,
-  counts?: { contactsCount: number; callLogsCount: number; documentsCount: number },
+  counts?: {
+    contactsCount: number;
+    callLogsCount: number;
+    documentsCount: number;
+    agentsCount: number;
+  },
 ) {
   return {
     id: row.id,
@@ -35,7 +40,56 @@ function mapBranch(
     contactsCount: counts?.contactsCount ?? 0,
     callLogsCount: counts?.callLogsCount ?? 0,
     documentsCount: counts?.documentsCount ?? 0,
+    agentsCount: counts?.agentsCount ?? 0,
     lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function mapAgent(row: {
+  id: string;
+  name: string;
+  type: string;
+  category: string | null;
+  status: string;
+  environment: string;
+  enabled: boolean;
+  languages: string[];
+  firstMessage: string | null;
+  systemPrompt: string | null;
+  voiceConfig: unknown;
+  modelConfig: unknown;
+  transcriberConfig: unknown;
+  serverConfig: unknown;
+  structuredOutputs: unknown;
+  scorecards: unknown;
+  monitors: unknown;
+  demoAudioUrl: string | null;
+  branchId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    category: row.category,
+    status: row.status,
+    environment: row.environment,
+    enabled: row.enabled,
+    languages: row.languages,
+    firstMessage: row.firstMessage,
+    systemPrompt: row.systemPrompt,
+    voiceConfig: row.voiceConfig,
+    modelConfig: row.modelConfig,
+    transcriberConfig: row.transcriberConfig,
+    serverConfig: row.serverConfig,
+    structuredOutputs: row.structuredOutputs,
+    scorecards: row.scorecards,
+    monitors: row.monitors,
+    demoAudioUrl: row.demoAudioUrl,
+    branchId: row.branchId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -333,6 +387,13 @@ export class BranchesService {
       sizeBytes: row.sizeBytes,
       createdAt: row.createdAt.toISOString(),
     }));
+  }
+
+  async getAgents(ctx: TenantContext, branchId: string) {
+    tenantService.requirePermission(ctx, PERMISSIONS.BRANCHES_READ);
+    branchAccessService.assertBranchAccess(ctx, branchId);
+    const rows = await this.repo.findAgents(ctx.companyId, branchId);
+    return rows.map((row) => mapAgent(row));
   }
 
   async getActivities(ctx: TenantContext, branchId: string, limit?: number) {

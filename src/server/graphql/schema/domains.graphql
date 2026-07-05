@@ -46,6 +46,7 @@ type AiAgent {
   scorecards: JSON
   monitors: JSON
   demoAudioUrl: String
+  branchId: ID
   createdAt: String!
   updatedAt: String!
 }
@@ -67,6 +68,7 @@ input CreateAgentInput {
   monitors: JSON
   demoAudioUrl: String
   libraryEntryId: ID
+  branchId: ID
 }
 
 input UpdateAgentInput {
@@ -87,6 +89,7 @@ input UpdateAgentInput {
   scorecards: JSON
   monitors: JSON
   demoAudioUrl: String
+  branchId: ID
 }
 
 type AgentsMutations {

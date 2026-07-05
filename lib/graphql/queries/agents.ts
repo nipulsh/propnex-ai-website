@@ -16,6 +16,7 @@ export const AGENTS_LIST_QUERY = `
         enabled
         languages
         demoAudioUrl
+        branchId
         createdAt
         updatedAt
       }
