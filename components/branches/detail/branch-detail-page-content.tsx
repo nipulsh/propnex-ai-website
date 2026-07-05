@@ -5,7 +5,6 @@ import { Bot, BotOff, Plus } from "lucide-react";
 
 import { useSideNotification } from "@/components/common/side-notification";
 import { BranchOverviewTab } from "@/components/branches/detail/branch-overview-tab";
-import { BranchAiTab } from "@/components/branches/detail/branch-ai-tab";
 import { BranchRelatedTab } from "@/components/branches/detail/branch-related-tab";
 import { BranchActivityTab } from "@/components/branches/detail/branch-activity-tab";
 import { BranchStats } from "@/components/branches/detail/branch-stats";
@@ -199,33 +198,21 @@ export function BranchDetailPageContent({
           <BranchRelatedTab branchId={branchId} kind="documents" />
         ) : null}
         {activeTab === "agents" ? (
-          <div className="space-y-5">
-
-            <div>
-              <h3 className="mb-2 text-sm font-medium text-foreground">
-                Assigned Agents
-              </h3>
-              <p className="mb-3 text-sm text-propnex-muted">
-                Each agent has its own prompt and voice — select
-                &ldquo;Configure&rdquo; to edit an agent directly.
-              </p>
-              <BranchRelatedTab
-                branchId={branchId}
-                kind="agents"
-                refreshKey={agentsRefreshKey}
-                onNotify={(message, type) => notify({ type, message })}
-                onAgentsChanged={() => void load()}
-              />
-            </div>
-            {branch ? (
-              <BranchAiTab
-                branch={branch}
-                onSaved={() => void load()}
-                onNotify={(message, type) => notify({ type, message })}
-              />
-            ) : isLoading ? (
-              <TabLoadingPanel />
-            ) : null}
+          <div>
+            <h3 className="mb-2 text-sm font-medium text-foreground">
+              Assigned Agents
+            </h3>
+            <p className="mb-3 text-sm text-propnex-muted">
+              Each agent has its own prompt and documents — select
+              &ldquo;Prompt&rdquo; on an agent to configure it.
+            </p>
+            <BranchRelatedTab
+              branchId={branchId}
+              kind="agents"
+              refreshKey={agentsRefreshKey}
+              onNotify={(message, type) => notify({ type, message })}
+              onAgentsChanged={() => void load()}
+            />
           </div>
         ) : null}
         {activeTab === "activity" ? (

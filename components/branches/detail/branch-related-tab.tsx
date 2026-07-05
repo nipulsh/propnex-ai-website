@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Trash2, Upload } from "lucide-react";
 
+import { AgentConfigDialog } from "@/components/branches/detail/agent-config-dialog";
 import {
   fetchBranchAgents,
   fetchBranchCallLogs,
@@ -48,6 +49,19 @@ function formatDuration(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+type PendingDocument = {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  agentId: string;
+};
+
 export function BranchRelatedTab({
   branchId,
   kind,
@@ -62,6 +76,11 @@ export function BranchRelatedTab({
   const [agents, setAgents] = useState<BranchAgentNode[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [unassigningId, setUnassigningId] = useState<string | null>(null);
+  const [configAgent, setConfigAgent] = useState<BranchAgentNode | null>(null);
+  const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>(
+    [],
+  );
+  const [selectedAgentId, setSelectedAgentId] = useState("");
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -74,8 +93,12 @@ export function BranchRelatedTab({
         const res = await fetchBranchCallLogs(branchId);
         setCallLogs(res.branches.callLogs);
       } else if (kind === "documents") {
-        const res = await fetchBranchDocuments(branchId);
-        setDocuments(res.branches.documents);
+        const [docsRes, agentsRes] = await Promise.all([
+          fetchBranchDocuments(branchId),
+          fetchBranchAgents(branchId),
+        ]);
+        setDocuments(docsRes.branches.documents);
+        setAgents(agentsRes.branches.agents);
       } else {
         const res = await fetchBranchAgents(branchId);
         setAgents(res.branches.agents);
@@ -108,10 +131,24 @@ export function BranchRelatedTab({
     }
   }
 
+  function handleFilesSelected(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    const next = Array.from(fileList).map((file) => ({
+      id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+      name: file.name,
+      sizeBytes: file.size,
+      agentId: selectedAgentId,
+    }));
+    setPendingDocuments((prev) => [...prev, ...next]);
+  }
+
+  function handleRemovePendingDocument(id: string) {
+    setPendingDocuments((prev) => prev.filter((doc) => doc.id !== id));
+  }
+
   const isEmpty =
     (kind === "contacts" && contacts.length === 0) ||
     (kind === "call-logs" && callLogs.length === 0) ||
-    (kind === "documents" && documents.length === 0) ||
     (kind === "agents" && agents.length === 0);
 
   if (isLoading) {
@@ -126,6 +163,119 @@ export function BranchRelatedTab({
     return (
       <div className="rounded-xl border border-destructive/30 bg-propnex-panel p-8 text-center text-sm text-destructive">
         {error}
+      </div>
+    );
+  }
+
+  if (kind === "documents") {
+    return (
+      <div className="space-y-5">
+        <div className="rounded-xl border border-propnex-border bg-propnex-panel p-5">
+          <h3 className="mb-1 text-sm font-medium text-foreground">
+            Upload a document
+          </h3>
+          <p className="mb-4 text-sm text-propnex-muted">
+            Choose which agent this document should be used as context for.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <select
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              className="h-10 rounded-lg border border-propnex-border bg-propnex-bg px-3 text-sm text-foreground outline-none focus-visible:border-propnex-accent focus-visible:ring-2 focus-visible:ring-propnex-accent/30"
+            >
+              <option value="">No specific agent</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+            <label
+              htmlFor="branch-document-upload"
+              className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-propnex-border bg-propnex-bg px-4 text-sm font-medium text-foreground transition-colors hover:border-propnex-accent"
+            >
+              <Upload className="size-4 text-propnex-muted" />
+              Choose file
+            </label>
+            <input
+              id="branch-document-upload"
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.txt,.md"
+              className="hidden"
+              onChange={(e) => {
+                handleFilesSelected(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </div>
+
+          {pendingDocuments.length > 0 ? (
+            <ul className="mt-4 divide-y divide-propnex-border/60 rounded-lg border border-propnex-border">
+              {pendingDocuments.map((doc) => (
+                <li
+                  key={doc.id}
+                  className="flex items-center justify-between gap-4 px-4 py-3"
+                >
+                  <span className="flex items-center gap-2 text-sm text-foreground">
+                    <FileText className="size-4 shrink-0 text-propnex-muted" />
+                    {doc.name}
+                  </span>
+                  <span className="flex items-center gap-3 text-xs text-propnex-muted">
+                    {agents.find((a) => a.id === doc.agentId)?.name ??
+                      "No agent"}
+                    {formatBytes(doc.sizeBytes)}
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePendingDocument(doc.id)}
+                      className="text-destructive hover:text-destructive/80"
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span className="sr-only">Remove</span>
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          <p className="mt-3 text-xs text-propnex-muted">
+            Document upload isn&rsquo;t wired to storage yet — this is a
+            preview of the upload experience.
+          </p>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
+          <div className="propnex-scrollbar overflow-x-auto">
+            {documents.length > 0 ? (
+              <ul className="divide-y divide-propnex-border/60">
+                {documents.map((doc) => (
+                  <li
+                    key={doc.id}
+                    className="flex items-center justify-between gap-4 px-4 py-3"
+                  >
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 text-sm text-foreground hover:text-primary hover:underline"
+                    >
+                      <FileText className="size-4 text-propnex-muted" />
+                      {doc.name}
+                    </a>
+                    <span className="text-xs text-propnex-muted">
+                      {formatDate(doc.createdAt)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="p-10 text-center text-sm text-propnex-muted">
+                {EMPTY_LABEL.documents}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -209,30 +359,6 @@ export function BranchRelatedTab({
           </table>
         ) : null}
 
-        {kind === "documents" ? (
-          <ul className="divide-y divide-propnex-border/60">
-            {documents.map((doc) => (
-              <li
-                key={doc.id}
-                className="flex items-center justify-between gap-4 px-4 py-3"
-              >
-                <a
-                  href={doc.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 text-sm text-foreground hover:text-primary hover:underline"
-                >
-                  <FileText className="size-4 text-propnex-muted" />
-                  {doc.name}
-                </a>
-                <span className="text-xs text-propnex-muted">
-                  {formatDate(doc.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
         {kind === "agents" ? (
           <table className="w-full border-collapse text-sm">
             <thead>
@@ -261,14 +387,23 @@ export function BranchRelatedTab({
                     {formatDate(agent.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => void handleUnassign(agent)}
-                      disabled={unassigningId === agent.id}
-                      className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
-                    >
-                      {unassigningId === agent.id ? "Removing…" : "Remove"}
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setConfigAgent(agent)}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Prompt
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleUnassign(agent)}
+                        disabled={unassigningId === agent.id}
+                        className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
+                      >
+                        {unassigningId === agent.id ? "Removing…" : "Remove"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -276,6 +411,24 @@ export function BranchRelatedTab({
           </table>
         ) : null}
       </div>
+
+      {kind === "agents" ? (
+        <AgentConfigDialog
+          open={configAgent !== null}
+          agent={configAgent}
+          onOpenChange={(next) => {
+            if (!next) setConfigAgent(null);
+          }}
+          onSaved={(agentId, systemPrompt) => {
+            setAgents((prev) =>
+              prev.map((a) =>
+                a.id === agentId ? { ...a, systemPrompt } : a,
+              ),
+            );
+          }}
+          onNotify={(message, type) => onNotify?.(message, type)}
+        />
+      ) : null}
     </div>
   );
 }

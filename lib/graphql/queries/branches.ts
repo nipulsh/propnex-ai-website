@@ -90,6 +90,7 @@ export type BranchAgentNode = {
   enabled: boolean;
   demoAudioUrl: string | null;
   branchId: string | null;
+  systemPrompt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -213,6 +214,7 @@ export const BRANCH_AGENTS_QUERY = `
         enabled
         demoAudioUrl
         branchId
+        systemPrompt
         createdAt
         updatedAt
       }
