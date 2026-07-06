@@ -203,8 +203,8 @@ export function BranchDetailPageContent({
               Assigned Agents
             </h3>
             <p className="mb-3 text-sm text-propnex-muted">
-              Each agent has its own prompt and documents — select
-              &ldquo;Prompt&rdquo; on an agent to configure it.
+              Each agent has its own prompt — select &ldquo;Configure&rdquo;
+              on an agent to edit its tone and behavior.
             </p>
             <BranchRelatedTab
               branchId={branchId}

@@ -51,7 +51,6 @@ export type BranchContactNode = {
   lastName: string | null;
   email: string | null;
   phone: string | null;
-  temperature: string | null;
   createdAt: string | null;
 };
 
@@ -61,6 +60,8 @@ export type BranchCallLogNode = {
   status: string;
   durationSeconds: number;
   startedAt: string;
+  leadPhone: string | null;
+  leadName: string | null;
 };
 
 export type BranchDocumentNode = {
@@ -165,7 +166,6 @@ export const BRANCH_CONTACTS_QUERY = `
         lastName
         email
         phone
-        temperature
         createdAt
       }
     }
@@ -181,6 +181,8 @@ export const BRANCH_CALL_LOGS_QUERY = `
         status
         durationSeconds
         startedAt
+        leadPhone
+        leadName
       }
     }
   }

@@ -94,6 +94,7 @@ export type Agent = {
   knowledgeSources: KnowledgeSource[];
   integrations: Integration[];
   demoAudioUrl?: string;
+  branchId?: string | null;
 };
 
 /** @deprecated Use Agent instead */
@@ -190,6 +191,7 @@ export function filterAgents(
   statusFilter: AgentStatusFilter,
   categoryFilter: AgentCategoryFilter,
   typeFilter: AgentTypeFilter,
+  branchFilter: string = "all",
 ): Agent[] {
   const query = searchQuery.trim().toLowerCase();
 
@@ -198,6 +200,8 @@ export function filterAgents(
     if (categoryFilter !== "all" && agent.category !== categoryFilter)
       return false;
     if (typeFilter !== "all" && agent.type !== typeFilter) return false;
+    if (branchFilter !== "all" && agent.branchId !== branchFilter)
+      return false;
     if (!query) return true;
 
     return (

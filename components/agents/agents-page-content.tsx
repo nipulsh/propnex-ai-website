@@ -29,6 +29,7 @@ export function AgentsPageContent() {
   const statusFilter = useAgentsStore((s) => s.statusFilter);
   const categoryFilter = useAgentsStore((s) => s.categoryFilter);
   const typeFilter = useAgentsStore((s) => s.typeFilter);
+  const branchFilter = useAgentsStore((s) => s.branchFilter);
   const showFilters = useAgentsStore((s) => s.showFilters);
   const page = useAgentsStore((s) => s.currentPage);
   const setPage = useAgentsStore((s) => s.setPage);
@@ -45,7 +46,8 @@ export function AgentsPageContent() {
     searchQuery.trim() !== "" ||
     statusFilter !== "all" ||
     categoryFilter !== "all" ||
-    typeFilter !== "all";
+    typeFilter !== "all" ||
+    branchFilter !== "all";
 
   const { pageAgents, totalPages, totalCount } = useMemo(() => {
     const filtered = filterAgents(
@@ -54,6 +56,7 @@ export function AgentsPageContent() {
       statusFilter,
       categoryFilter,
       typeFilter,
+      branchFilter,
     );
     const total = filtered.length;
     const pages = Math.max(1, Math.ceil(total / AGENTS_PAGE_SIZE));
@@ -71,6 +74,7 @@ export function AgentsPageContent() {
     statusFilter,
     categoryFilter,
     typeFilter,
+    branchFilter,
     page,
   ]);
 

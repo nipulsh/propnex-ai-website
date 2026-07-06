@@ -345,15 +345,17 @@ export class BranchesService {
     branchAccessService.assertBranchAccess(ctx, branchId);
     const limit = Math.min(Math.max(first ?? 25, 1), 100);
     const rows = await this.repo.findContacts(ctx.companyId, branchId, limit, after);
-    return rows.map((row) => ({
-      id: row.id,
-      firstName: row.firstName,
-      lastName: row.lastName,
-      email: row.email,
-      phone: row.phone,
-      temperature: row.temperature,
-      createdAt: row.createdAt.toISOString(),
-    }));
+    return rows.map((row) => {
+      const nameParts = row.name?.trim().split(/\s+/).filter(Boolean) ?? [];
+      return {
+        id: row.id,
+        firstName: nameParts[0] ?? null,
+        lastName: nameParts.slice(1).join(" ") || null,
+        email: row.email,
+        phone: row.phone,
+        createdAt: row.createdAt.toISOString(),
+      };
+    });
   }
 
   async getCallLogs(
@@ -372,6 +374,10 @@ export class BranchesService {
       status: row.status,
       durationSeconds: row.durationSeconds,
       startedAt: row.startedAt.toISOString(),
+      leadPhone: row.lead?.phone ?? null,
+      leadName:
+        [row.lead?.firstName, row.lead?.lastName].filter(Boolean).join(" ") ||
+        null,
     }));
   }
 

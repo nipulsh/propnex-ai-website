@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Loader2, XIcon } from "lucide-react";
+import { ChevronDown, Loader2, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { importUploadedContacts } from "@/lib/graphql/api";
+import { fetchBranchesPage, importUploadedContacts } from "@/lib/graphql/api";
 import {
   CONTACT_PHONE_COUNTRIES,
   DEFAULT_CONTACT_PHONE_COUNTRY,
@@ -14,6 +20,8 @@ import {
 } from "@/lib/country-dial-codes";
 import { isValidContactPhone } from "@/lib/contact-phone-validation";
 import { cn } from "@/lib/utils";
+
+type BranchOption = { id: string; name: string };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,6 +43,28 @@ export function AddContactDialog({
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    fetchBranchesPage(100)
+      .then((res) =>
+        setBranches(
+          res.branches.connection.edges.map((edge) => ({
+            id: edge.node.id,
+            name: edge.node.name,
+          })),
+        ),
+      )
+      .catch(() => setBranches([]));
+  }, [open]);
+
+  function toggleBranch(id: string) {
+    setSelectedBranchIds((prev) =>
+      prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id],
+    );
+  }
 
   function resetForm() {
     setName("");
@@ -43,6 +73,7 @@ export function AddContactDialog({
     setCountry(DEFAULT_CONTACT_PHONE_COUNTRY);
     setPhone("");
     setError(null);
+    setSelectedBranchIds([]);
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -83,6 +114,10 @@ export function AddContactDialog({
       return;
     }
 
+    const selectedBranchNames = branches
+      .filter((branch) => selectedBranchIds.includes(branch.id))
+      .map((branch) => branch.name);
+
     setIsSubmitting(true);
     setError(null);
     try {
@@ -92,6 +127,7 @@ export function AddContactDialog({
           name: trimmedName,
           email: trimmedEmail || null,
           address: trimmedAddress || null,
+          branchNames: selectedBranchNames,
         },
       ]);
 
@@ -242,6 +278,52 @@ export function AddContactDialog({
                 disabled={isSubmitting}
               />
             </div>
+
+            {branches.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[0.65rem] font-medium tracking-[0.12em] text-propnex-muted uppercase">
+                  Assign to Branch
+                </p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        className="flex h-11 w-full items-center justify-between rounded-lg border border-propnex-border bg-propnex-bg px-3 text-sm text-foreground outline-none focus-visible:border-propnex-accent focus-visible:ring-2 focus-visible:ring-propnex-accent/30"
+                      />
+                    }
+                  >
+                    <span
+                      className={cn(
+                        selectedBranchIds.length === 0 && "text-propnex-muted",
+                      )}
+                    >
+                      {selectedBranchIds.length === 0
+                        ? "No branch selected"
+                        : branches
+                            .filter((branch) =>
+                              selectedBranchIds.includes(branch.id),
+                            )
+                            .map((branch) => branch.name)
+                            .join(", ")}
+                    </span>
+                    <ChevronDown className="size-4 shrink-0 text-propnex-muted" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-(--anchor-width)">
+                    {branches.map((branch) => (
+                      <DropdownMenuCheckboxItem
+                        key={branch.id}
+                        checked={selectedBranchIds.includes(branch.id)}
+                        onCheckedChange={() => toggleBranch(branch.id)}
+                      >
+                        {branch.name}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : null}
 
             {error ? (
               <p className="text-sm text-destructive" role="alert">

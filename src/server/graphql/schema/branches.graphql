@@ -36,7 +36,6 @@ type BranchContact {
   lastName: String
   email: String
   phone: String
-  temperature: String
   createdAt: String
 }
 
@@ -46,6 +45,8 @@ type BranchCallLog {
   status: String!
   durationSeconds: Int!
   startedAt: String!
+  leadPhone: String
+  leadName: String
 }
 
 type BranchDocument {

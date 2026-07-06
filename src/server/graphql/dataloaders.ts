@@ -2,6 +2,7 @@ import DataLoader from "dataloader";
 
 import prisma from "@/server/lib/prisma";
 import { AgentsRepository } from "@/server/repositories/agents.repository";
+import { BranchesRepository } from "@/server/repositories/branches.repository";
 import { CallLogsRepository } from "@/server/repositories/call-logs.repository";
 import { PhoneNumbersRepository } from "@/server/repositories/phone-numbers.repository";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
@@ -11,6 +12,7 @@ export function createDataLoaders(companyId: string) {
   const agentsRepo = new AgentsRepository(prisma);
   const phoneNumbersRepo = new PhoneNumbersRepository(prisma);
   const tenantRepo = new TenantRepository(prisma);
+  const branchesRepo = new BranchesRepository(prisma);
 
   return {
     lead: new DataLoader(async (ids: readonly string[]) => {
@@ -31,6 +33,11 @@ export function createDataLoaders(companyId: string) {
     user: new DataLoader(async (ids: readonly string[]) => {
       const users = await tenantRepo.findUsersByIds(companyId, [...ids]);
       const map = new Map(users.map((u) => [u.id, u]));
+      return ids.map((id) => map.get(id) ?? null);
+    }),
+    branch: new DataLoader(async (ids: readonly string[]) => {
+      const branches = await branchesRepo.findByIds(companyId, [...ids]);
+      const map = new Map(branches.map((b) => [b.id, b]));
       return ids.map((id) => map.get(id) ?? null);
     }),
   };

@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { FileText, Trash2, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { FileText, Search, Settings2, Trash2, Upload } from "lucide-react";
 
-import { AgentConfigDialog } from "@/components/branches/detail/agent-config-dialog";
 import {
   fetchBranchAgents,
   fetchBranchCallLogs,
@@ -17,6 +17,7 @@ import type {
   BranchContactNode,
   BranchDocumentNode,
 } from "@/lib/graphql/queries";
+import { formatPhoneDisplay } from "@/lib/phone-numbers-data";
 
 type Kind = "contacts" | "call-logs" | "documents" | "agents";
 
@@ -76,11 +77,13 @@ export function BranchRelatedTab({
   const [agents, setAgents] = useState<BranchAgentNode[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [unassigningId, setUnassigningId] = useState<string | null>(null);
-  const [configAgent, setConfigAgent] = useState<BranchAgentNode | null>(null);
   const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>(
     [],
   );
   const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [directionFilter, setDirectionFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -146,10 +149,47 @@ export function BranchRelatedTab({
     setPendingDocuments((prev) => prev.filter((doc) => doc.id !== id));
   }
 
+  const query = searchQuery.trim().toLowerCase();
+
+  const filteredContacts = useMemo(() => {
+    if (!query) return contacts;
+    return contacts.filter((c) =>
+      [c.firstName, c.lastName, c.email, c.phone]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(query)),
+    );
+  }, [contacts, query]);
+
+  const filteredAgents = useMemo(() => {
+    if (!query) return agents;
+    return agents.filter((a) =>
+      [a.name, a.type, a.status]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(query)),
+    );
+  }, [agents, query]);
+
+  const filteredCallLogs = useMemo(() => {
+    return callLogs.filter((log) => {
+      if (directionFilter !== "all" && log.direction !== directionFilter)
+        return false;
+      if (statusFilter !== "all" && log.status !== statusFilter) return false;
+      return true;
+    });
+  }, [callLogs, directionFilter, statusFilter]);
+
   const isEmpty =
     (kind === "contacts" && contacts.length === 0) ||
     (kind === "call-logs" && callLogs.length === 0) ||
     (kind === "agents" && agents.length === 0);
+
+  const noFilterResults =
+    (query.length > 0 &&
+      ((kind === "contacts" && filteredContacts.length === 0) ||
+        (kind === "agents" && filteredAgents.length === 0))) ||
+    (kind === "call-logs" &&
+      callLogs.length > 0 &&
+      filteredCallLogs.length === 0);
 
   if (isLoading) {
     return (
@@ -289,146 +329,198 @@ export function BranchRelatedTab({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
-      <div className="propnex-scrollbar overflow-x-auto">
-        {kind === "contacts" ? (
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-propnex-border text-left text-[0.7rem] tracking-[0.08em] text-propnex-muted uppercase">
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Phone</th>
-                <th className="px-4 py-3 font-medium">Temperature</th>
-                <th className="px-4 py-3 font-medium">Added</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contacts.map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-propnex-border/60 hover:bg-propnex-bg/50"
-                >
-                  <td className="px-4 py-3 text-foreground">
-                    {[c.firstName, c.lastName].filter(Boolean).join(" ") || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-propnex-muted">
-                    {c.email ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-propnex-muted">
-                    {c.phone ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-propnex-muted">
-                    {c.temperature ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-propnex-muted">
-                    {formatDate(c.createdAt)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : null}
-
-        {kind === "call-logs" ? (
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-propnex-border text-left text-[0.7rem] tracking-[0.08em] text-propnex-muted uppercase">
-                <th className="px-4 py-3 font-medium">Direction</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Duration</th>
-                <th className="px-4 py-3 font-medium">Started</th>
-              </tr>
-            </thead>
-            <tbody>
-              {callLogs.map((log) => (
-                <tr
-                  key={log.id}
-                  className="border-b border-propnex-border/60 hover:bg-propnex-bg/50"
-                >
-                  <td className="px-4 py-3 text-foreground">{log.direction}</td>
-                  <td className="px-4 py-3 text-propnex-muted">{log.status}</td>
-                  <td className="px-4 py-3 text-propnex-muted">
-                    {formatDuration(log.durationSeconds)}
-                  </td>
-                  <td className="px-4 py-3 text-propnex-muted">
-                    {formatDate(log.startedAt)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : null}
-
-        {kind === "agents" ? (
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-propnex-border text-left text-[0.7rem] tracking-[0.08em] text-propnex-muted uppercase">
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Enabled</th>
-                <th className="px-4 py-3 font-medium">Added</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {agents.map((agent) => (
-                <tr
-                  key={agent.id}
-                  className="border-b border-propnex-border/60 hover:bg-propnex-bg/50"
-                >
-                  <td className="px-4 py-3 text-foreground">{agent.name}</td>
-                  <td className="px-4 py-3 text-propnex-muted">{agent.type}</td>
-                  <td className="px-4 py-3 text-propnex-muted">{agent.status}</td>
-                  <td className="px-4 py-3 text-propnex-muted">
-                    {agent.enabled ? "Yes" : "No"}
-                  </td>
-                  <td className="px-4 py-3 text-propnex-muted">
-                    {formatDate(agent.createdAt)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setConfigAgent(agent)}
-                        className="text-xs font-medium text-primary hover:underline"
-                      >
-                        Prompt
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleUnassign(agent)}
-                        disabled={unassigningId === agent.id}
-                        className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
-                      >
-                        {unassigningId === agent.id ? "Removing…" : "Remove"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : null}
-      </div>
-
-      {kind === "agents" ? (
-        <AgentConfigDialog
-          open={configAgent !== null}
-          agent={configAgent}
-          onOpenChange={(next) => {
-            if (!next) setConfigAgent(null);
-          }}
-          onSaved={(agentId, systemPrompt) => {
-            setAgents((prev) =>
-              prev.map((a) =>
-                a.id === agentId ? { ...a, systemPrompt } : a,
-              ),
-            );
-          }}
-          onNotify={(message, type) => onNotify?.(message, type)}
-        />
+    <div className="space-y-3">
+      {kind === "contacts" || kind === "agents" ? (
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-propnex-muted" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={
+              kind === "contacts"
+                ? "Search contacts by name, email, or phone…"
+                : "Search agents by name, type, or status…"
+            }
+            className="h-10 w-full rounded-lg border border-propnex-border bg-propnex-panel pr-3 pl-9 text-sm text-foreground outline-none placeholder:text-propnex-muted focus-visible:border-propnex-accent focus-visible:ring-2 focus-visible:ring-propnex-accent/30"
+          />
+        </div>
       ) : null}
+
+      {kind === "call-logs" ? (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <select
+            value={directionFilter}
+            onChange={(e) => setDirectionFilter(e.target.value)}
+            className="h-10 rounded-lg border border-propnex-border bg-propnex-panel px-3 text-sm text-foreground outline-none focus-visible:border-propnex-accent focus-visible:ring-2 focus-visible:ring-propnex-accent/30"
+          >
+            <option value="all">All Directions</option>
+            <option value="INBOUND">Inbound</option>
+            <option value="OUTBOUND">Outbound</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-10 rounded-lg border border-propnex-border bg-propnex-panel px-3 text-sm text-foreground outline-none focus-visible:border-propnex-accent focus-visible:ring-2 focus-visible:ring-propnex-accent/30"
+          >
+            <option value="all">All Statuses</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="MISSED">Missed</option>
+            <option value="VOICEMAIL">Voicemail</option>
+            <option value="FAILED">Failed</option>
+          </select>
+        </div>
+      ) : null}
+
+      {noFilterResults ? (
+        <div className="rounded-xl border border-propnex-border bg-propnex-panel p-10 text-center text-sm text-propnex-muted">
+          {kind === "call-logs"
+            ? "No calls match the selected filters."
+            : `No ${kind} match "${searchQuery.trim()}".`}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-propnex-border bg-propnex-panel">
+          <div className="propnex-scrollbar overflow-x-auto">
+            {kind === "contacts" ? (
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-propnex-border text-left text-[0.7rem] tracking-[0.08em] text-propnex-muted uppercase">
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium">Email</th>
+                    <th className="px-4 py-3 font-medium">Phone</th>
+                    <th className="px-4 py-3 font-medium">Added</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredContacts.map((c) => (
+                    <tr
+                      key={c.id}
+                      className="border-b border-propnex-border/60 hover:bg-propnex-bg/50"
+                    >
+                      <td className="px-4 py-3 text-foreground">
+                        {[c.firstName, c.lastName].filter(Boolean).join(" ") ||
+                          "—"}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {c.email ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {c.phone ? formatPhoneDisplay(c.phone) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {formatDate(c.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+
+            {kind === "call-logs" ? (
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-propnex-border text-left text-[0.7rem] tracking-[0.08em] text-propnex-muted uppercase">
+                    <th className="px-4 py-3 font-medium">Caller</th>
+                    <th className="px-4 py-3 font-medium">Direction</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Duration</th>
+                    <th className="px-4 py-3 font-medium">Started</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCallLogs.map((log) => (
+                    <tr
+                      key={log.id}
+                      className="border-b border-propnex-border/60 hover:bg-propnex-bg/50"
+                    >
+                      <td className="px-4 py-3 text-foreground">
+                        <div>{log.leadPhone ? formatPhoneDisplay(log.leadPhone) : "—"}</div>
+                        {log.leadName ? (
+                          <div className="text-xs text-propnex-muted">
+                            {log.leadName}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-foreground">
+                        {log.direction}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {log.status}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {formatDuration(log.durationSeconds)}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {formatDate(log.startedAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+
+            {kind === "agents" ? (
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-propnex-border text-left text-[0.7rem] tracking-[0.08em] text-propnex-muted uppercase">
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Enabled</th>
+                    <th className="px-4 py-3 font-medium">Added</th>
+                    <th className="px-4 py-3 font-medium"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAgents.map((agent) => (
+                    <tr
+                      key={agent.id}
+                      className="border-b border-propnex-border/60 hover:bg-propnex-bg/50"
+                    >
+                      <td className="px-4 py-3 text-foreground">
+                        {agent.name}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {agent.type}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {agent.status}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {agent.enabled ? "Yes" : "No"}
+                      </td>
+                      <td className="px-4 py-3 text-propnex-muted">
+                        {formatDate(agent.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            href={`/agents/${agent.id}`}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                          >
+                            <Settings2 className="size-3.5" />
+                            Configure
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => void handleUnassign(agent)}
+                            disabled={unassigningId === agent.id}
+                            className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
+                          >
+                            {unassigningId === agent.id
+                              ? "Removing…"
+                              : "Remove"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

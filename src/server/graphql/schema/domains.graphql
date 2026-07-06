@@ -145,6 +145,8 @@ type UploadedContact {
   name: String
   email: String
   address: String
+  branchIds: [ID!]!
+  branches: [Branch!]!
   createdAt: String!
 }
 
@@ -153,6 +155,7 @@ input ImportedContactInput {
   name: String
   email: String
   address: String
+  branchNames: [String!]
 }
 
 type UploadedContactsQueries {
@@ -163,6 +166,7 @@ type UploadedContactImportResult {
   created: Int!
   skipped: Int!
   invalid: Int!
+  unmatchedBranches: [String!]!
 }
 
 type UploadedContactsMutations {

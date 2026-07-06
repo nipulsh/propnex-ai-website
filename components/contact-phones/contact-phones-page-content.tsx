@@ -147,13 +147,17 @@ export function ContactPhonesPageContent() {
         : "";
     const invalidText =
       upload.results.invalid > 0
-        ? `${upload.results.invalid} invalid row${upload.results.invalid !== 1 ? "s" : ""} skipped.`
+        ? `${upload.results.invalid} invalid row${upload.results.invalid !== 1 ? "s" : ""} skipped. `
+        : "";
+    const unmatchedText =
+      upload.results.unmatchedBranches.length > 0
+        ? `No branch found matching: ${upload.results.unmatchedBranches.join(", ")}.`
         : "";
 
     notify({
-      type: "success",
-      message: `${upload.results.created} number${upload.results.created !== 1 ? "s" : ""} added. ${skippedText}${invalidText}`.trim(),
-      duration: 5000,
+      type: unmatchedText ? "error" : "success",
+      message: `${upload.results.created} number${upload.results.created !== 1 ? "s" : ""} added. ${skippedText}${invalidText}${unmatchedText}`.trim(),
+      duration: 6000,
     });
   }, [upload.results, upload.isProcessing, notify]);
 
@@ -230,15 +234,8 @@ export function ContactPhonesPageContent() {
 
       <div className="shrink-0 rounded-lg border border-propnex-border bg-propnex-panel px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setAddNumberOpen(true)}
-            className="h-9 gap-2 border-propnex-border bg-propnex-panel text-foreground"
-          >
-            <Phone className="size-4" />
-            Add Number
-          </Button>
+
+
           <UploadContactPhonesButtons upload={upload} />
         </div>
       </div>

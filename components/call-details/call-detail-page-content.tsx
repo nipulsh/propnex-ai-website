@@ -47,9 +47,20 @@ export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
     }
   }, [detail, hydrate, reset]);
 
+  if (!detail && isLoading) {
+    return (
+      <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overscroll-contain p-6">
+        <p className="text-sm text-propnex-muted">Loading call details…</p>
+      </div>
+    );
+  }
+
   if (!detail) {
     return (
       <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overscroll-contain p-6">
+        <p className="text-sm text-propnex-muted">
+          {error ?? "Call not found."}
+        </p>
         <div className="flex gap-3">
           <Button
             variant="outline"

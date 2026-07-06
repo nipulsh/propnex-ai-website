@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Clock, Crown, Eye, Settings2 } from "lucide-react";
+import { Clock, Crown, Eye } from "lucide-react";
 
 import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { Button } from "@/components/ui/button";
@@ -86,15 +85,6 @@ export function LibraryTemplateCard({
         >
           <Eye className="size-3.5" />
           Preview
-        </Button>
-        <Button
-          nativeButton={false}
-          render={<Link href={`/agents/library/${template.id}`} />}
-          size="sm"
-          className="flex-1 gap-1.5 text-xs"
-        >
-          <Settings2 className="size-3.5" />
-          Configure
         </Button>
       </div>
     </article>

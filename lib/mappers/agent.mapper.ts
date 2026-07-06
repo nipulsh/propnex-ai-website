@@ -20,6 +20,7 @@ type GraphQLAgent = {
   scorecards?: unknown;
   monitors?: unknown;
   demoAudioUrl?: string | null;
+  branchId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -51,15 +52,24 @@ const DEFAULT_TRANSCRIBER = {
 
 export function mapGraphQLAgentToUI(agent: GraphQLAgent): Agent {
   const environment = toLowerEnum<AgentEnvironment>(agent.environment);
-  const voice = (agent.voiceConfig as Agent["voice"]) ?? DEFAULT_VOICE;
-  const model = (agent.modelConfig as Agent["model"]) ?? DEFAULT_MODEL;
-  const transcriber =
-    (agent.transcriberConfig as Agent["transcriber"]) ?? DEFAULT_TRANSCRIBER;
-  const server = (agent.serverConfig as Agent["server"]) ?? {
+  const voice = {
+    ...DEFAULT_VOICE,
+    ...(agent.voiceConfig as Partial<Agent["voice"]> | null),
+  };
+  const model = {
+    ...DEFAULT_MODEL,
+    ...(agent.modelConfig as Partial<Agent["model"]> | null),
+  };
+  const transcriber = {
+    ...DEFAULT_TRANSCRIBER,
+    ...(agent.transcriberConfig as Partial<Agent["transcriber"]> | null),
+  };
+  const server = {
     provider: "PropNex Cloud",
     region: "us-east-1",
     environment,
     connectionStatus: "connected" as const,
+    ...(agent.serverConfig as Partial<Agent["server"]> | null),
   };
 
   return {
@@ -93,6 +103,7 @@ export function mapGraphQLAgentToUI(agent: GraphQLAgent): Agent {
     knowledgeSources: [],
     integrations: [],
     demoAudioUrl: agent.demoAudioUrl ?? undefined,
+    branchId: agent.branchId ?? null,
   };
 }
 

@@ -629,6 +629,7 @@ model UploadedContact {
   name      String?
   email     String?
   address   String?
+  branchIds String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

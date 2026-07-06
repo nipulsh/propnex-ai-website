@@ -242,6 +242,7 @@ export const resolvers = {
           name?: string | null;
           email?: string | null;
           address?: string | null;
+          branchNames?: string[];
         }>;
       },
       ctx: TenantContext,
@@ -430,6 +431,17 @@ export const resolvers = {
       employeesService.delete(ctx, args.id),
     resendInvite: (_: unknown, args: { id: string }, ctx: TenantContext) =>
       employeesService.resendInvite(ctx, args.id),
+  },
+
+  UploadedContact: {
+    branches: (
+      parent: { branchIds?: string[] | null },
+      _: unknown,
+      ctx: TenantContext,
+    ) =>
+      Promise.all(
+        (parent.branchIds ?? []).map((id) => ctx.loaders.branch.load(id)),
+      ).then((branches) => branches.filter((branch) => branch !== null)),
   },
 
   CallLog: {

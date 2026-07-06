@@ -39,6 +39,7 @@ export function useUploadContactPhones(onImported: () => void) {
     created: number;
     skipped: number;
     invalid: number;
+    unmatchedBranches: string[];
   } | null>(null);
 
   const processFile = useCallback(
@@ -80,6 +81,7 @@ export function useUploadContactPhones(onImported: () => void) {
           created: saved.created,
           skipped: saved.skipped,
           invalid: saved.invalid + invalid,
+          unmatchedBranches: saved.unmatchedBranches,
         });
         onImported();
       } catch (err) {
