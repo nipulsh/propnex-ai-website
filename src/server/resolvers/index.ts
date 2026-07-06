@@ -425,6 +425,8 @@ export const resolvers = {
       employeesService.delete(ctx, args.id),
     resendInvite: (_: unknown, args: { id: string }, ctx: TenantContext) =>
       employeesService.resendInvite(ctx, args.id),
+    cancelInvite: (_: unknown, args: { id: string }, ctx: TenantContext) =>
+      employeesService.cancelInvite(ctx, args.id),
   },
 
   CallLog: {

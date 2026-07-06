@@ -1,5 +1,6 @@
 import type {
   BranchAccessType,
+  InvitationStatus,
   MemberStatus,
   Prisma,
   UserRole,
@@ -25,7 +26,15 @@ const memberInclude = {
 
 export type EmployeeRow = Prisma.CompanyMemberGetPayload<{
   include: typeof memberInclude;
-}>;
+}> & {
+  latestInvitation?: {
+    id: string;
+    status: InvitationStatus;
+    expiresAt: Date;
+    clerkInvitationId: string | null;
+    clerkOrganizationId: string | null;
+  } | null;
+};
 
 export class EmployeesRepository extends BaseRepository {
   private buildWhere(
@@ -71,16 +80,56 @@ export class EmployeesRepository extends BaseRepository {
     return where;
   }
 
-  findConnection(
+  private async attachLatestInvitations(
+    companyId: string,
+    rows: Prisma.CompanyMemberGetPayload<{ include: typeof memberInclude }>[],
+  ): Promise<EmployeeRow[]> {
+    if (rows.length === 0) return [];
+
+    const emails = [...new Set(rows.map((row) => row.user.email.toLowerCase()))];
+    const invitations = await this.prisma.invitation.findMany({
+      where: {
+        companyId,
+        email: { in: emails, mode: "insensitive" },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        expiresAt: true,
+        clerkInvitationId: true,
+        clerkOrganizationId: true,
+      },
+    });
+
+    const latestByEmail = new Map<string, (typeof invitations)[number]>();
+    for (const invitation of invitations) {
+      const key = invitation.email.toLowerCase();
+      if (!latestByEmail.has(key)) {
+        latestByEmail.set(key, invitation);
+      }
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      latestInvitation: latestByEmail.get(row.user.email.toLowerCase()) ?? null,
+    }));
+  }
+
+  async findConnection(
     companyId: string,
     limit: number,
     after?: string,
     filter?: EmployeeFilter,
+    scope?: Prisma.CompanyMemberWhereInput,
   ) {
     const cursor = after ? decodeIdCursor(after) : undefined;
+    const baseWhere = this.buildWhere(companyId, filter);
+    const where = scope ? { AND: [baseWhere, scope] } : baseWhere;
 
-    return this.prisma.companyMember.findMany({
-      where: this.buildWhere(companyId, filter),
+    const rows = await this.prisma.companyMember.findMany({
+      where,
       include: memberInclude,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
@@ -91,19 +140,30 @@ export class EmployeesRepository extends BaseRepository {
           }
         : {}),
     });
+
+    return this.attachLatestInvitations(companyId, rows);
   }
 
-  count(companyId: string, filter?: EmployeeFilter) {
+  count(
+    companyId: string,
+    filter?: EmployeeFilter,
+    scope?: Prisma.CompanyMemberWhereInput,
+  ) {
+    const baseWhere = this.buildWhere(companyId, filter);
+    const where = scope ? { AND: [baseWhere, scope] } : baseWhere;
     return this.prisma.companyMember.count({
-      where: this.buildWhere(companyId, filter),
+      where,
     });
   }
 
-  findById(companyId: string, memberId: string) {
-    return this.prisma.companyMember.findFirst({
+  async findById(companyId: string, memberId: string) {
+    const row = await this.prisma.companyMember.findFirst({
       where: { id: memberId, companyId, status: { not: "REMOVED" } },
       include: memberInclude,
     });
+    if (!row) return null;
+    const [withInvitation] = await this.attachLatestInvitations(companyId, [row]);
+    return withInvitation;
   }
 
   findByEmail(companyId: string, email: string) {
@@ -170,8 +230,20 @@ export class EmployeesRepository extends BaseRepository {
     token: string;
     expiresAt: Date;
     invitedById: string;
+    clerkInvitationId?: string | null;
+    clerkOrganizationId?: string | null;
   }) {
     return this.prisma.invitation.create({ data });
+  }
+
+  findLatestInvitationByEmail(companyId: string, email: string) {
+    return this.prisma.invitation.findFirst({
+      where: {
+        companyId,
+        email: { equals: email, mode: "insensitive" },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   findPendingInvitation(companyId: string, email: string) {
@@ -182,6 +254,34 @@ export class EmployeesRepository extends BaseRepository {
         status: "PENDING",
       },
       orderBy: { createdAt: "desc" },
+    });
+  }
+
+  updateInvitation(
+    id: string,
+    data: Prisma.InvitationUpdateInput,
+  ) {
+    return this.prisma.invitation.update({
+      where: { id },
+      data,
+    });
+  }
+
+  updateInvitationStatus(id: string, status: InvitationStatus) {
+    return this.prisma.invitation.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
+  revokePendingInvitation(companyId: string, email: string) {
+    return this.prisma.invitation.updateMany({
+      where: {
+        companyId,
+        email: { equals: email, mode: "insensitive" },
+        status: "PENDING",
+      },
+      data: { status: "REVOKED" },
     });
   }
 

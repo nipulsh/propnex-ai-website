@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 
 import { BrandLogo } from "@/components/common/brand-logo";
-import { fetchViewerRole } from "@/lib/graphql/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import { footerNavItems, mainNavItems } from "@/lib/navigation";
+import type { Permission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import {
   Sidebar,
@@ -27,16 +27,12 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
-  const [permissions, setPermissions] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetchViewerRole()
-      .then((res) => setPermissions(res.viewer.permissions ?? []))
-      .catch(() => setPermissions([]));
-  }, []);
+  const { hasPermission, isLoading } = usePermissions();
 
   const visibleNavItems = mainNavItems.filter(
-    (item) => !item.permission || permissions.includes(item.permission),
+    (item) =>
+      !item.permission ||
+      (!isLoading && hasPermission(item.permission as Permission)),
   );
 
   const isActive = (href: string) => {

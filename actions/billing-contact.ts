@@ -5,7 +5,9 @@ import {
   validateBillingContactRequest,
 } from "@/lib/billing-contact";
 import { createGraphQLContext } from "@/server/graphql/context";
+import { tenantService } from "@/server/services/tenant.service";
 import { eventsService } from "@/server/services/events.service";
+import { PERMISSIONS } from "@/server/types/permissions";
 
 export type SubmitBillingContactResult =
   | { success: true; requestId: string }
@@ -21,6 +23,7 @@ export async function submitBillingContactRequest(
 
   try {
     const ctx = await createGraphQLContext();
+    tenantService.requirePermission(ctx, PERMISSIONS.BILLING_READ);
     const event = await eventsService.emit(ctx, {
       type: "BILLING_ALERT",
       entityType: "billing_contact_request",

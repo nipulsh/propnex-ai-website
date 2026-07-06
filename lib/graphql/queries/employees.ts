@@ -16,6 +16,8 @@ export type EmployeeBranchNode = {
   status: string;
 };
 
+export type InvitationDisplayStatus = "PENDING" | "ACCEPTED" | "EXPIRED";
+
 export type EmployeeNode = {
   id: string;
   userId: string;
@@ -28,6 +30,7 @@ export type EmployeeNode = {
   branchAccessType: BranchAccessType;
   assignedBranches: EmployeeBranchNode[];
   status: MemberStatus;
+  invitationStatus: InvitationDisplayStatus;
   lastActiveAt: string | null;
   invitedAt: string | null;
   joinedAt: string | null;
@@ -68,6 +71,7 @@ const EMPLOYEE_FIELDS = `
     status
   }
   status
+  invitationStatus
   lastActiveAt
   invitedAt
   joinedAt
@@ -138,6 +142,14 @@ export const RESEND_EMPLOYEE_INVITE_MUTATION = `
   mutation ResendEmployeeInvite($id: ID!) {
     employees {
       resendInvite(id: $id) {${EMPLOYEE_FIELDS}}
+    }
+  }
+`;
+
+export const CANCEL_EMPLOYEE_INVITE_MUTATION = `
+  mutation CancelEmployeeInvite($id: ID!) {
+    employees {
+      cancelInvite(id: $id)
     }
   }
 `;

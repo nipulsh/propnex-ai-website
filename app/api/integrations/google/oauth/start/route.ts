@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireIntegrationsRead,
+  requireIntegrationsWrite,
+} from "@/lib/integrations/api-guard";
 import { isGoogleIntegration } from "@/lib/integrations/google/constants";
 import { buildGoogleAuthUrl } from "@/lib/integrations/google/oauth";
 import type { IntegrationId } from "@/lib/integrations/types";
 
 export async function GET(req: Request) {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireIntegrationsRead();
   if (error || !ctx) return error!;
 
   const integrationId = new URL(req.url).searchParams.get(

@@ -1,5 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 
+import { ensureClerkOrganizationMember } from "@/lib/clerk/organization";
 import { cacheService } from "@/server/cache/cache.service";
 import { isClerkOrganizationsDisabled } from "@/server/lib/clerk-errors";
 import { localClerkOrganizationId } from "@/server/lib/clerk-sync";
@@ -7,7 +8,9 @@ import { normalizeContractId } from "@/server/lib/contract-id";
 import {
   AppError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
+  ValidationError,
 } from "@/server/lib/errors";
 import prisma from "@/server/lib/prisma";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
@@ -69,16 +72,45 @@ async function resolveClerkOrganizationId(
 
 export class ContractService {
   async getContractLinkStatus(clerkUserId: string) {
-    const company = await tenantRepo.findCompanyByOwnerUserId(clerkUserId);
-    if (!company) {
-      return { linked: false as const };
+    const ownedCompany = await tenantRepo.findCompanyByOwnerUserId(clerkUserId);
+    if (ownedCompany) {
+      return {
+        linked: true as const,
+        contractId: ownedCompany.contractId,
+        claimedAt: ownedCompany.claimedAt?.toISOString() ?? null,
+      };
     }
 
-    return {
-      linked: true as const,
-      contractId: company.contractId,
-      claimedAt: company.claimedAt?.toISOString() ?? null,
-    };
+    const dbUser = await tenantRepo.findUserByClerkId(clerkUserId);
+    if (dbUser) {
+      const activeMembership = await prisma.companyMember.findFirst({
+        where: { userId: dbUser.id, status: "ACTIVE" },
+        include: { company: true },
+        orderBy: { joinedAt: "desc" },
+      });
+      if (activeMembership) {
+        return {
+          linked: true as const,
+          contractId: activeMembership.company.contractId,
+          claimedAt: activeMembership.company.claimedAt?.toISOString() ?? null,
+        };
+      }
+
+      const invitedMembership = await prisma.companyMember.findFirst({
+        where: { userId: dbUser.id, status: "INVITED" },
+        include: { company: true },
+        orderBy: { invitedAt: "desc" },
+      });
+      if (invitedMembership) {
+        return {
+          linked: true as const,
+          contractId: invitedMembership.company.contractId,
+          claimedAt: invitedMembership.company.claimedAt?.toISOString() ?? null,
+        };
+      }
+    }
+
+    return { linked: false as const };
   }
 
   async linkContractId(clerkUserId: string, rawContractId: string) {
@@ -92,7 +124,10 @@ export class ContractService {
       throw new ConflictError("You have already linked a Contract ID");
     }
 
-    const company = await tenantRepo.findCompanyByContractId(contractId);
+    const company = await prisma.company.findFirst({
+      where: { contractId },
+      include: { contact: true },
+    });
     if (!company) {
       throw new NotFoundError("Invalid Contract ID");
     }
@@ -107,6 +142,24 @@ export class ContractService {
     if (!primaryEmail) {
       throw new AppError("User email is required", "INVALID_USER", 400);
     }
+
+    const designatedOwnerEmail = company.contact?.email?.trim();
+    if (!designatedOwnerEmail) {
+      throw new ValidationError(
+        "This company has no designated owner email. Contact PropNex support.",
+      );
+    }
+
+    if (primaryEmail.toLowerCase() !== designatedOwnerEmail.toLowerCase()) {
+      throw new ForbiddenError(
+        "This Contract ID can only be linked by the designated owner email.",
+      );
+    }
+
+    const ownerDisplayName = [clerkUser.firstName, clerkUser.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
 
     const clerkOrganizationId = await resolveClerkOrganizationId(
       clerkUserId,
@@ -187,6 +240,21 @@ export class ContractService {
         throw new ConflictError("This Contract ID has already been linked");
       }
 
+      await tx.companyContact.upsert({
+        where: { companyId: company.id },
+        create: {
+          companyId: company.id,
+          name: ownerDisplayName || designatedOwnerEmail.split("@")[0] || "Owner",
+          email: primaryEmail.toLowerCase(),
+          phone: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
+        },
+        update: {
+          name: ownerDisplayName || undefined,
+          email: primaryEmail.toLowerCase(),
+          phone: clerkUser.phoneNumbers[0]?.phoneNumber ?? undefined,
+        },
+      });
+
       return {
         contractId: freshCompany.contractId,
         claimedAt: claimedAt.toISOString(),
@@ -196,6 +264,14 @@ export class ContractService {
 
     await ensureCreditBalance(result.companyId);
     await cacheService.invalidateSettingsPages(result.companyId);
+
+    if (clerkOrganizationId.startsWith("org_")) {
+      await ensureClerkOrganizationMember({
+        organizationId: clerkOrganizationId,
+        userId: clerkUserId,
+        propnexRole: "OWNER",
+      });
+    }
 
     return {
       linked: true as const,

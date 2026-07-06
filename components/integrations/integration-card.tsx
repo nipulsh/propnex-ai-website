@@ -13,6 +13,7 @@ type IntegrationCardProps = {
   definition: IntegrationDefinition;
   integration?: WorkspaceIntegration;
   isConnecting: boolean;
+  canWrite?: boolean;
   onConnect: () => void;
   onManage: () => void;
   onDisconnect: () => void;
@@ -27,6 +28,7 @@ export function IntegrationCard({
   definition,
   integration,
   isConnecting,
+  canWrite = false,
   onConnect,
   onManage,
   onDisconnect,
@@ -83,7 +85,7 @@ export function IntegrationCard({
           <Button size="sm" variant="outline" disabled>
             Coming soon
           </Button>
-        ) : isConnected ? (
+        ) : !canWrite ? null : isConnected ? (
           <>
             <Button
               size="sm"

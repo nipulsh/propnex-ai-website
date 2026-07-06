@@ -6,6 +6,8 @@ import { Loader2 } from "lucide-react";
 import { useSideNotification } from "@/components/common/side-notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import { useSettingsStore } from "@/stores/settings-store";
 
 type ContactForm = {
@@ -36,8 +38,9 @@ export function PointOfContactSection() {
   const viewer = useSettingsStore((s) => s.viewer);
   const updateCompanyContact = useSettingsStore((s) => s.updateCompanyContact);
   const { notify } = useSideNotification();
+  const { hasPermission } = usePermissions();
 
-  const canEdit = viewer?.role === "OWNER";
+  const canEdit = hasPermission(PERMISSIONS.SETTINGS_WRITE);
   const fallbackName =
     [viewer?.firstName, viewer?.lastName].filter(Boolean).join(" ") ||
     viewer?.email ||

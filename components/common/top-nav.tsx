@@ -17,27 +17,23 @@ import { ModeToggle } from "@/components/common/mode-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { usePermissions } from "@/hooks/use-permissions";
 import { getNavBackLink } from "@/lib/navigation";
-import { getUserMetadata } from "@/lib/user-metadata";
+import { ROLE_LABELS, type UserRole } from "@/lib/permissions";
 import { useUsageStore } from "@/stores/usage-store";
 
 export function TopNav() {
   const pathname = usePathname();
   const backLink = getNavBackLink(pathname);
   const { isLoaded, user } = useUser();
+  const { role, isLoading: roleLoading } = usePermissions();
   const remainingCredits = useUsageStore((s) => s.remainingCredits);
   const creditsHydrated = useUsageStore((s) => s.creditsHydrated);
 
-  const displayName =
-    user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Account";
-  const metadata = getUserMetadata(
-    user?.unsafeMetadata as Record<string, unknown> | undefined,
-  );
-  const phone =
-    metadata.phone ??
-    user?.primaryPhoneNumber?.phoneNumber ??
-    user?.phoneNumbers?.[0]?.phoneNumber ??
-    "Add phone in Settings";
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const displayName = user?.fullName ?? email ?? "Account";
+  const roleLabel =
+    roleLoading ? "…" : role ? (ROLE_LABELS[role as UserRole] ?? role) : null;
 
   const initials = displayName
     .split(" ")
@@ -70,9 +66,11 @@ export function TopNav() {
             </Avatar>
             <div className="hidden min-w-0 sm:block">
               <p className="truncate text-sm font-medium text-foreground">
-                {isLoaded ? displayName : "Loading…"}
+                {isLoaded ? (email ?? displayName) : "Loading…"}
               </p>
-              <p className="truncate text-xs text-propnex-muted">{phone}</p>
+              {roleLabel ? (
+                <p className="truncate text-xs text-propnex-muted">{roleLabel}</p>
+              ) : null}
             </div>
           </Link>
         </Show>

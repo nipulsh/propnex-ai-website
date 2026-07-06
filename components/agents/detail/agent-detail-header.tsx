@@ -97,18 +97,20 @@ export function AgentDetailHeader({
               Edit Agent
             </Button>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void handleToggle()}
-            disabled={isToggling}
-            className={cn(
-              "border-propnex-border bg-propnex-panel",
-              isActive && "text-destructive hover:text-destructive",
-            )}
-          >
-            {isActive ? "Disable" : "Enable"}
-          </Button>
+          {canWrite ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleToggle()}
+              disabled={isToggling}
+              className={cn(
+                "border-propnex-border bg-propnex-panel",
+                isActive && "text-destructive hover:text-destructive",
+              )}
+            >
+              {isActive ? "Disable" : "Enable"}
+            </Button>
+          ) : null}
         </div>
       </div>
 

@@ -7,6 +7,12 @@ import type {
 } from "@prisma/client";
 import { clerkClient } from "@clerk/nextjs/server";
 
+import {
+  getActiveClerkOrganizationId,
+  removeClerkOrganizationAccess,
+  revokeAllClerkPendingInvitationsForEmail,
+  sendClerkOrganizationInvitation,
+} from "@/lib/clerk/organization";
 import { cacheService } from "@/server/cache/cache.service";
 import { cacheKeys } from "@/server/cache/keys";
 import {
@@ -15,8 +21,8 @@ import {
   ValidationError,
 } from "@/server/lib/errors";
 import { mapUserRoleToClerkRole } from "@/server/lib/clerk-sync";
-import { ensureRealClerkOrganizationId } from "@/server/lib/clerk-org";
 import prisma from "@/server/lib/prisma";
+import { clerkMembershipService } from "@/server/services/clerk-membership.service";
 import {
   EmployeesRepository,
   type EmployeeFilter,
@@ -24,6 +30,11 @@ import {
 } from "@/server/repositories/employees.repository";
 import { branchAccessService } from "@/server/services/branch-access.service";
 import { tenantService } from "@/server/services/tenant.service";
+import {
+  assertCanAssignRole,
+  assertCanInviteRole,
+  assertCanManageEmployee,
+} from "@/server/policies/access-policy";
 import { buildConnection, encodeIdCursor } from "@/server/lib/pagination";
 import type { TenantContext } from "@/server/types/context";
 import {
@@ -31,9 +42,35 @@ import {
   PERMISSIONS,
 } from "@/server/types/permissions";
 
+export type InvitationDisplayStatus = "PENDING" | "ACCEPTED" | "EXPIRED";
+
 function displayName(user: EmployeeRow["user"]) {
   const full = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
   return full || user.email;
+}
+
+function computeInvitationStatus(row: EmployeeRow): InvitationDisplayStatus {
+  if (row.status === "ACTIVE" || row.status === "DEACTIVATED") {
+    return "ACCEPTED";
+  }
+
+  const invitation = row.latestInvitation;
+  if (
+    invitation?.status === "EXPIRED" ||
+    (invitation?.status === "PENDING" && invitation.expiresAt < new Date())
+  ) {
+    return "EXPIRED";
+  }
+
+  if (row.status === "INVITED") {
+    return "PENDING";
+  }
+
+  if (row.joinedAt) {
+    return "ACCEPTED";
+  }
+
+  return "PENDING";
 }
 
 function mapEmployee(row: EmployeeRow) {
@@ -65,6 +102,7 @@ function mapEmployee(row: EmployeeRow) {
             status: access.branch.status,
           })),
     status: row.status,
+    invitationStatus: computeInvitationStatus(row),
     lastActiveAt: row.user.lastLoginAt?.toISOString() ?? null,
     invitedAt: row.invitedAt?.toISOString() ?? null,
     joinedAt: row.joinedAt?.toISOString() ?? null,
@@ -100,15 +138,13 @@ async function validateBranchAccessInput(
 function assertCanManageTarget(
   ctx: TenantContext,
   target: EmployeeRow,
-  action: "update" | "deactivate" | "delete",
+  action: "update" | "deactivate" | "delete" | "cancel",
 ) {
-  if (target.id === ctx.membershipId) {
-    throw new ForbiddenError(`You cannot ${action} your own account`);
-  }
-
-  if (target.role === "OWNER" && ctx.role !== "OWNER") {
-    throw new ForbiddenError("Only owners can manage owner accounts");
-  }
+  assertCanManageEmployee(
+    ctx,
+    { id: target.id, userId: target.userId, role: target.role },
+    action,
+  );
 }
 
 export type EmployeeConnectionArgs = {
@@ -124,9 +160,11 @@ export class EmployeesService {
     tenantService.requirePermission(ctx, PERMISSIONS.EMPLOYEES_READ);
     const limit = Math.min(Math.max(args.first ?? 25, 1), 200);
 
+    const scope = branchAccessService.employeeScopeFilter(ctx);
+
     const [rows, totalCount] = await Promise.all([
-      this.repo.findConnection(ctx.companyId, limit, args.after, args.filter),
-      this.repo.count(ctx.companyId, args.filter),
+      this.repo.findConnection(ctx.companyId, limit, args.after, args.filter, scope),
+      this.repo.count(ctx.companyId, args.filter, scope),
     ]);
 
     const connection = buildConnection(rows, limit, (row) =>
@@ -147,6 +185,7 @@ export class EmployeesService {
     tenantService.requirePermission(ctx, PERMISSIONS.EMPLOYEES_READ);
     const row = await this.repo.findById(ctx.companyId, id);
     if (!row) throw new NotFoundError("Employee not found");
+    branchAccessService.assertEmployeeVisible(ctx, row);
     return mapEmployee(row);
   }
 
@@ -168,12 +207,13 @@ export class EmployeesService {
   ) {
     tenantService.requirePermission(ctx, PERMISSIONS.EMPLOYEES_INVITE);
 
-    if (input.role === "OWNER" && ctx.role !== "OWNER") {
-      throw new ForbiddenError("Only owners can invite other owners");
-    }
+    assertCanInviteRole(ctx, input.role);
 
     const email = input.email.trim().toLowerCase();
     if (!email) throw new ValidationError("Email is required");
+
+    const jobTitle = input.jobTitle?.trim();
+    if (!jobTitle) throw new ValidationError("Job title is required");
 
     const existing = await this.repo.findByEmail(ctx.companyId, email);
     if (existing && existing.status !== "REMOVED") {
@@ -192,38 +232,58 @@ export class EmployeesService {
       where: { id: ctx.companyId },
     });
     if (!company) throw new NotFoundError("Company not found");
-    const clerkOrganizationId = await ensureRealClerkOrganizationId(company);
+    const clerkOrganizationId = await getActiveClerkOrganizationId(company, {
+      createdByClerkUserId: ctx.clerkUserId,
+    });
+
+    const removedMember = await prisma.companyMember.findFirst({
+      where: {
+        companyId: ctx.companyId,
+        status: "REMOVED",
+        user: { email: { equals: email, mode: "insensitive" } },
+      },
+      include: { user: true },
+    });
+
+    await removeClerkOrganizationAccess({
+      organizationId: clerkOrganizationId,
+      email,
+      clerkUserId: removedMember?.user.clerkUserId,
+      requestingUserId: ctx.clerkUserId,
+    });
 
     const [firstName, ...rest] = input.name.trim().split(/\s+/);
     const lastName = rest.join(" ") || null;
 
+    const clerkInvite = await sendClerkOrganizationInvitation({
+      organizationId: clerkOrganizationId,
+      email,
+      role: input.role,
+      inviterUserId: ctx.clerkUserId,
+      metadata: {
+        propnexRole: input.role,
+        branchAccessType: input.branchAccessType,
+        branchIds,
+        jobTitle,
+        inviteName: input.name.trim(),
+      },
+    });
+
     const token = randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = clerkInvite.expiresAt;
 
     await this.repo.createInvitation({
       companyId: ctx.companyId,
       email,
       role: input.role,
-      jobTitle: input.jobTitle ?? null,
+      jobTitle,
       branchAccessType: input.branchAccessType,
       branchIds,
       token,
       expiresAt,
       invitedById: ctx.userId,
-    });
-
-    const client = await clerkClient();
-    await client.organizations.createOrganizationInvitation({
-      organizationId: clerkOrganizationId,
-      emailAddress: email,
-      role: mapUserRoleToClerkRole(input.role),
-      publicMetadata: {
-        propnexRole: input.role,
-        branchAccessType: input.branchAccessType,
-        branchIds,
-        jobTitle: input.jobTitle ?? null,
-        inviteName: input.name,
-      },
+      clerkInvitationId: clerkInvite.invitationId,
+      clerkOrganizationId,
     });
 
     let user = await prisma.user.findUnique({ where: { email } });
@@ -256,14 +316,14 @@ export class EmployeesService {
         userId: user.id,
         role: input.role,
         status: "INVITED",
-        jobTitle: input.jobTitle ?? null,
+        jobTitle,
         branchAccessType: input.branchAccessType,
         invitedAt: new Date(),
       },
       update: {
         role: input.role,
         status: "INVITED",
-        jobTitle: input.jobTitle ?? null,
+        jobTitle,
         branchAccessType: input.branchAccessType,
         invitedAt: new Date(),
       },
@@ -305,8 +365,8 @@ export class EmployeesService {
 
     assertCanManageTarget(ctx, existing, "update");
 
-    if (input.role === "OWNER" && ctx.role !== "OWNER") {
-      throw new ForbiddenError("Only owners can assign the owner role");
+    if (input.role) {
+      assertCanAssignRole(ctx, input.role);
     }
 
     if (existing.role === "OWNER" && input.role && input.role !== "OWNER") {
@@ -336,7 +396,7 @@ export class EmployeesService {
       });
     }
 
-    const updated = await this.repo.updateMember(ctx.companyId, id, {
+    await this.repo.updateMember(ctx.companyId, id, {
       ...(input.jobTitle !== undefined ? { jobTitle: input.jobTitle } : {}),
       ...(input.role ? { role: input.role } : {}),
       ...(input.status ? { status: input.status } : {}),
@@ -354,24 +414,28 @@ export class EmployeesService {
 
     await cacheService.del(cacheKeys.userPermissions(existing.userId));
 
+    const company = await prisma.company.findUnique({
+      where: { id: ctx.companyId },
+    });
+
+    if (existing.user.clerkUserId) {
+      await cacheService.invalidateClerkMembershipCaches(
+        existing.user.clerkUserId,
+        company?.clerkOrganizationId,
+      );
+    }
+
     if (
       input.role &&
       existing.user.clerkUserId &&
       !existing.user.clerkUserId.startsWith("pending:")
     ) {
-      const company = await prisma.company.findUnique({
-        where: { id: ctx.companyId },
-      });
       if (company?.clerkOrganizationId?.startsWith("org_")) {
         const client = await clerkClient();
         try {
-          const memberships =
-            await client.organizations.getOrganizationMembershipList({
-              organizationId: company.clerkOrganizationId,
-              limit: 100,
-            });
-          const clerkMembership = memberships.data.find(
-            (m) => m.publicUserData?.userId === existing.user.clerkUserId,
+          const clerkMembership = await clerkMembershipService.getMembershipInOrg(
+            existing.user.clerkUserId,
+            company.clerkOrganizationId,
           );
           if (clerkMembership) {
             await client.organizations.updateOrganizationMembership({
@@ -379,6 +443,7 @@ export class EmployeesService {
               userId: existing.user.clerkUserId,
               role: mapUserRoleToClerkRole(input.role),
             });
+            await clerkMembershipService.invalidateUser(existing.user.clerkUserId);
           }
         } catch {
           // Clerk sync is best-effort
@@ -416,20 +481,21 @@ export class EmployeesService {
     const company = await prisma.company.findUnique({
       where: { id: ctx.companyId },
     });
-    if (
-      company?.clerkOrganizationId?.startsWith("org_") &&
-      existing.user.clerkUserId &&
-      !existing.user.clerkUserId.startsWith("pending:")
-    ) {
-      const client = await clerkClient();
-      try {
-        await client.organizations.deleteOrganizationMembership({
-          organizationId: company.clerkOrganizationId,
-          userId: existing.user.clerkUserId,
-        });
-      } catch {
-        // best-effort
-      }
+
+    if (existing.user.clerkUserId) {
+      await cacheService.invalidateClerkMembershipCaches(
+        existing.user.clerkUserId,
+        company?.clerkOrganizationId,
+      );
+    }
+
+    if (company?.clerkOrganizationId?.startsWith("org_")) {
+      await removeClerkOrganizationAccess({
+        organizationId: company.clerkOrganizationId,
+        email: existing.user.email,
+        clerkUserId: existing.user.clerkUserId,
+        requestingUserId: ctx.clerkUserId,
+      });
     }
 
     return true;
@@ -448,22 +514,118 @@ export class EmployeesService {
       where: { id: ctx.companyId },
     });
     if (!company) throw new NotFoundError("Company not found");
-    const clerkOrganizationId = await ensureRealClerkOrganizationId(company);
+    const clerkOrganizationId = await getActiveClerkOrganizationId(company, {
+      createdByClerkUserId: ctx.clerkUserId,
+    });
 
-    const client = await clerkClient();
-    await client.organizations.createOrganizationInvitation({
+    const invitation = await this.repo.findLatestInvitationByEmail(
+      ctx.companyId,
+      existing.user.email,
+    );
+
+    const branchIds =
+      existing.branchAccessType === "SELECTED"
+        ? existing.branchAccess.map((b) => b.branchId)
+        : invitation?.branchIds ?? [];
+
+    await revokeAllClerkPendingInvitationsForEmail({
       organizationId: clerkOrganizationId,
-      emailAddress: existing.user.email,
-      role: mapUserRoleToClerkRole(existing.role),
-      publicMetadata: {
+      email: existing.user.email,
+      requestingUserId: ctx.clerkUserId,
+    });
+
+    const displayNameValue = displayName(existing.user);
+    const clerkInvite = await sendClerkOrganizationInvitation({
+      organizationId: clerkOrganizationId,
+      email: existing.user.email,
+      role: existing.role,
+      inviterUserId: ctx.clerkUserId,
+      metadata: {
         propnexRole: existing.role,
         branchAccessType: existing.branchAccessType,
-        branchIds: existing.branchAccess.map((b) => b.branchId),
+        branchIds,
         jobTitle: existing.jobTitle,
+        inviteName: displayNameValue,
       },
     });
 
-    return mapEmployee(existing);
+    const token = randomUUID();
+    const expiresAt = clerkInvite.expiresAt;
+
+    if (invitation) {
+      await this.repo.updateInvitation(invitation.id, {
+        token,
+        expiresAt,
+        status: "PENDING",
+        clerkInvitationId: clerkInvite.invitationId,
+        clerkOrganizationId,
+      });
+    } else {
+      await this.repo.createInvitation({
+        companyId: ctx.companyId,
+        email: existing.user.email,
+        role: existing.role,
+        jobTitle: existing.jobTitle,
+        branchAccessType: existing.branchAccessType,
+        branchIds,
+        token,
+        expiresAt,
+        invitedById: ctx.userId,
+        clerkInvitationId: clerkInvite.invitationId,
+        clerkOrganizationId,
+      });
+    }
+
+    await this.repo.updateMember(ctx.companyId, id, {
+      invitedAt: new Date(),
+    });
+
+    const refreshed = await this.repo.findById(ctx.companyId, id);
+    return mapEmployee(refreshed!);
+  }
+
+  async cancelInvite(ctx: TenantContext, id: string) {
+    tenantService.requirePermission(ctx, PERMISSIONS.EMPLOYEES_INVITE);
+
+    const existing = await this.repo.findById(ctx.companyId, id);
+    if (!existing) throw new NotFoundError("Employee not found");
+    if (existing.status !== "INVITED") {
+      throw new ValidationError("Only pending invitations can be cancelled");
+    }
+
+    assertCanManageTarget(ctx, existing, "cancel");
+
+    const company = await prisma.company.findUnique({
+      where: { id: ctx.companyId },
+    });
+    if (!company) throw new NotFoundError("Company not found");
+
+    const clerkOrganizationId =
+      existing.latestInvitation?.clerkOrganizationId ??
+      company.clerkOrganizationId;
+
+    if (clerkOrganizationId?.startsWith("org_")) {
+      await removeClerkOrganizationAccess({
+        organizationId: clerkOrganizationId,
+        email: existing.user.email,
+        clerkUserId: existing.user.clerkUserId,
+        requestingUserId: ctx.clerkUserId,
+      });
+    }
+
+    await this.repo.revokePendingInvitation(ctx.companyId, existing.user.email);
+    await this.repo.updateMember(ctx.companyId, id, { status: "REMOVED" });
+    await this.repo.setBranchAccess(id, []);
+    await cacheService.del(cacheKeys.userPermissions(existing.userId));
+
+    if (existing.user.clerkUserId) {
+      await cacheService.invalidateClerkMembershipCaches(
+        existing.user.clerkUserId,
+        clerkOrganizationId,
+      );
+    }
+
+    return true;
   }
 }
 

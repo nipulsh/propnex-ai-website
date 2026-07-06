@@ -4,8 +4,10 @@ import { useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Bot, BotOff, Archive, X, Sparkles } from "lucide-react";
 
+import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { bulkUpdateBranches } from "@/lib/graphql/api";
+import { PERMISSIONS } from "@/lib/permissions";
 import { useBranchesStore } from "@/stores/branches-store";
 import { cn } from "@/lib/utils";
 
@@ -17,16 +19,16 @@ type BulkAction =
   | "ARCHIVE";
 
 type BranchesBulkBarProps = {
-  isOwner: boolean;
   onDone: () => void;
   onNotify: (message: string, type: "success" | "error") => void;
 };
 
 export function BranchesBulkBar({
-  isOwner,
   onDone,
   onNotify,
 }: BranchesBulkBarProps) {
+  const { hasPermission } = usePermissions();
+  const canBulk = hasPermission(PERMISSIONS.BRANCHES_BULK);
   const selectedIds = useBranchesStore((s) => s.selectedIds);
   const clearSelection = useBranchesStore((s) => s.clearSelection);
 
@@ -37,7 +39,7 @@ export function BranchesBulkBar({
   const [statusValue, setStatusValue] = useState("ACTIVE");
 
   const count = selectedIds.length;
-  if (count === 0 || !isOwner) return null;
+  if (count === 0 || !canBulk) return null;
 
   async function runBulk(
     action: BulkAction,

@@ -5,13 +5,15 @@ import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import { useSideNotification } from "@/components/common/side-notification";
+import { Can } from "@/components/permissions/can";
 import { BranchesBulkBar } from "@/components/branches/branches-bulk-bar";
 import { BranchesTable } from "@/components/branches/branches-table";
 import { CreateBranchDialog } from "@/components/branches/create-branch-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchBranchesPage, fetchViewerRole } from "@/lib/graphql/api";
+import { fetchBranchesPage } from "@/lib/graphql/api";
 import type { BranchNode } from "@/lib/graphql/queries";
+import { PERMISSIONS } from "@/lib/permissions";
 import {
   BRANCHES_PAGE_SIZE_OPTIONS,
   useBranchesStore,
@@ -24,7 +26,6 @@ export function BranchesPageContent() {
   const [branches, setBranches] = useState<BranchNode[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOwner, setIsOwner] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   const [searchInput, setSearchInput] = useState("");
@@ -39,12 +40,6 @@ export function BranchesPageContent() {
   const [endCursor, setEndCursor] = useState<string | null>(null);
 
   const requestRef = useRef(0);
-
-  useEffect(() => {
-    fetchViewerRole()
-      .then((res) => setIsOwner(res.viewer.role === "OWNER"))
-      .catch(() => setIsOwner(false));
-  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setAppliedSearch(searchInput.trim()), 350);
@@ -123,10 +118,12 @@ export function BranchesPageContent() {
           title="Branches"
           description="Manage every business unit across your company from one place."
         />
-        <Button onClick={() => setCreateOpen(true)} className="h-9 shrink-0">
-          <Plus className="size-4" />
-          New Branch
-        </Button>
+        <Can permission={PERMISSIONS.BRANCHES_WRITE}>
+          <Button onClick={() => setCreateOpen(true)} className="h-9 shrink-0">
+            <Plus className="size-4" />
+            New Branch
+          </Button>
+        </Can>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -178,7 +175,6 @@ export function BranchesPageContent() {
       </div>
 
       <BranchesBulkBar
-        isOwner={isOwner}
         onDone={() => void loadBranches()}
         onNotify={(message, type) => notify({ type, message })}
       />

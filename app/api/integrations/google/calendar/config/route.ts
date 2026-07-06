@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireIntegrationsRead,
+  requireIntegrationsWrite,
+} from "@/lib/integrations/api-guard";
 import { updateCalendarConfigDb } from "@/lib/integrations/db-state";
 import {
   DEFAULT_WORKING_HOURS,
@@ -8,7 +11,7 @@ import {
 } from "@/lib/integrations/types";
 
 export async function PUT(req: Request) {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireIntegrationsWrite();
   if (error || !ctx) return error!;
 
   const body = (await req.json()) as Partial<GoogleCalendarConfig>;

@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireIntegrationsRead,
+  requireIntegrationsWrite,
+} from "@/lib/integrations/api-guard";
 import { getWorksheetsDb } from "@/lib/integrations/db-state";
 
 export async function GET(req: Request) {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireIntegrationsRead();
   if (error || !ctx) return error!;
 
   const spreadsheetId = new URL(req.url).searchParams.get("spreadsheetId");

@@ -56,6 +56,52 @@ export class BranchAccessService {
     return { branchId: { in: ctx.branchAccess.branchIds } };
   }
 
+  /** Filter employees visible to branch-scoped viewers. */
+  employeeScopeFilter(ctx: TenantContext): Prisma.CompanyMemberWhereInput {
+    if (this.hasAllBranchAccess(ctx)) return {};
+    const branchIds = ctx.branchAccess.branchIds;
+    if (branchIds.length === 0) {
+      return { id: { in: [] } };
+    }
+    return {
+      OR: [
+        { branchAccessType: "ALL" },
+        {
+          branchAccess: {
+            some: { branchId: { in: branchIds } },
+          },
+        },
+      ],
+    };
+  }
+
+  assertEmployeeVisible(
+    ctx: TenantContext,
+    employee: {
+      branchAccessType: BranchAccessType;
+      branchAccess?: { branchId: string }[];
+    },
+  ) {
+    if (this.hasAllBranchAccess(ctx)) return;
+    if (employee.branchAccessType === "ALL") return;
+    const visibleIds = new Set(ctx.branchAccess.branchIds);
+    const hasOverlap = employee.branchAccess?.some((row) =>
+      visibleIds.has(row.branchId),
+    );
+    if (!hasOverlap) {
+      throw new ForbiddenError("You do not have access to this employee");
+    }
+  }
+
+  mergeEmployeeWhere(
+    ctx: TenantContext,
+    where: Prisma.CompanyMemberWhereInput,
+  ): Prisma.CompanyMemberWhereInput {
+    const scope = this.employeeScopeFilter(ctx);
+    if (Object.keys(scope).length === 0) return where;
+    return { AND: [where, scope] };
+  }
+
   mergeLeadWhere(
     ctx: TenantContext,
     where: Prisma.LeadWhereInput,

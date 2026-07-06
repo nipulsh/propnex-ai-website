@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireIntegrationsRead,
+  requireIntegrationsWrite,
+} from "@/lib/integrations/api-guard";
 import { GoogleSheetsScopeError } from "@/lib/integrations/google/client";
 import type { ColumnMapping } from "@/lib/integrations/types";
 import {
@@ -10,7 +13,7 @@ import {
 } from "@/lib/integrations/db-state";
 
 export async function GET() {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireIntegrationsRead();
   if (error || !ctx) return error!;
 
   try {
@@ -25,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireIntegrationsWrite();
   if (error || !ctx) return error!;
 
   const body = (await req.json()) as {
@@ -53,7 +56,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireIntegrationsWrite();
   if (error || !ctx) return error!;
 
   const spreadsheetId = new URL(req.url).searchParams.get("spreadsheetId");

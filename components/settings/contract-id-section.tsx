@@ -115,8 +115,8 @@ export function ContractIdSection() {
       <div>
         <h3 className="text-sm font-medium text-foreground">Contract ID</h3>
         <p className="mt-1 text-xs text-propnex-muted">
-          Link the Contract ID provided by PropNex to connect your account to
-          your company workspace.
+          Link the Contract ID provided by PropNex using the owner email account
+          registered for your company. Admin accounts cannot claim a Contract ID.
         </p>
       </div>
 

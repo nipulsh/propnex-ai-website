@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
-// CreateAgentPageContent kept at components/agents/create/create-agent-page-content.tsx
-export default function CreateAgentPage() {
+import { requirePageAccess } from "@/lib/auth/require-page-permission";
+
+export default async function CreateAgentPage() {
+  await requirePageAccess("/agents/create");
   redirect("/agents/library");
 }

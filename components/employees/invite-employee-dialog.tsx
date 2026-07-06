@@ -1,14 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { XIcon } from "lucide-react";
+import { Loader2, XIcon } from "lucide-react";
+import { useForm } from "react-hook-form";
 
+import { sendInvitation } from "@/actions/employee/send-invitation";
 import { useSideNotification } from "@/components/common/side-notification";
+import { BranchMultiSelect } from "@/components/employees/branch-multi-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchBranchesPage, inviteEmployee } from "@/lib/graphql/api";
-import type { BranchAccessType, UserRole } from "@/lib/graphql/queries";
+import { usePermissions } from "@/hooks/use-permissions";
+import { fetchBranchesPage } from "@/lib/graphql/api";
+import type { UserRole } from "@/lib/graphql/queries";
+import { ROLE_LABELS } from "@/lib/permissions";
+import {
+  inviteEmployeeSchema,
+  type InviteEmployeeInput,
+} from "@/lib/validations/invite-employee";
 import { cn } from "@/lib/utils";
 
 type InviteEmployeeDialogProps = {
@@ -17,18 +27,19 @@ type InviteEmployeeDialogProps = {
   onInvited: () => void;
 };
 
-const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "ADMIN", label: "Admin" },
-  { value: "MANAGER", label: "Manager" },
-  { value: "SALES", label: "Sales" },
-  { value: "SUPPORT", label: "Support" },
-  { value: "AGENT", label: "Agent" },
-];
-
 const LABEL_CLASS =
   "text-[0.65rem] font-medium tracking-[0.12em] text-propnex-muted uppercase";
 const FIELD_CLASS =
   "h-10 border-propnex-border bg-propnex-bg text-foreground placeholder:text-propnex-muted";
+
+const DEFAULT_VALUES: InviteEmployeeInput = {
+  name: "",
+  email: "",
+  jobTitle: "",
+  role: "SALES",
+  branchAccessType: "ALL",
+  branchIds: [],
+};
 
 export function InviteEmployeeDialog({
   open,
@@ -36,16 +47,30 @@ export function InviteEmployeeDialog({
   onInvited,
 }: InviteEmployeeDialogProps) {
   const { notify } = useSideNotification();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
-  const [role, setRole] = useState<UserRole>("SALES");
-  const [branchAccessType, setBranchAccessType] =
-    useState<BranchAccessType>("ALL");
-  const [branchIds, setBranchIds] = useState<string[]>([]);
+  const { getAssignableRoles } = usePermissions();
+  const assignableRoles = getAssignableRoles();
+  const roleOptions = assignableRoles.map((value) => ({
+    value: value as UserRole,
+    label: ROLE_LABELS[value],
+  }));
+  const defaultRole = (assignableRoles[0] ?? "SALES") as UserRole;
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<InviteEmployeeInput>({
+    resolver: zodResolver(inviteEmployeeSchema),
+    defaultValues: { ...DEFAULT_VALUES, role: defaultRole },
+  });
+
+  const branchAccessType = watch("branchAccessType");
+  const branchIds = watch("branchIds") ?? [];
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -61,57 +86,27 @@ export function InviteEmployeeDialog({
       .catch(() => setBranches([]));
   }, [open]);
 
-  function reset() {
-    setName("");
-    setEmail("");
-    setJobTitle("");
-    setRole("SALES");
-    setBranchAccessType("ALL");
-    setBranchIds([]);
-    setError(null);
-  }
-
   function handleOpenChange(next: boolean) {
-    if (!next) reset();
+    if (!next) reset({ ...DEFAULT_VALUES, role: defaultRole });
     onOpenChange(next);
   }
 
-  function toggleBranch(id: string) {
-    setBranchIds((prev) =>
-      prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id],
-    );
-  }
+  async function onSubmit(values: InviteEmployeeInput) {
+    const result = await sendInvitation(values);
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!name.trim() || !email.trim()) {
-      setError("Name and email are required.");
-      return;
-    }
-    if (branchAccessType === "SELECTED" && branchIds.length === 0) {
-      setError("Select at least one branch.");
+    if (!result.success) {
+      if (result.fieldErrors) {
+        for (const [field, message] of Object.entries(result.fieldErrors)) {
+          setError(field as keyof InviteEmployeeInput, { message });
+        }
+      }
+      setError("root", { message: result.error });
       return;
     }
 
-    setIsSaving(true);
-    setError(null);
-    try {
-      await inviteEmployee({
-        name: name.trim(),
-        email: email.trim(),
-        role,
-        jobTitle: jobTitle.trim() || undefined,
-        branchAccessType,
-        branchIds: branchAccessType === "SELECTED" ? branchIds : undefined,
-      });
-      notify({ type: "success", message: "Invitation sent." });
-      handleOpenChange(false);
-      onInvited();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to send invitation.");
-    } finally {
-      setIsSaving(false);
-    }
+    notify({ type: "success", message: "Invitation sent." });
+    handleOpenChange(false);
+    onInvited();
   }
 
   return (
@@ -142,49 +137,66 @@ export function InviteEmployeeDialog({
             </DialogPrimitive.Close>
           </div>
 
-          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+          <form
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+            className="space-y-4"
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2">
                 <label className={LABEL_CLASS}>Full name</label>
                 <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  {...register("name")}
                   className={FIELD_CLASS}
                   placeholder="Jane Smith"
+                  disabled={isSubmitting}
                 />
+                {errors.name ? (
+                  <p className="text-sm text-destructive">{errors.name.message}</p>
+                ) : null}
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <label className={LABEL_CLASS}>Email</label>
                 <Input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...register("email")}
                   className={FIELD_CLASS}
                   placeholder="jane@company.com"
+                  disabled={isSubmitting}
                 />
+                {errors.email ? (
+                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
                 <label className={LABEL_CLASS}>Job title</label>
                 <Input
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
+                  {...register("jobTitle")}
                   className={FIELD_CLASS}
                   placeholder="Sales Executive"
+                  disabled={isSubmitting}
                 />
+                {errors.jobTitle ? (
+                  <p className="text-sm text-destructive">
+                    {errors.jobTitle.message}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
                 <label className={LABEL_CLASS}>Role</label>
                 <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
+                  {...register("role")}
                   className={cn(FIELD_CLASS, "w-full rounded-md border px-3")}
+                  disabled={isSubmitting}
                 >
-                  {ROLE_OPTIONS.map((opt) => (
+                  {roleOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
                 </select>
+                {errors.role ? (
+                  <p className="text-sm text-destructive">{errors.role.message}</p>
+                ) : null}
               </div>
             </div>
 
@@ -194,56 +206,66 @@ export function InviteEmployeeDialog({
                 <label className="flex items-center gap-2">
                   <input
                     type="radio"
+                    value="ALL"
                     checked={branchAccessType === "ALL"}
-                    onChange={() => setBranchAccessType("ALL")}
+                    onChange={() => {
+                      setValue("branchAccessType", "ALL", { shouldValidate: true });
+                      setValue("branchIds", [], { shouldValidate: true });
+                    }}
+                    disabled={isSubmitting}
                   />
                   All branches
                 </label>
                 <label className="flex items-center gap-2">
                   <input
                     type="radio"
+                    value="SELECTED"
                     checked={branchAccessType === "SELECTED"}
-                    onChange={() => setBranchAccessType("SELECTED")}
+                    onChange={() =>
+                      setValue("branchAccessType", "SELECTED", {
+                        shouldValidate: true,
+                      })
+                    }
+                    disabled={isSubmitting}
                   />
                   Selected branches
                 </label>
               </div>
               {branchAccessType === "SELECTED" ? (
-                <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border border-propnex-border p-3">
-                  {branches.length === 0 ? (
-                    <p className="text-sm text-propnex-muted">No branches available.</p>
-                  ) : (
-                    branches.map((branch) => (
-                      <label
-                        key={branch.id}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={branchIds.includes(branch.id)}
-                          onChange={() => toggleBranch(branch.id)}
-                        />
-                        {branch.name}
-                      </label>
-                    ))
-                  )}
-                </div>
+                <BranchMultiSelect
+                  branches={branches}
+                  value={branchIds}
+                  onChange={(ids) =>
+                    setValue("branchIds", ids, { shouldValidate: true })
+                  }
+                  disabled={isSubmitting}
+                  error={errors.branchIds?.message}
+                />
               ) : null}
             </div>
 
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {errors.root ? (
+              <p className="text-sm text-destructive">{errors.root.message}</p>
+            ) : null}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => handleOpenChange(false)}
-                disabled={isSaving}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? "Sending…" : "Send invitation"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  "Send invitation"
+                )}
               </Button>
             </div>
           </form>

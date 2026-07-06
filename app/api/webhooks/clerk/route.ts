@@ -5,6 +5,8 @@ import { NextResponse } from "next/server";
 import { handleClerkWebhookEvent } from "@/server/services/clerk-provision.service";
 import { isClerkWebhooksEnabled } from "@/server/lib/clerk-config";
 import { cacheService } from "@/server/cache/cache.service";
+import { gqlDebug, gqlLogError } from "@/server/graphql/debug";
+import { logResolutionEvent } from "@/server/lib/resolution-metrics";
 
 export const runtime = "nodejs";
 
@@ -48,15 +50,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  const start = performance.now();
+
   try {
     await handleClerkWebhookEvent(event.type, event.data);
   } catch (error) {
-    console.error("Clerk webhook handler failed:", error);
+    gqlLogError("clerk:webhook:handler-failed", error, { type: event.type });
     return NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 },
     );
   }
+
+  const durationMs = Math.round(performance.now() - start);
 
   if (
     event.type === "organizationMembership.created" ||
@@ -66,7 +72,11 @@ export async function POST(request: Request) {
     const clerkUserId = event.data.public_user_data
       ? (event.data.public_user_data as { user_id: string }).user_id
       : (event.data.user_id as string);
+    const orgId = event.data.organization_id as string | undefined;
+
     if (clerkUserId) {
+      await cacheService.invalidateClerkMembershipCaches(clerkUserId, orgId);
+
       const prisma = (await import("@/server/lib/prisma")).default;
       const user = await prisma.user.findUnique({
         where: { clerkUserId },
@@ -75,6 +85,15 @@ export async function POST(request: Request) {
         await cacheService.invalidateUserPermissions(user.id);
       }
     }
+
+    logResolutionEvent("clerk:webhook:membership", {
+      type: event.type,
+      clerkUserId,
+      orgId,
+      durationMs,
+    });
+  } else {
+    gqlDebug("clerk:webhook:processed", { type: event.type, durationMs });
   }
 
   return NextResponse.json({ received: true });

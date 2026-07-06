@@ -2,8 +2,15 @@ import { redis } from "@/server/cache/redis.client";
 import {
   cacheKeys,
   type PageCacheKey,
+  type ResolvedCompanyCache,
 } from "@/server/cache/keys";
 import { gqlDebug, gqlDebugTimed } from "@/server/graphql/debug";
+import { incrementMetric } from "@/server/lib/resolution-metrics";
+
+export interface CachedPayload<T> {
+  cachedAt: number;
+  data: T;
+}
 
 export class CacheService {
   async get<T>(key: string): Promise<T | null> {
@@ -53,6 +60,63 @@ export class CacheService {
     const value = await gqlDebugTimed(`db:factory:${key}`, factory);
     await this.set(key, value, ttlSeconds);
     return value;
+  }
+
+  async getCachedPayload<T>(key: string): Promise<CachedPayload<T> | null> {
+    if (!redis) return null;
+    try {
+      const cached = await redis.get(key);
+      if (!cached) return null;
+      return JSON.parse(cached) as CachedPayload<T>;
+    } catch {
+      gqlDebug("redis:get-payload:error", { key });
+      return null;
+    }
+  }
+
+  async setCachedPayload<T>(
+    key: string,
+    data: T,
+    ttlSeconds: number,
+  ): Promise<void> {
+    const payload: CachedPayload<T> = { cachedAt: Date.now(), data };
+    await this.set(key, payload, ttlSeconds);
+  }
+
+  async getWithStaleFallback<T>(key: string): Promise<T | null> {
+    const payload = await this.getCachedPayload<T>(key);
+    return payload?.data ?? null;
+  }
+
+  async getResolvedCompany(
+    clerkUserId: string,
+  ): Promise<ResolvedCompanyCache | null> {
+    return this.get<ResolvedCompanyCache>(cacheKeys.resolvedCompany(clerkUserId));
+  }
+
+  async setResolvedCompany(
+    clerkUserId: string,
+    value: Omit<ResolvedCompanyCache, "cachedAt">,
+    ttlSeconds: number,
+  ): Promise<void> {
+    await this.set(
+      cacheKeys.resolvedCompany(clerkUserId),
+      { ...value, cachedAt: Date.now() },
+      ttlSeconds,
+    );
+  }
+
+  async invalidateClerkMembershipCaches(
+    clerkUserId: string,
+    orgId?: string | null,
+  ): Promise<void> {
+    const keys = [cacheKeys.clerkMemberships(clerkUserId), cacheKeys.resolvedCompany(clerkUserId)];
+    if (orgId) {
+      keys.push(cacheKeys.clerkOrgMemberships(orgId));
+    }
+    await this.del(...keys);
+    incrementMetric("cache_invalidations");
+    gqlDebug("redis:invalidate-clerk-memberships", { clerkUserId, orgId });
   }
 
   async invalidateCompanyCredits(companyId: string): Promise<void> {

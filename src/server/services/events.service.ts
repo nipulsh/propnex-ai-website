@@ -14,7 +14,7 @@ export class EventsService {
   }
 
   async emit(
-    ctx: Pick<TenantContext, "companyId" | "userId">,
+    ctx: TenantContext,
     data: {
       type: SystemEventType;
       entityType?: string;
@@ -23,6 +23,12 @@ export class EventsService {
       payload?: Prisma.InputJsonValue;
     },
   ) {
+    if (data.type === "BILLING_ALERT") {
+      tenantService.requirePermission(ctx, PERMISSIONS.BILLING_READ);
+    } else {
+      tenantService.requirePermission(ctx, PERMISSIONS.EVENTS_READ);
+    }
+
     return this.repo.create(ctx.companyId, {
       ...data,
       actorId: ctx.userId,

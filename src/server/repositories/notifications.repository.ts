@@ -37,12 +37,19 @@ export class IntegrationsRepository extends BaseRepository {
 }
 
 export class SchedulerRepository extends BaseRepository {
-  listUpcoming(companyId: string, limit: number) {
+  listUpcoming(
+    companyId: string,
+    limit: number,
+    leadBranchIds?: string[],
+  ) {
     return this.prisma.schedulerEvent.findMany({
       where: {
         companyId,
         startAt: { gte: new Date() },
         status: "SCHEDULED",
+        ...(leadBranchIds?.length
+          ? { lead: { branchId: { in: leadBranchIds } } }
+          : {}),
       },
       orderBy: { startAt: "asc" },
       take: limit,

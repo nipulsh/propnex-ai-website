@@ -1,6 +1,9 @@
 import { clerkClient } from "@clerk/nextjs/server";
 
-import { isClerkOrganizationsDisabled } from "@/server/lib/clerk-errors";
+import {
+  isClerkNotFound,
+  isClerkOrganizationsDisabled,
+} from "@/server/lib/clerk-errors";
 import { ValidationError } from "@/server/lib/errors";
 import prisma from "@/server/lib/prisma";
 
@@ -11,29 +14,63 @@ type CompanyOrgFields = {
   ownerUserId: string | null;
 };
 
-/**
- * Returns a real Clerk org id (`org_…`). Upgrades legacy `local:` ids when
- * Clerk Organizations is enabled; otherwise throws a clear validation error.
- */
-export async function ensureRealClerkOrganizationId(
-  company: CompanyOrgFields,
-): Promise<string> {
-  if (company.clerkOrganizationId?.startsWith("org_")) {
-    return company.clerkOrganizationId;
-  }
+type EnsureOrgOptions = {
+  /** Clerk user id to use when creating an org (e.g. current inviter). */
+  createdByClerkUserId?: string;
+};
 
-  const clerkUserId = company.ownerUserId;
-  if (!clerkUserId) {
-    throw new ValidationError(
-      "Organization invitations require a company owner with a linked Clerk account",
-    );
-  }
-
+async function clerkOrganizationExists(organizationId: string): Promise<boolean> {
   const client = await clerkClient();
+  try {
+    await client.organizations.getOrganization({ organizationId });
+    return true;
+  } catch (error) {
+    if (isClerkNotFound(error)) return false;
+    throw error;
+  }
+}
+
+async function resolveCreatedByClerkUserId(
+  company: CompanyOrgFields,
+  options?: EnsureOrgOptions,
+): Promise<string> {
+  if (company.ownerUserId?.startsWith("user_")) {
+    return company.ownerUserId;
+  }
+
+  if (options?.createdByClerkUserId?.startsWith("user_")) {
+    return options.createdByClerkUserId;
+  }
+
+  const ownerMember = await prisma.companyMember.findFirst({
+    where: {
+      companyId: company.id,
+      role: "OWNER",
+      status: "ACTIVE",
+    },
+    include: { user: true },
+  });
+
+  const ownerClerkUserId = ownerMember?.user.clerkUserId;
+  if (ownerClerkUserId?.startsWith("user_")) {
+    return ownerClerkUserId;
+  }
+
+  throw new ValidationError(
+    "Organization invitations require a company owner with a linked Clerk account",
+  );
+}
+
+async function createClerkOrganizationForCompany(
+  company: CompanyOrgFields,
+  createdByClerkUserId: string,
+): Promise<string> {
+  const client = await clerkClient();
+
   try {
     const org = await client.organizations.createOrganization({
       name: company.name,
-      createdBy: clerkUserId,
+      createdBy: createdByClerkUserId,
     });
 
     await prisma.company.update({
@@ -50,4 +87,28 @@ export async function ensureRealClerkOrganizationId(
     }
     throw error;
   }
+}
+
+/**
+ * Returns a real Clerk org id (`org_…`). Verifies stored ids against Clerk,
+ * recreates the org when missing/stale, and upgrades legacy `local:` ids when
+ * Clerk Organizations is enabled.
+ */
+export async function ensureRealClerkOrganizationId(
+  company: CompanyOrgFields,
+  options?: EnsureOrgOptions,
+): Promise<string> {
+  const storedOrgId = company.clerkOrganizationId;
+
+  if (storedOrgId?.startsWith("org_")) {
+    const exists = await clerkOrganizationExists(storedOrgId);
+    if (exists) return storedOrgId;
+  }
+
+  const createdByClerkUserId = await resolveCreatedByClerkUserId(
+    company,
+    options,
+  );
+
+  return createClerkOrganizationForCompany(company, createdByClerkUserId);
 }

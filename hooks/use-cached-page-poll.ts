@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
+import {
+  isAuthRequiredError,
+  isGraphQLAuthBlocked,
+  isUnauthorizedClientError,
+  markGraphQLAuthBlocked,
+} from "@/lib/graphql/auth-error";
+
 const DEFAULT_INTERVAL_MS = 10_000;
 
 /** Survives client navigations; cleared only on a full page reload. */
@@ -48,8 +55,24 @@ export function useCachedPagePoll<T>({
   const onLoadingRef = useRef(onLoading);
   onLoadingRef.current = onLoading;
 
+  const intervalIdRef = useRef<number | null>(null);
+  const authBlockedRef = useRef(isGraphQLAuthBlocked());
+
+  const stopPolling = useCallback(() => {
+    if (intervalIdRef.current !== null) {
+      window.clearInterval(intervalIdRef.current);
+      intervalIdRef.current = null;
+    }
+  }, []);
+
   const reload = useCallback(
     async (options?: ReloadOptions) => {
+      if (authBlockedRef.current || isGraphQLAuthBlocked()) {
+        authBlockedRef.current = true;
+        stopPolling();
+        return;
+      }
+
       if (skipHidden && document.visibilityState === "hidden") {
         return;
       }
@@ -67,6 +90,11 @@ export function useCachedPagePoll<T>({
         const data = await fetchPageRef.current();
         onDataRef.current(data);
       } catch (error) {
+        if (isAuthRequiredError(error) || isUnauthorizedClientError(error)) {
+          authBlockedRef.current = true;
+          markGraphQLAuthBlocked();
+          stopPolling();
+        }
         onErrorRef.current?.(
           error instanceof Error ? error.message : "Failed to load page data",
         );
@@ -75,22 +103,27 @@ export function useCachedPagePoll<T>({
         completedInitialLoads.add(loadKey);
       }
     },
-    [loadKey, skipHidden],
+    [loadKey, skipHidden, stopPolling],
   );
 
   useEffect(() => {
     if (!enabled) return;
 
+    if (authBlockedRef.current || isGraphQLAuthBlocked()) {
+      authBlockedRef.current = true;
+      return;
+    }
+
     void reload();
-    const intervalId = window.setInterval(() => {
+    intervalIdRef.current = window.setInterval(() => {
       void reload({ silent: true });
     }, intervalMs);
 
     return () => {
-      window.clearInterval(intervalId);
+      stopPolling();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deps array controls refetch identity
-  }, [enabled, intervalMs, reload, ...deps]);
+  }, [enabled, intervalMs, reload, stopPolling, ...deps]);
 
   return { reload };
 }

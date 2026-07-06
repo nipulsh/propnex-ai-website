@@ -19,7 +19,8 @@ import {
   useActionNotification,
   usePageStatusNotification,
 } from "@/hooks/use-page-status-notification";
-import { fetchViewerRole } from "@/lib/graphql/api";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import { useAgentDetailStore } from "@/stores/agent-detail-store";
 import { useAgentsStore } from "@/stores/agents-store";
 
@@ -70,15 +71,8 @@ export function AgentDetailPageContent({
   const setSuccessBanner = useAgentDetailStore((s) => s.setSuccessBanner);
   const calls = useAgentDetailStore((s) => s.calls);
   const assignedNumbers = useAgentDetailStore((s) => s.assignedNumbers);
-  const [canWrite, setCanWrite] = useState(false);
-
-  useEffect(() => {
-    fetchViewerRole()
-      .then((res) =>
-        setCanWrite(res.viewer.permissions.includes("agents:write")),
-      )
-      .catch(() => setCanWrite(false));
-  }, []);
+  const { hasPermission } = usePermissions();
+  const canWrite = hasPermission(PERMISSIONS.AGENTS_WRITE);
 
   const handleToggleEnabled = useCallback(
     async (enabled: boolean) => {

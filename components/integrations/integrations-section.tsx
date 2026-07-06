@@ -9,12 +9,16 @@ import {
   useActionNotification,
   usePageStatusNotification,
 } from "@/hooks/use-page-status-notification";
+import { usePermissions } from "@/hooks/use-permissions";
 import { INTEGRATION_DEFINITIONS } from "@/lib/integrations/registry";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { IntegrationId } from "@/lib/integrations/types";
 import { useIntegrationsStore } from "@/stores/integrations-store";
 
 export function IntegrationsSection() {
   const searchParams = useSearchParams();
+  const { hasPermission } = usePermissions();
+  const canWrite = hasPermission(PERMISSIONS.INTEGRATIONS_WRITE);
   const integrations = useIntegrationsStore((s) => s.integrations);
   const isLoading = useIntegrationsStore((s) => s.isLoading);
   const isConnecting = useIntegrationsStore((s) => s.isConnecting);
@@ -139,6 +143,7 @@ export function IntegrationsSection() {
               definition={definition}
               integration={integration}
               isConnecting={isConnecting}
+              canWrite={canWrite}
               onConnect={() => handleConnect(definition.id)}
               onManage={() => handleManage(definition.id)}
               onDisconnect={() => handleDisconnect(definition.id)}

@@ -10,6 +10,7 @@ import {
 } from "@/server/repositories/notifications.repository";
 import type { TenantContext } from "@/server/types/context";
 import { PERMISSIONS } from "@/server/types/permissions";
+import { branchAccessService } from "@/server/services/branch-access.service";
 import { tenantService } from "@/server/services/tenant.service";
 
 export class NotificationsService {
@@ -49,7 +50,14 @@ export class SchedulerService {
 
   async listUpcoming(ctx: TenantContext, limit = 20) {
     tenantService.requirePermission(ctx, PERMISSIONS.SCHEDULER_READ);
-    return this.repo.listUpcoming(ctx.companyId, Math.min(limit, 50));
+    const leadBranchIds = branchAccessService.hasAllBranchAccess(ctx)
+      ? undefined
+      : ctx.branchAccess.branchIds;
+    return this.repo.listUpcoming(
+      ctx.companyId,
+      Math.min(limit, 50),
+      leadBranchIds,
+    );
   }
 }
 

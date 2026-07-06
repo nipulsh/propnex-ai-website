@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
 
-// DeployAgentPageContent kept at components/agents/library/deploy-agent-page-content.tsx
-export default async function DeployAgentPage() {
+import { requirePageAccess } from "@/lib/auth/require-page-permission";
+
+type DeployAgentPageProps = {
+  params: Promise<{ templateId: string }>;
+};
+
+export default async function DeployAgentPage({ params }: DeployAgentPageProps) {
+  const { templateId } = await params;
+  await requirePageAccess(`/agents/library/${templateId}/deploy`);
   redirect("/agents/library");
 }

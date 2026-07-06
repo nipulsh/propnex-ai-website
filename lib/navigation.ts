@@ -14,29 +14,71 @@ import {
   Wrench,
 } from "lucide-react";
 
+import type { Permission } from "@/lib/permissions";
+
 export type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
-  permission?: string;
+  permission?: Permission;
 };
 
 export const mainNavItems: NavItem[] = [
   { title: "Home", href: "/dashboard", icon: Home },
-  { title: "Branches", href: "/branches", icon: Building2 },
+  {
+    title: "Branches",
+    href: "/branches",
+    icon: Building2,
+    permission: "branches:read",
+  },
   {
     title: "Employees",
     href: "/employees",
     icon: Users,
     permission: "employees:read",
   },
-  { title: "Agents", href: "/agents", icon: Bot },
-  { title: "Setup", href: "/setup", icon: ServerCog },
-  { title: "Phone Numbers", href: "/phone-numbers", icon: Phone },
-  { title: "Call Logs", href: "/call-logs", icon: PhoneCall },
-  { title: "Lead Reactivation", href: "/lead-reactivation", icon: RefreshCw },
-  { title: "Billing", href: "/billing", icon: CreditCard },
-  { title: "Tools", href: "/tools", icon: Wrench },
+  {
+    title: "Agents",
+    href: "/agents",
+    icon: Bot,
+    permission: "agents:read",
+  },
+  {
+    title: "Setup",
+    href: "/setup",
+    icon: ServerCog,
+    permission: "integrations:read",
+  },
+  {
+    title: "Phone Numbers",
+    href: "/phone-numbers",
+    icon: Phone,
+    permission: "agents:read",
+  },
+  {
+    title: "Call Logs",
+    href: "/call-logs",
+    icon: PhoneCall,
+    permission: "call_logs:read",
+  },
+  {
+    title: "Lead Reactivation",
+    href: "/lead-reactivation",
+    icon: RefreshCw,
+    permission: "analytics:read",
+  },
+  {
+    title: "Billing",
+    href: "/billing",
+    icon: CreditCard,
+    permission: "billing:read",
+  },
+  {
+    title: "Tools",
+    href: "/tools",
+    icon: Wrench,
+    permission: "integrations:read",
+  },
 ];
 
 export const footerNavItems: NavItem[] = [

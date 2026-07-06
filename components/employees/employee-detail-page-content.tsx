@@ -6,10 +6,10 @@ import { Loader2 } from "lucide-react";
 import { useSideNotification } from "@/components/common/side-notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   fetchBranchesPage,
   fetchEmployeeDetail,
-  fetchViewerRole,
   updateEmployee,
 } from "@/lib/graphql/api";
 import type {
@@ -17,37 +17,10 @@ import type {
   EmployeeNode,
   UserRole,
 } from "@/lib/graphql/queries";
+import { getPermissionLabels, ROLE_LABELS } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "OWNER", label: "Owner" },
-  { value: "ADMIN", label: "Admin" },
-  { value: "MANAGER", label: "Manager" },
-  { value: "SALES", label: "Sales" },
-  { value: "SUPPORT", label: "Support" },
-  { value: "AGENT", label: "Agent" },
-];
-
-const PERMISSION_LABELS: Record<string, string> = {
-  "billing:read": "View Billing",
-  "billing:write": "Manage Billing",
-  "call_logs:read": "View Calls",
-  "call_logs:write": "Manage Calls",
-  "leads:read": "View Contacts",
-  "leads:write": "Manage Contacts",
-  "branches:read": "View Branches",
-  "branches:write": "Manage Branches",
-  "documents:read": "View Documents",
-  "documents:write": "Manage Documents",
-  "analytics:read": "View Analytics",
-  "analytics:write": "Manage Analytics",
-  "employees:read": "View Employees",
-  "employees:write": "Manage Employees",
-  "employees:invite": "Invite Employees",
-  "agents:read": "View AI Agents",
-  "agents:write": "Manage AI Agents",
-  "settings:write": "Manage Settings",
-};
+const PERMISSION_LABELS = getPermissionLabels();
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "border-success/30 bg-success/10 text-success",
@@ -63,9 +36,9 @@ export function EmployeeDetailPageContent({
   employeeId,
 }: EmployeeDetailPageContentProps) {
   const { notify } = useSideNotification();
+  const { canManageEmployee, getAssignableRoles } = usePermissions();
   const [employee, setEmployee] = useState<EmployeeNode | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [canWrite, setCanWrite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -79,9 +52,8 @@ export function EmployeeDetailPageContent({
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [detailRes, viewerRes, branchesRes] = await Promise.all([
+      const [detailRes, branchesRes] = await Promise.all([
         fetchEmployeeDetail(employeeId, "AGENT"),
-        fetchViewerRole(),
         fetchBranchesPage(100),
       ]);
 
@@ -101,9 +73,6 @@ export function EmployeeDetailPageContent({
           ? detailRes.employees.permissionsForRole
           : [],
       );
-
-      const perms = viewerRes.viewer.permissions ?? [];
-      setCanWrite(perms.includes("employees:write"));
 
       setBranches(
         branchesRes.branches.connection.edges.map((e) => ({
@@ -179,6 +148,18 @@ export function EmployeeDetailPageContent({
     );
   }
 
+  const employeeTarget = {
+    id: employee.id,
+    userId: employee.userId,
+    role: employee.role as UserRole,
+  };
+  const canWrite = canManageEmployee(employeeTarget);
+  const assignableRoles = getAssignableRoles();
+  const roleOptions =
+    employee.role === "OWNER"
+      ? assignableRoles
+      : assignableRoles.filter((r) => r !== "OWNER" || employee.role === "OWNER");
+
   return (
     <div className="propnex-scrollbar flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
       <div className="flex items-center gap-3">
@@ -246,22 +227,22 @@ export function EmployeeDetailPageContent({
           <h2 className="text-sm font-semibold tracking-wide text-propnex-muted uppercase">
             Role
           </h2>
-          {canWrite && employee.role !== "OWNER" ? (
+          {canWrite ? (
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
               className="h-9 w-full rounded-md border border-propnex-border bg-background px-3 text-sm"
             >
-              {ROLE_OPTIONS.filter(
-                (r) => r.value !== "OWNER" || employee.role === "OWNER",
-              ).map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
+              {roleOptions.map((value) => (
+                <option key={value} value={value}>
+                  {ROLE_LABELS[value]}
                 </option>
               ))}
             </select>
           ) : (
-            <p className="text-sm font-medium">{role}</p>
+            <p className="text-sm font-medium">
+              {ROLE_LABELS[role as UserRole] ?? role}
+            </p>
           )}
           <p className="text-xs text-propnex-muted">
             Custom roles coming soon.

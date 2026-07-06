@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import { requireTenantContext, requireTenantPermission } from "@/lib/api/tenant-context";
+import { PERMISSIONS } from "@/lib/permissions";
 import { isAppError } from "@/server/lib/errors";
 import { companyService } from "@/server/services/company.service";
 
@@ -28,7 +29,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireTenantPermission(PERMISSIONS.SETTINGS_WRITE);
   if (error || !ctx) return error!;
 
   try {
