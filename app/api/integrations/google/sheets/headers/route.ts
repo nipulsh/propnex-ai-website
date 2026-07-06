@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireIntegrationsRead,
+  requireIntegrationsWrite,
+} from "@/lib/integrations/api-guard";
 import { getSheetHeaders } from "@/lib/integrations/google/sheets-service";
 
 export async function GET(req: Request) {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireIntegrationsRead();
   if (error || !ctx) return error!;
 
   const url = new URL(req.url);

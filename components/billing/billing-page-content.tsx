@@ -5,8 +5,10 @@ import { InvoicesTable } from "@/components/billing/invoices-table";
 import { PurchaseHistoryTable } from "@/components/billing/purchase-history-table";
 import { SimplePurchasePanel } from "@/components/billing/simple-purchase-panel";
 import { PageHeader } from "@/components/common/page-header";
+import { Can } from "@/components/permissions/can";
 import { useBillingGraphQL } from "@/hooks/use-billing-graphql";
 import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export function BillingPageContent() {
   const { isLoading, error } = useBillingGraphQL();
@@ -25,7 +27,9 @@ export function BillingPageContent() {
         description="View pricing for credits, calls, and channels."
       />
 
-      <SimplePurchasePanel />
+      <Can permission={PERMISSIONS.BILLING_WRITE}>
+        <SimplePurchasePanel />
+      </Can>
 
       <BillingSection
         title="Invoices"

@@ -1,15 +1,25 @@
 export type BranchStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
 
 export type ViewerRoleResult = {
-  viewer: { id: string; role: string; permissions: string[] };
+  viewer: {
+    id: string;
+    membershipId: string;
+    role: string;
+    permissions: string[];
+    branchAccessType: "ALL" | "SELECTED";
+    branchIds: string[];
+  };
 };
 
 export const VIEWER_ROLE_QUERY = `
   query ViewerRole {
     viewer {
       id
+      membershipId
       role
       permissions
+      branchAccessType
+      branchIds
     }
   }
 `;

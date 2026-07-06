@@ -5,15 +5,14 @@ import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import { useSideNotification } from "@/components/common/side-notification";
+import { Can } from "@/components/permissions/can";
 import { EmployeesTable } from "@/components/employees/employees-table";
 import { InviteEmployeeDialog } from "@/components/employees/invite-employee-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  fetchEmployeesPage,
-  fetchViewerRole,
-} from "@/lib/graphql/api";
+import { fetchEmployeesPage } from "@/lib/graphql/api";
 import type { EmployeeNode, MemberStatus, UserRole } from "@/lib/graphql/queries";
+import { PERMISSIONS } from "@/lib/permissions";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
@@ -34,33 +33,12 @@ const STATUS_OPTIONS: { value: MemberStatus | ""; label: string }[] = [
   { value: "DEACTIVATED", label: "Deactivated" },
 ];
 
-const EMPLOYEES_COMING_SOON = true;
-
 export function EmployeesPageContent() {
-  if (EMPLOYEES_COMING_SOON) {
-    return (
-      <div className="propnex-scrollbar relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain p-6 pb-6">
-        <PageHeader
-          title="Employees"
-          description="Manage your company workforce, roles, and branch access."
-        />
-        <div className="flex flex-1 items-center justify-center rounded-xl border border-propnex-border bg-propnex-panel py-24">
-          <p className="text-lg text-propnex-muted">Coming soon</p>
-        </div>
-      </div>
-    );
-  }
-
-  return <EmployeesPageContentInner />;
-}
-
-function EmployeesPageContentInner() {
   const { notify } = useSideNotification();
 
   const [employees, setEmployees] = useState<EmployeeNode[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [canInvite, setCanInvite] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const [searchInput, setSearchInput] = useState("");
@@ -75,15 +53,6 @@ function EmployeesPageContentInner() {
   const [endCursor, setEndCursor] = useState<string | null>(null);
 
   const requestRef = useRef(0);
-
-  useEffect(() => {
-    fetchViewerRole()
-      .then((res) => {
-        const perms = res.viewer.permissions ?? [];
-        setCanInvite(perms.includes("employees:invite"));
-      })
-      .catch(() => setCanInvite(false));
-  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setAppliedSearch(searchInput.trim()), 350);
@@ -138,12 +107,12 @@ function EmployeesPageContentInner() {
           title="Employees"
           description="Manage your company workforce, roles, and branch access."
         />
-        {canInvite ? (
+        <Can permission={PERMISSIONS.EMPLOYEES_INVITE}>
           <Button onClick={() => setInviteOpen(true)} className="h-9 shrink-0">
             <Plus className="size-4" />
             Invite Employee
           </Button>
-        ) : null}
+        </Can>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-propnex-border bg-propnex-panel/50 p-3">

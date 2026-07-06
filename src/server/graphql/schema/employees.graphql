@@ -25,11 +25,18 @@ type Employee {
   branchAccessType: BranchAccessType!
   assignedBranches: [EmployeeBranch!]!
   status: MemberStatus!
+  invitationStatus: InvitationDisplayStatus!
   lastActiveAt: String
   invitedAt: String
   joinedAt: String
   createdAt: String!
   updatedAt: String!
+}
+
+enum InvitationDisplayStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
 }
 
 type EmployeeEdge {
@@ -82,4 +89,5 @@ type EmployeesMutations {
   deactivate(id: ID!): Employee!
   delete(id: ID!): Boolean!
   resendInvite(id: ID!): Employee!
+  cancelInvite(id: ID!): Boolean!
 }

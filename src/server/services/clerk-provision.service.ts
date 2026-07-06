@@ -9,8 +9,22 @@ import { isClerkWebhooksEnabled } from "@/server/lib/clerk-config";
 import { companySlugFromName, mapClerkRoleToUserRole } from "@/server/lib/clerk-sync";
 import prisma from "@/server/lib/prisma";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
+import { cacheService } from "@/server/cache/cache.service";
+import {
+  clerkMembershipService,
+  type ClerkMembershipSnapshot,
+} from "@/server/services/clerk-membership.service";
+import {
+  logResolutionEvent,
+  recordReconciliationDuration,
+} from "@/server/lib/resolution-metrics";
 
 const tenantRepo = new TenantRepository(prisma);
+const pendingReconciles = new Map<string, Promise<void>>();
+
+function reconcileKey(clerkUserId: string, orgId?: string | null) {
+  return `${clerkUserId}:${orgId ?? ""}`;
+}
 
 type ClerkUserSnapshot = {
   firstName: string | null;
@@ -59,6 +73,90 @@ async function upsertDbUserFromClerk(
     imageUrl: clerkUser.imageUrl,
     phone: phone?.trim() || clerkUser.phoneNumbers[0]?.phoneNumber,
   });
+}
+
+function isPendingClerkUserId(clerkUserId: string) {
+  return clerkUserId.startsWith("pending:");
+}
+
+async function mergePendingUserWithClerkId(
+  clerkUserId: string,
+  clerkUser: ClerkUserSnapshot,
+  phone?: string,
+) {
+  const primaryEmail = getPrimaryEmail(clerkUser);
+  if (!primaryEmail) {
+    return null;
+  }
+
+  const pendingUser = await tenantRepo.findUserByEmail(primaryEmail);
+  if (!pendingUser || !isPendingClerkUserId(pendingUser.clerkUserId)) {
+    return null;
+  }
+
+  return prisma.user.update({
+    where: { id: pendingUser.id },
+    data: {
+      clerkUserId,
+      status: "ACTIVE",
+      firstName: clerkUser.firstName,
+      lastName: clerkUser.lastName,
+      imageUrl: clerkUser.imageUrl,
+      phone: phone?.trim() || clerkUser.phoneNumbers[0]?.phoneNumber,
+    },
+  });
+}
+
+/**
+ * Resolves a DB user by Clerk ID, merging pending invite placeholders by email when needed.
+ */
+export async function resolveOrMergeUserFromClerk(
+  clerkUserId: string,
+  phone?: string,
+) {
+  const existing = await tenantRepo.findUserByClerkId(clerkUserId);
+  if (existing) {
+    return existing;
+  }
+
+  const client = await clerkClient();
+  let clerkUser: ClerkUserSnapshot;
+  try {
+    clerkUser = await client.users.getUser(clerkUserId);
+  } catch {
+    return null;
+  }
+
+  const merged = await mergePendingUserWithClerkId(clerkUserId, clerkUser, phone);
+  if (merged) {
+    return merged;
+  }
+
+  try {
+    return await upsertDbUserFromClerk(clerkUserId, clerkUser, phone);
+  } catch {
+    const primaryEmail = getPrimaryEmail(clerkUser);
+    if (!primaryEmail) {
+      return null;
+    }
+
+    const byEmail = await tenantRepo.findUserByEmail(primaryEmail);
+    if (!byEmail) {
+      return null;
+    }
+
+    return prisma.user.update({
+      where: { id: byEmail.id },
+      data: {
+        clerkUserId,
+        status: "ACTIVE",
+        firstName: clerkUser.firstName,
+        lastName: clerkUser.lastName,
+        imageUrl: clerkUser.imageUrl,
+        phone: phone?.trim() || clerkUser.phoneNumbers[0]?.phoneNumber,
+      },
+    });
+  }
 }
 
 async function ensureCompanyForClerkOrg(
@@ -131,18 +229,17 @@ async function provisionFromClerkOrgMembership(
 }
 
 async function getClerkOrgMemberships(clerkUserId: string) {
-  const client = await clerkClient();
-  try {
-    return await client.users.getOrganizationMembershipList({
-      userId: clerkUserId,
-      limit: 10,
-    });
-  } catch (error) {
-    if (isClerkOrganizationsDisabled(error)) {
-      return { data: [], totalCount: 0 };
-    }
-    throw error;
-  }
+  return clerkMembershipService.getUserMemberships(clerkUserId);
+}
+
+async function getClerkMembershipInOrg(
+  clerkUserId: string,
+  clerkOrganizationId: string,
+): Promise<ClerkMembershipSnapshot | null> {
+  return clerkMembershipService.getMembershipInOrg(
+    clerkUserId,
+    clerkOrganizationId,
+  );
 }
 
 /**
@@ -164,12 +261,11 @@ export async function syncTenantFromClerk(clerkUserId: string) {
 
   let dbUser;
   try {
-    dbUser = await upsertDbUserFromClerk(
-      clerkUserId,
-      clerkUser,
-      metadata.phone,
-    );
+    dbUser = await resolveOrMergeUserFromClerk(clerkUserId, metadata.phone);
   } catch {
+    return null;
+  }
+  if (!dbUser) {
     return null;
   }
 
@@ -203,53 +299,112 @@ async function applyBranchAccessFromInvitation(
   }
 }
 
-async function ensureMembershipFromWebhook(
+export type ActivateMembershipMetadata = {
+  propnexRole?: UserRole;
+  branchAccessType?: BranchAccessType;
+  branchIds?: string[];
+  jobTitle?: string | null;
+  inviteName?: string;
+};
+
+async function resolveCompanyForClerkOrgActivation(
+  clerkOrganizationId: string,
+  userEmail: string,
+  userId: string,
+) {
+  const byOrgId = await tenantRepo.findCompanyByClerkOrgId(clerkOrganizationId);
+  if (byOrgId) {
+    return byOrgId;
+  }
+
+  const invitation = await prisma.invitation.findFirst({
+    where: {
+      clerkOrganizationId,
+      email: { equals: userEmail, mode: "insensitive" },
+      status: { in: ["PENDING", "ACCEPTED"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (invitation) {
+    const fromInvite = await prisma.company.findUnique({
+      where: { id: invitation.companyId },
+    });
+    if (fromInvite) {
+      return fromInvite;
+    }
+  }
+
+  const invitedMembership = await prisma.companyMember.findFirst({
+    where: { userId, status: "INVITED" },
+    include: { company: true },
+    orderBy: { invitedAt: "desc" },
+  });
+  return invitedMembership?.company ?? null;
+}
+
+export async function activateMembershipFromClerkOrg(
   clerkOrganizationId: string,
   clerkUserId: string,
   role: UserRole,
-  metadata?: {
-    propnexRole?: UserRole;
-    branchAccessType?: BranchAccessType;
-    branchIds?: string[];
-    jobTitle?: string | null;
-    inviteName?: string;
-  },
+  metadata?: ActivateMembershipMetadata,
+  targetCompanyId?: string,
 ) {
-  let company = await tenantRepo.findCompanyByClerkOrgId(clerkOrganizationId);
-  let user = await tenantRepo.findUserByClerkId(clerkUserId);
+  const user = await resolveOrMergeUserFromClerk(clerkUserId);
+  if (!user) {
+    return;
+  }
 
+  let company = targetCompanyId
+    ? await prisma.company.findUnique({ where: { id: targetCompanyId } })
+    : null;
+
+  if (!company) {
+    company = await resolveCompanyForClerkOrgActivation(
+      clerkOrganizationId,
+      user.email,
+      user.id,
+    );
+  }
   if (!company) {
     return;
   }
 
-  if (!user) {
-    const client = await clerkClient();
-    try {
-      const clerkUser = await client.users.getUser(clerkUserId);
-      user = await upsertDbUserFromClerk(clerkUserId, clerkUser);
-    } catch {
-      return;
-    }
+  if (company.clerkOrganizationId !== clerkOrganizationId) {
+    company = await prisma.company.update({
+      where: { id: company.id },
+      data: { clerkOrganizationId },
+    });
   }
 
   const resolvedRole = metadata?.propnexRole ?? role;
   let branchAccessType = metadata?.branchAccessType ?? "ALL";
   let branchIds = metadata?.branchIds ?? [];
+  let finalRole = resolvedRole;
 
-  if (!metadata?.branchAccessType) {
+  if (!metadata?.propnexRole || !metadata?.branchAccessType) {
     const pendingInvite = await prisma.invitation.findFirst({
       where: {
         companyId: company.id,
         email: { equals: user.email, mode: "insensitive" },
-        status: "PENDING",
+        status: { in: ["PENDING", "ACCEPTED"] },
       },
       orderBy: { createdAt: "desc" },
     });
     if (pendingInvite) {
-      branchAccessType = pendingInvite.branchAccessType;
-      branchIds = pendingInvite.branchIds;
+      if (!metadata?.propnexRole) {
+        finalRole = pendingInvite.role;
+      }
+      if (!metadata?.branchAccessType) {
+        branchAccessType = pendingInvite.branchAccessType;
+        branchIds = pendingInvite.branchIds;
+      }
     }
   }
+
+  const existingMembership = await prisma.companyMember.findFirst({
+    where: { companyId: company.id, userId: user.id },
+  });
+  const wasAlreadyActive = existingMembership?.status === "ACTIVE";
 
   const membership = await prisma.companyMember.upsert({
     where: {
@@ -258,14 +413,14 @@ async function ensureMembershipFromWebhook(
     create: {
       companyId: company.id,
       userId: user.id,
-      role: resolvedRole,
+      role: finalRole,
       status: "ACTIVE",
       jobTitle: metadata?.jobTitle ?? null,
       branchAccessType,
       joinedAt: new Date(),
     },
     update: {
-      role: resolvedRole,
+      role: finalRole,
       status: "ACTIVE",
       jobTitle: metadata?.jobTitle ?? undefined,
       branchAccessType,
@@ -279,17 +434,16 @@ async function ensureMembershipFromWebhook(
     branchIds,
   );
 
-  const email = user.email;
   await prisma.invitation.updateMany({
     where: {
       companyId: company.id,
-      email: { equals: email, mode: "insensitive" },
+      email: { equals: user.email, mode: "insensitive" },
       status: "PENDING",
     },
     data: { status: "ACCEPTED" },
   });
 
-  if (user.clerkUserId.startsWith("pending:")) {
+  if (isPendingClerkUserId(user.clerkUserId)) {
     await prisma.user.update({
       where: { id: user.id },
       data: { clerkUserId, status: "ACTIVE" },
@@ -297,6 +451,290 @@ async function ensureMembershipFromWebhook(
   }
 
   await ensureCreditBalance(company.id);
+
+  if (!wasAlreadyActive) {
+    await cacheService.invalidateClerkMembershipCaches(
+      clerkUserId,
+      clerkOrganizationId,
+    );
+  }
+}
+
+async function ensureMembershipFromWebhook(
+  clerkOrganizationId: string,
+  clerkUserId: string,
+  role: UserRole,
+  metadata?: ActivateMembershipMetadata,
+) {
+  await activateMembershipFromClerkOrg(
+    clerkOrganizationId,
+    clerkUserId,
+    role,
+    metadata,
+  );
+}
+
+async function tryActivateInvitedMembershipFromInvitation(
+  companyId: string,
+  clerkUserId: string,
+  user: User,
+  orgId?: string | null,
+): Promise<boolean> {
+  if (!clerkUserId.startsWith("user_")) {
+    return false;
+  }
+
+  const invitedMembership = await prisma.companyMember.findFirst({
+    where: { companyId, userId: user.id, status: "INVITED" },
+  });
+  if (!invitedMembership) {
+    return false;
+  }
+
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  const invitation = await prisma.invitation.findFirst({
+    where: {
+      companyId,
+      email: { equals: user.email, mode: "insensitive" },
+      status: { in: ["PENDING", "ACCEPTED"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!invitation) {
+    return false;
+  }
+
+  const clerkOrganizationId =
+    orgId ??
+    invitation.clerkOrganizationId ??
+    company?.clerkOrganizationId;
+  if (!clerkOrganizationId?.startsWith("org_")) {
+    return false;
+  }
+
+  await activateMembershipFromClerkOrg(
+    clerkOrganizationId,
+    clerkUserId,
+    invitation.role,
+    {
+      propnexRole: invitation.role,
+      branchAccessType: invitation.branchAccessType,
+      branchIds: invitation.branchIds,
+      jobTitle: invitation.jobTitle,
+    },
+    companyId,
+  );
+
+  const activated = await prisma.companyMember.findFirst({
+    where: { companyId, userId: user.id, status: "ACTIVE" },
+  });
+  return Boolean(activated);
+}
+
+async function activateInvitedMembershipForCompany(
+  companyId: string,
+  clerkUserId: string,
+  user: User,
+  orgId?: string | null,
+): Promise<boolean> {
+  const activeMembership = await prisma.companyMember.findFirst({
+    where: { companyId, userId: user.id, status: "ACTIVE" },
+  });
+  if (activeMembership) {
+    return true;
+  }
+
+  const invitedMembership = await prisma.companyMember.findFirst({
+    where: { companyId, userId: user.id, status: "INVITED" },
+  });
+  if (!invitedMembership) {
+    return false;
+  }
+
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  const invitation = await prisma.invitation.findFirst({
+    where: {
+      companyId,
+      email: { equals: user.email, mode: "insensitive" },
+      status: { in: ["PENDING", "ACCEPTED"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const clerkOrgIds = [
+    orgId,
+    company?.clerkOrganizationId,
+    invitation?.clerkOrganizationId,
+  ].filter((id): id is string => Boolean(id?.startsWith("org_")));
+  const uniqueClerkOrgIds = [...new Set(clerkOrgIds)];
+
+  for (const clerkOrganizationId of uniqueClerkOrgIds) {
+    const clerkMembership = await getClerkMembershipInOrg(
+      clerkUserId,
+      clerkOrganizationId,
+    );
+    if (!clerkMembership) {
+      continue;
+    }
+
+    const role = mapClerkRoleToUserRole(clerkMembership.role);
+    const publicMetadata = (clerkMembership.publicMetadata ??
+      {}) as ActivateMembershipMetadata;
+
+    await activateMembershipFromClerkOrg(
+      clerkOrganizationId,
+      clerkUserId,
+      role,
+      publicMetadata,
+      companyId,
+    );
+
+    const activated = await prisma.companyMember.findFirst({
+      where: { companyId, userId: user.id, status: "ACTIVE" },
+    });
+    if (activated) {
+      return true;
+    }
+  }
+
+  return tryActivateInvitedMembershipFromInvitation(
+    companyId,
+    clerkUserId,
+    user,
+    orgId,
+  );
+}
+
+async function reconcileInviteMembershipOnLoginInner(
+  clerkUserId: string,
+  orgId?: string | null,
+): Promise<void> {
+  const start = performance.now();
+  const user = await resolveOrMergeUserFromClerk(clerkUserId);
+  if (!user) {
+    return;
+  }
+
+  const invitedMembership = await prisma.companyMember.findFirst({
+    where: { userId: user.id, status: "INVITED" },
+  });
+  if (!invitedMembership) {
+    return;
+  }
+
+  const orgMemberships = await getClerkOrgMemberships(clerkUserId);
+  if (orgMemberships.data.length === 0) {
+    const invitedMemberships = await prisma.companyMember.findMany({
+      where: { userId: user.id, status: "INVITED" },
+      select: { companyId: true },
+    });
+    for (const invited of invitedMemberships) {
+      await activateInvitedMembershipForCompany(
+        invited.companyId,
+        clerkUserId,
+        user,
+        orgId,
+      );
+    }
+    recordReconciliationDuration(Math.round(performance.now() - start));
+    logResolutionEvent("clerk:reconcile:fallback", {
+      clerkUserId,
+      orgId,
+      invitedCount: invitedMemberships.length,
+    });
+    return;
+  }
+
+  const ordered = orgId
+    ? [
+        ...orgMemberships.data.filter(
+          (membership) => membership.organization.id === orgId,
+        ),
+        ...orgMemberships.data.filter(
+          (membership) => membership.organization.id !== orgId,
+        ),
+      ]
+    : orgMemberships.data;
+
+  for (const clerkMembership of ordered) {
+    const role = mapClerkRoleToUserRole(clerkMembership.role);
+    const publicMetadata = (clerkMembership.publicMetadata ??
+      {}) as ActivateMembershipMetadata;
+
+    await activateMembershipFromClerkOrg(
+      clerkMembership.organization.id,
+      clerkUserId,
+      role,
+      publicMetadata,
+    );
+  }
+
+  recordReconciliationDuration(Math.round(performance.now() - start));
+  logResolutionEvent("clerk:reconcile:done", {
+    clerkUserId,
+    orgId,
+    membershipCount: ordered.length,
+  });
+}
+
+/**
+ * Activates invited membership on login when webhooks are disabled or delayed.
+ */
+export async function reconcileInviteMembershipOnLogin(
+  clerkUserId: string,
+  orgId?: string | null,
+) {
+  const key = reconcileKey(clerkUserId, orgId);
+  const pending = pendingReconciles.get(key);
+  if (pending) {
+    return pending;
+  }
+
+  const promise = reconcileInviteMembershipOnLoginInner(clerkUserId, orgId);
+  pendingReconciles.set(key, promise);
+  try {
+    await promise;
+  } finally {
+    pendingReconciles.delete(key);
+  }
+}
+
+/**
+ * Ensures a user's membership for a specific company is ACTIVE, activating
+ * invited rows when Clerk confirms org membership.
+ */
+export async function ensureActiveCompanyMembership(
+  companyId: string,
+  clerkUserId: string,
+  orgId?: string | null,
+) {
+  const user = await resolveOrMergeUserFromClerk(clerkUserId);
+  if (!user) {
+    return;
+  }
+
+  const activeMembership = await prisma.companyMember.findFirst({
+    where: { companyId, userId: user.id, status: "ACTIVE" },
+  });
+  if (activeMembership) {
+    return;
+  }
+
+  await reconcileInviteMembershipOnLogin(clerkUserId, orgId);
+
+  const activeAfterReconcile = await prisma.companyMember.findFirst({
+    where: { companyId, userId: user.id, status: "ACTIVE" },
+  });
+  if (activeAfterReconcile) {
+    return;
+  }
+
+  await activateInvitedMembershipForCompany(
+    companyId,
+    clerkUserId,
+    user,
+    orgId,
+  );
 }
 
 export async function handleClerkWebhookEvent(
@@ -311,18 +749,9 @@ export async function handleClerkWebhookEvent(
     case "user.created":
     case "user.updated": {
       const clerkUserId = data.id as string;
-      const email =
-        (data.email_addresses as { email_address: string }[])?.[0]
-          ?.email_address ?? "";
-      if (!clerkUserId || !email) return;
+      if (!clerkUserId) return;
 
-      await tenantRepo.upsertUser({
-        clerkUserId,
-        email,
-        firstName: (data.first_name as string) ?? null,
-        lastName: (data.last_name as string) ?? null,
-        imageUrl: (data.image_url as string) ?? null,
-      });
+      await resolveOrMergeUserFromClerk(clerkUserId);
       break;
     }
 
@@ -387,6 +816,11 @@ export async function handleClerkWebhookEvent(
         where: { companyId: company.id, userId: user.id },
         data: { status: "REMOVED" },
       });
+
+      await cacheService.invalidateClerkMembershipCaches(
+        clerkUserId,
+        clerkOrganizationId,
+      );
       break;
     }
 

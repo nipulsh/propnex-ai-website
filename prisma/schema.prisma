@@ -149,6 +149,15 @@ enum AgentEnvironment {
   DEVELOPMENT
 }
 
+enum CommunicationChannelType {
+  WHATSAPP
+  WEB_CHAT
+  INSTAGRAM
+  FACEBOOK_MESSENGER
+  TELEGRAM
+  VOICE
+}
+
 enum AgentToolId {
   FAQ
   BILLING
@@ -366,6 +375,7 @@ model Company {
   dialerChannels       Channel[]
   dialerCalls          DialerCall[]
   branches             Branch[]
+  agentCommunicationChannels AgentCommunicationChannel[]
 
   @@index([status])
   @@index([clerkOrganizationId])
@@ -447,6 +457,8 @@ model Invitation {
   branchAccessType BranchAccessType @default(ALL)
   branchIds        String[]         @default([])
   token            String           @unique
+  clerkInvitationId String?
+  clerkOrganizationId String?
   status           InvitationStatus @default(PENDING)
   expiresAt        DateTime
   invitedById      String           @db.ObjectId
@@ -723,6 +735,7 @@ model AiAgent {
   libraryEntryId    String?          @db.ObjectId
   branchId          String?          @db.ObjectId
   name              String
+  description       String?
   type              AgentType
   category          String?
   status            AgentStatus      @default(ACTIVE)
@@ -753,14 +766,33 @@ model AiAgent {
   callLogs             CallLog[]
   campaigns            Campaign[]
   dialerLeads          Lead[]                @relation("DialerLeadAgent")
-  channels             Channel[]
-  dialerCalls          DialerCall[]
+  channels               Channel[]
+  dialerCalls            DialerCall[]
+  communicationChannels  AgentCommunicationChannel[]
 
   @@index([companyId, status])
   @@index([companyId, type])
   @@index([companyId, enabled, status])
   @@index([libraryEntryId])
   @@index([companyId, branchId])
+}
+
+model AgentCommunicationChannel {
+  id        String                   @id @default(auto()) @map("_id") @db.ObjectId
+  companyId String                   @db.ObjectId
+  aiAgentId String                   @db.ObjectId
+  type      CommunicationChannelType
+  enabled   Boolean                  @default(true)
+  settings  Json                     @default("{}")
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  aiAgent AiAgent @relation(fields: [aiAgentId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, type])
+  @@index([aiAgentId])
+  @@index([companyId])
 }
 
 model AgentPromptTemplate {

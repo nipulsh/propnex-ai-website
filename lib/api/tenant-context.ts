@@ -1,59 +1,26 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-import { isAppError } from "@/server/lib/errors";
 import { buildTenantContext } from "@/server/lib/tenant-context-builder";
-import prisma from "@/server/lib/prisma";
-import { TenantRepository } from "@/server/repositories/tenant.repository";
-import { syncTenantFromClerk } from "@/server/services/clerk-provision.service";
-import { tenantService } from "@/server/services/tenant.service";
+import { resolveAuthenticatedTenant } from "@/server/services/company-resolution.service";
+import type { Permission } from "@/lib/permissions";
+import {
+  ctxHasAllPermissions,
+  ctxHasAnyPermission,
+  ctxHasPermission,
+  type AccessContext,
+} from "@/lib/permissions-policy";
+import { ForbiddenError } from "@/server/lib/errors";
 import type { TenantContext } from "@/server/types/context";
-
-const tenantRepo = new TenantRepository(prisma);
 
 export async function resolveTenantContext(): Promise<TenantContext | null> {
   const { userId, orgId } = await auth();
   if (!userId) return null;
 
-  let company = null;
-  if (orgId) {
-    try {
-      company = await tenantService.resolveCompany(orgId);
-    } catch (error) {
-      if (!isAppError(error) || error.statusCode !== 404) {
-        throw error;
-      }
-    }
-  }
+  const tenant = await resolveAuthenticatedTenant(userId, orgId);
+  if (!tenant) return null;
 
-  if (!company) {
-    let user = await tenantRepo.findUserByClerkId(userId);
-    if (!user) {
-      user = await tenantService.ensureUserFromClerk(userId);
-    }
-
-    if (user) {
-      const membership = await prisma.companyMember.findFirst({
-        where: { userId: user.id, status: "ACTIVE" },
-        include: { company: true },
-        orderBy: { joinedAt: "desc" },
-      });
-      company = membership?.company ?? null;
-    }
-  }
-
-  if (!company) {
-    company = await syncTenantFromClerk(userId);
-  }
-
-  if (!company) return null;
-
-  const { user, membership } = await tenantService.resolveMembership(
-    company.id,
-    userId,
-  );
-
-  return buildTenantContext(userId, company.id, membership);
+  return buildTenantContext(userId, tenant.company.id, tenant.membership);
 }
 
 export async function requireTenantContext() {
@@ -65,4 +32,64 @@ export async function requireTenantContext() {
     };
   }
   return { error: null, ctx };
+}
+
+function tenantToAccess(ctx: TenantContext): AccessContext {
+  return {
+    membershipId: ctx.membershipId,
+    userId: ctx.userId,
+    role: ctx.role as AccessContext["role"],
+    permissions: ctx.permissions,
+    branchAccessType: ctx.branchAccess.type,
+    branchIds: ctx.branchAccess.branchIds,
+  };
+}
+
+export async function requireTenantPermission(permission: Permission) {
+  const result = await requireTenantContext();
+  if (result.error || !result.ctx) return result;
+
+  if (!ctxHasPermission(tenantToAccess(result.ctx), permission)) {
+    return {
+      error: NextResponse.json(
+        { error: `Missing permission: ${permission}` },
+        { status: 403 },
+      ),
+      ctx: null,
+    };
+  }
+
+  return result;
+}
+
+export async function requireTenantPermissions(
+  permissions: Permission[],
+  mode: "any" | "all" = "all",
+) {
+  const result = await requireTenantContext();
+  if (result.error || !result.ctx) return result;
+
+  const access = tenantToAccess(result.ctx);
+  const allowed =
+    mode === "any"
+      ? ctxHasAnyPermission(access, permissions)
+      : ctxHasAllPermissions(access, permissions);
+
+  if (!allowed) {
+    return {
+      error: NextResponse.json(
+        { error: "Missing required permissions" },
+        { status: 403 },
+      ),
+      ctx: null,
+    };
+  }
+
+  return result;
+}
+
+export function assertTenantPermission(ctx: TenantContext, permission: Permission) {
+  if (!ctxHasPermission(tenantToAccess(ctx), permission)) {
+    throw new ForbiddenError(`Missing permission: ${permission}`);
+  }
 }

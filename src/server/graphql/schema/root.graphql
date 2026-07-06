@@ -89,11 +89,14 @@ type PageInfo {
 
 type Viewer {
   id: ID!
+  membershipId: ID!
   email: String!
   firstName: String
   lastName: String
   role: UserRole!
   permissions: [String!]!
+  branchAccessType: BranchAccessType!
+  branchIds: [ID!]!
   company: Company!
 }
 

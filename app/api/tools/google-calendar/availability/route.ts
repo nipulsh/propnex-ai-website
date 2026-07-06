@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireAgentsRead,
+  requireAgentsWrite,
+} from "@/lib/integrations/api-guard";
 import { getCalendarConfigDb } from "@/lib/integrations/db-state";
 
 export async function POST() {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireAgentsWrite();
   if (error || !ctx) return error!;
 
   const config = await getCalendarConfigDb(ctx);

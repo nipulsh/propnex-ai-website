@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireIntegrationsRead,
+  requireIntegrationsWrite,
+} from "@/lib/integrations/api-guard";
 import {
   completeSheetsSyncDb,
   syncSheetsDataDb,
@@ -8,7 +11,7 @@ import {
 } from "@/lib/integrations/db-state";
 
 export async function POST() {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireIntegrationsWrite();
   if (error || !ctx) return error!;
 
   try {

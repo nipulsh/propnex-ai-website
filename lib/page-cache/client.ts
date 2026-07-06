@@ -1,3 +1,9 @@
+import {
+  AuthRequiredError,
+  markGraphQLAuthBlocked,
+  throwIfAuthBlocked,
+} from "@/lib/graphql/auth-error";
+
 export type PageCacheKey =
   | "home"
   | "billing"
@@ -30,6 +36,7 @@ export async function fetchCachedPage<T>(
   pageKey: PageCacheKey,
   params?: PageCacheParams,
 ): Promise<T> {
+  throwIfAuthBlocked();
   const searchParams = new URLSearchParams();
   if (params?.id) searchParams.set("id", params.id);
   if (params?.slug) searchParams.set("slug", params.slug);
@@ -46,6 +53,13 @@ export async function fetchCachedPage<T>(
     const body = (await response.json().catch(() => ({}))) as {
       error?: string;
     };
+    if (response.status === 401 || response.status === 403) {
+      markGraphQLAuthBlocked();
+      throw new AuthRequiredError(
+        body.error ?? "Organization context required",
+        response.status,
+      );
+    }
     throw new Error(body.error ?? `Failed to load ${pageKey}`);
   }
 

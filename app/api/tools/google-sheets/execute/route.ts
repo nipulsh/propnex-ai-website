@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireAgentsRead,
+  requireAgentsWrite,
+} from "@/lib/integrations/api-guard";
 import {
   appendSheetRowDb,
   readSheetRowDb,
@@ -9,7 +12,7 @@ import {
 import type { SheetRow } from "@/lib/integrations/types";
 
 export async function POST(req: Request) {
-  const { error, ctx } = await requireTenantContext();
+  const { error, ctx } = await requireAgentsWrite();
   if (error || !ctx) return error!;
 
   const body = (await req.json()) as {

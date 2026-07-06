@@ -7,9 +7,13 @@ export const CACHE_TTL = {
   PERMISSIONS: 30 * 60,
   AGENT_STATUS: 60,
   PAGE_CACHE: 30,
+  CLERK_MEMBERSHIPS: 45,
+  CLERK_ORG_MEMBERSHIPS: 45,
+  RESOLVED_COMPANY: 30,
 } as const;
 
 export const PAGE_CACHE_STALE_MS = 10_000;
+export const CLERK_MEMBERSHIPS_STALE_MS = 35_000;
 
 export type PageCacheKey =
   | "home"
@@ -40,7 +44,18 @@ function hashValue(value: unknown): string {
     .slice(0, 16);
 }
 
+export type ResolvedCompanyCache = {
+  companyId: string;
+  membershipId: string;
+  role: string;
+  cachedAt: number;
+};
+
 export const cacheKeys = {
+  clerkMemberships: (clerkUserId: string) =>
+    `clerk:memberships:${clerkUserId}`,
+  clerkOrgMemberships: (orgId: string) => `clerk:org-memberships:${orgId}`,
+  resolvedCompany: (clerkUserId: string) => `company:${clerkUserId}`,
   companyCredits: (companyId: string) => `company:${companyId}:credits`,
   companyTopCallLogs: (companyId: string) =>
     `company:${companyId}:top-call-logs`,

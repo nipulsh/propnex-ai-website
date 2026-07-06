@@ -40,6 +40,12 @@ export class TenantRepository extends BaseRepository {
     });
   }
 
+  findUserByEmail(email: string) {
+    return this.prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
+  }
+
   findMembership(companyId: string, userId: string) {
     return this.prisma.companyMember.findUnique({
       where: {

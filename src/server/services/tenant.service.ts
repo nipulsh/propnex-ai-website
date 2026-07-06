@@ -1,11 +1,11 @@
 import type { CallVolumeRange, PrimaryUseCase } from "@prisma/client";
-import { clerkClient } from "@clerk/nextjs/server";
 
 import { cacheService } from "@/server/cache/cache.service";
 import { CACHE_TTL, cacheKeys } from "@/server/cache/keys";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/server/lib/errors";
 import prisma from "@/server/lib/prisma";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
+import { resolveOrMergeUserFromClerk, ensureActiveCompanyMembership } from "@/server/services/clerk-provision.service";
 import type { TenantContext } from "@/server/types/context";
 import {
   getPermissionsForRole,
@@ -31,17 +31,34 @@ export class TenantService {
   }
 
   async resolveMembership(companyId: string, clerkUserId: string) {
-    const user = await this.repo.findUserByClerkId(clerkUserId);
+    const user = await this.ensureUserFromClerk(clerkUserId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
 
-    const membership = await this.repo.findMembership(companyId, user.id);
+    let membership = await this.repo.findMembership(companyId, user.id);
+    if (!membership || membership.status !== "ACTIVE") {
+      await ensureActiveCompanyMembership(companyId, clerkUserId);
+      membership = await this.repo.findMembership(companyId, user.id);
+    }
+
     if (!membership || membership.status !== "ACTIVE") {
       throw new ForbiddenError("Not a member of this organization");
     }
 
     return { user, membership };
+  }
+
+  async resolveMembershipFromRecord(
+    companyId: string,
+    clerkUserId: string,
+    membership: NonNullable<Awaited<ReturnType<TenantRepository["findMembership"]>>>,
+  ) {
+    if (membership.status !== "ACTIVE" || membership.companyId !== companyId) {
+      throw new ForbiddenError("Not a member of this organization");
+    }
+
+    return { user: membership.user, membership };
   }
 
   async getPermissions(
@@ -82,25 +99,7 @@ export class TenantService {
       return existing;
     }
 
-    const client = await clerkClient();
-    const clerkUser = await client.users.getUser(clerkUserId);
-    const primaryEmail =
-      clerkUser.emailAddresses.find(
-        (e) => e.id === clerkUser.primaryEmailAddressId,
-      )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
-
-    if (!primaryEmail) {
-      return null;
-    }
-
-    return this.repo.upsertUser({
-      clerkUserId,
-      email: primaryEmail,
-      firstName: clerkUser.firstName,
-      lastName: clerkUser.lastName,
-      imageUrl: clerkUser.imageUrl,
-      phone: clerkUser.phoneNumbers[0]?.phoneNumber,
-    });
+    return resolveOrMergeUserFromClerk(clerkUserId);
   }
 
   async syncCompanyFromClerk(data: {
@@ -131,11 +130,15 @@ export class TenantService {
 
     return {
       id: membership.user.id,
+      membershipId: membership.id,
       email: membership.user.email,
       firstName: membership.user.firstName,
       lastName: membership.user.lastName,
       role: membership.role,
       permissions: ctx.permissions,
+      branchAccessType: membership.branchAccessType,
+      branchIds:
+        ctx.branchAccess.type === "ALL" ? [] : ctx.branchAccess.branchIds,
       company: {
         id: membership.company.id,
         name: membership.company.name,

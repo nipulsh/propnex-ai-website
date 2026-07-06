@@ -51,3 +51,14 @@ export function mapUserRoleToClerkRole(role: string): string {
       return "org:member";
   }
 }
+
+/** Clerk invite roles — only built-in roles unless custom ones are configured in Clerk. */
+export function mapUserRoleToClerkInviteRole(role: string): string {
+  switch (role) {
+    case "OWNER":
+    case "ADMIN":
+      return "org:admin";
+    default:
+      return "org:member";
+  }
+}

@@ -10,7 +10,9 @@ import { DisableAgentDialog } from "@/components/agents/disable-agent-dialog";
 import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { useSideNotification } from "@/components/common/side-notification";
 import { Button } from "@/components/ui/button";
+import { usePermissions } from "@/hooks/use-permissions";
 import type { Agent } from "@/lib/agents-data";
+import { PERMISSIONS } from "@/lib/permissions";
 import { setAgentEnabledOnServer } from "@/hooks/use-agents-graphql";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/agents-store";
@@ -67,6 +69,8 @@ function LeadSummaryCard() {
 export function AgentCard({ agent }: AgentCardProps) {
   const router = useRouter();
   const { notify } = useSideNotification();
+  const { hasPermission } = usePermissions();
+  const canWrite = hasPermission(PERMISSIONS.AGENTS_WRITE);
   const upsertAgent = useAgentsStore((s) => s.upsertAgent);
   const [disableDialogOpen, setDisableDialogOpen] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
@@ -145,7 +149,9 @@ export function AgentCard({ agent }: AgentCardProps) {
               />
             </div>
 
-            <AgentToggle enabled={agent.enabled} onChange={handleToggle} />
+            {canWrite ? (
+              <AgentToggle enabled={agent.enabled} onChange={handleToggle} />
+            ) : null}
           </div>
 
           <div className="space-y-1">

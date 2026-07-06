@@ -1,4 +1,11 @@
-import { GraphQLClient } from "graphql-request";
+import { ClientError, GraphQLClient } from "graphql-request";
+
+import {
+  AuthRequiredError,
+  isUnauthorizedClientError,
+  markGraphQLAuthBlocked,
+  throwIfAuthBlocked,
+} from "@/lib/graphql/auth-error";
 
 const DEFAULT_FETCH_TIMEOUT_MS = 60_000;
 
@@ -49,5 +56,22 @@ export async function gqlRequest<T>(
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<T> {
-  return graphqlClient.request<T>(query, variables);
+  throwIfAuthBlocked();
+
+  try {
+    return await graphqlClient.request<T>(query, variables);
+  } catch (error) {
+    if (isUnauthorizedClientError(error)) {
+      markGraphQLAuthBlocked();
+      const status =
+        error instanceof ClientError ? error.response.status : 401;
+      const message =
+        error instanceof ClientError
+          ? (error.response.errors?.[0]?.message ??
+            "Organization context required")
+          : "Organization context required";
+      throw new AuthRequiredError(message, status);
+    }
+    throw error;
+  }
 }

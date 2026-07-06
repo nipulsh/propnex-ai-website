@@ -1,15 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
 
 import { gqlDebug, gqlDebugTimed, gqlLogError } from "@/server/graphql/debug";
-import { isAppError, UnauthorizedError } from "@/server/lib/errors";
+import { UnauthorizedError } from "@/server/lib/errors";
 import { buildTenantContext } from "@/server/lib/tenant-context-builder";
-import prisma from "@/server/lib/prisma";
-import { TenantRepository } from "@/server/repositories/tenant.repository";
-import { syncTenantFromClerk } from "@/server/services/clerk-provision.service";
-import { tenantService } from "@/server/services/tenant.service";
+import {
+  resolveAuthenticatedTenant,
+  type ResolutionCache,
+} from "@/server/services/company-resolution.service";
 import type { GraphQLContext } from "@/server/types/context";
-
-const tenantRepo = new TenantRepository(prisma);
 
 export async function createGraphQLContext(): Promise<GraphQLContext> {
   return gqlDebugTimed("context:total", async () => {
@@ -24,102 +22,44 @@ export async function createGraphQLContext(): Promise<GraphQLContext> {
       throw new UnauthorizedError();
     }
 
-    let company = null;
-    if (orgId) {
-      try {
-        company = await gqlDebugTimed("context:resolveCompany", () =>
-          tenantService.resolveCompany(orgId),
-        );
-        gqlDebug("context:resolveCompany", {
-          orgId,
-          companyFound: Boolean(company),
-        });
-      } catch (error) {
-        if (!isAppError(error) || error.statusCode !== 404) {
-          gqlLogError("context:resolveCompany:error", error, { orgId });
-          throw error;
-        }
-        gqlDebug("context:resolveCompany", {
-          orgId,
-          companyFound: false,
-          fallback: true,
-        });
-      }
-    }
+    const resolutionCache: ResolutionCache = {};
 
-    if (!company) {
-      let user = await gqlDebugTimed("context:findUser", () =>
-        tenantRepo.findUserByClerkId(userId),
-      );
-
-      if (!user) {
-        user = await gqlDebugTimed("context:syncUser", () =>
-          tenantService.ensureUserFromClerk(userId),
-        );
-      }
-
-      gqlDebug("context:fallbackMembership", { dbUserFound: Boolean(user) });
-
-      if (user) {
-        const membership = await gqlDebugTimed("context:membership", () =>
-          prisma.companyMember.findFirst({
-            where: { userId: user.id, status: "ACTIVE" },
-            include: { company: true },
-            orderBy: { joinedAt: "desc" },
-          }),
-        );
-        company = membership?.company ?? null;
-        gqlDebug("context:fallbackMembership", {
-          dbUserFound: true,
-          companyFound: Boolean(company),
-        });
-      }
-    }
-
-    if (!company) {
-      company = await gqlDebugTimed("context:syncTenant", () =>
-        syncTenantFromClerk(userId),
-      );
-      gqlDebug("context:syncTenant", { companyFound: Boolean(company) });
-    }
-
-    if (!company) {
-      gqlDebug("context:noCompany", { orgId, hasUserId: Boolean(userId) });
-      throw new UnauthorizedError("Organization context required");
-    }
-
-    let user;
-    let membership;
+    let tenant;
     try {
-      ({ user, membership } = await gqlDebugTimed(
-        "context:resolveMembership",
-        () => tenantService.resolveMembership(company.id, userId),
-      ));
+      tenant = await gqlDebugTimed("context:resolveTenant", () =>
+        resolveAuthenticatedTenant(userId, orgId, { resolutionCache }),
+      );
     } catch (error) {
-      gqlLogError("context:resolveMembership:error", error, {
-        companyId: company.id,
+      gqlLogError("context:resolveTenant:error", error, {
         clerkUserId: userId,
+        orgId,
       });
       throw error;
     }
 
-    const customPermissions = membership.customRole?.permissions ?? [];
-    const permissions = await gqlDebugTimed("context:permissions", () =>
-      tenantService.getPermissions(user.id, membership.role, customPermissions),
+    gqlDebug("context:resolveTenant", {
+      orgId,
+      companyFound: Boolean(tenant),
+    });
+
+    if (!tenant) {
+      gqlDebug("context:noCompany", { orgId, hasUserId: Boolean(userId) });
+      throw new UnauthorizedError("Organization context required");
+    }
+
+    const tenantContext = await gqlDebugTimed("context:buildTenant", () =>
+      buildTenantContext(userId, tenant.company.id, tenant.membership),
     );
 
-    const tenantContext = await buildTenantContext(userId, company.id, membership);
-
     gqlDebug("context:done", {
-      companyId: company.id,
-      userId: user.id,
-      role: membership.role,
+      companyId: tenant.company.id,
+      userId: tenant.user.id,
+      role: tenant.membership.role,
     });
 
     return {
       isAuthenticated: true,
       ...tenantContext,
-      permissions,
     };
   });
 }

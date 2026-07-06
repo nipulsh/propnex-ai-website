@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { requireTenantContext } from "@/lib/api/tenant-context";
+import {
+  requireAgentsRead,
+  requireAgentsWrite,
+} from "@/lib/integrations/api-guard";
 import {
   parseContactPhoneUpload,
   SERVER_PARSE_EXTENSIONS,

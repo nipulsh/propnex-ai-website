@@ -65,6 +65,7 @@ import {
   DEACTIVATE_EMPLOYEE_MUTATION,
   DELETE_EMPLOYEE_MUTATION,
   RESEND_EMPLOYEE_INVITE_MUTATION,
+  CANCEL_EMPLOYEE_INVITE_MUTATION,
   type EmployeesConnectionResult,
   type EmployeeDetailResult,
   type EmployeeNode,
@@ -420,6 +421,13 @@ export async function deleteEmployee(id: string) {
 export async function resendEmployeeInvite(id: string) {
   return gqlRequest<{ employees: { resendInvite: EmployeeNode } }>(
     RESEND_EMPLOYEE_INVITE_MUTATION,
+    { id },
+  );
+}
+
+export async function cancelEmployeeInvite(id: string) {
+  return gqlRequest<{ employees: { cancelInvite: boolean } }>(
+    CANCEL_EMPLOYEE_INVITE_MUTATION,
     { id },
   );
 }
