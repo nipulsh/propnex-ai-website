@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 
 import { PermissionsProvider } from "@/components/permissions/permissions-provider";
@@ -56,7 +56,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider className="h-screen overflow-hidden">
       <PermissionsProvider>
         <SideNotificationProvider>
-          <DashboardNotificationManager />
+          <Suspense fallback={null}>
+            <DashboardNotificationManager />
+          </Suspense>
           <ContractStatusProvider>
             <CreditsSync />
             <AppSidebar />

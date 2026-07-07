@@ -35,7 +35,7 @@ const ASSIGNABLE_BY_ROLE: Record<UserRole, UserRole[]> = {
 
 export function ctxHasPermission(ctx: AccessContext, permission: Permission) {
   if (ctx.branchAccessType === "SELECTED") {
-    const companyWidePermissions = [
+    const companyWidePermissions: Permission[] = [
       PERMISSIONS.BILLING_READ,
       PERMISSIONS.BILLING_WRITE,
       PERMISSIONS.INTEGRATIONS_READ,

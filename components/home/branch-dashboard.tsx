@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useHomeDashboardStore } from "@/stores/home-dashboard-store";
 import { fetchBranchDashboardPage } from "@/lib/graphql/api";
-import { formatCallDate, formatCallTime } from "@/lib/call-logs-data";
+import { formatCallDate, formatCallTime, getDateRangeStart } from "@/lib/call-logs-data";
 import { getPeriodLabel } from "@/lib/home-dashboard-data";
 import type { BranchDashboardResult } from "@/lib/graphql/queries/home";
 
@@ -39,8 +39,8 @@ export function BranchDashboard() {
     setError(false);
 
     // Compute dates based on dateRange option
-    const startMs = getDateRangeStartMs(dateRange);
-    const dateFrom = startMs ? new Date(startMs).toISOString() : undefined;
+    const startMs = getDateRangeStart(dateRange);
+    const dateFrom = new Date(startMs).toISOString();
     const dateTo = new Date().toISOString();
 
     fetchBranchDashboardPage(branchId, dateFrom, dateTo)
@@ -91,27 +91,6 @@ export function BranchDashboard() {
     const sec = s % 60;
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
-
-  function getDateRangeStartMs(option: typeof dateRange) {
-    const now = Date.now();
-    const day = 24 * 60 * 60 * 1000;
-    switch (option) {
-      case "today":
-        const start = new Date();
-        start.setUTCHours(0, 0, 0, 0);
-        return start.getTime();
-      case "yesterday":
-        const yesterday = new Date(now - day);
-        yesterday.setUTCHours(0, 0, 0, 0);
-        return yesterday.getTime();
-      case "last-7-days":
-        return now - 7 * day;
-      case "last-30-days":
-        return now - 30 * day;
-      default:
-        return null;
-    }
-  }
 
   if (isLoading) {
     return (

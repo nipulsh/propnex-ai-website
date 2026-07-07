@@ -315,7 +315,7 @@ export function EmployeeDetailPageContent({
                 className="flex items-center gap-2 rounded-md bg-propnex-bg px-3 py-2 text-sm"
               >
                 <span className="size-1.5 rounded-full bg-success" />
-                {PERMISSION_LABELS[perm] ?? perm}
+                {PERMISSION_LABELS[perm as keyof typeof PERMISSION_LABELS] ?? perm}
               </li>
             ))}
           </ul>
