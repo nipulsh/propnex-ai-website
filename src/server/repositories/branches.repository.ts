@@ -76,13 +76,40 @@ export class BranchesRepository extends BaseRepository {
     });
   }
 
+  findByIds(companyId: string, ids: string[]) {
+    if (ids.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.prisma.branch.findMany({
+      where: { companyId, id: { in: ids } },
+    });
+  }
+
+  findAllNames(companyId: string) {
+    return this.prisma.branch.findMany({
+      where: this.scope(companyId),
+      select: { id: true, name: true },
+    });
+  }
+
   async countRelations(companyId: string, branchId: string) {
-    const [contactsCount, callLogsCount, documentsCount] = await Promise.all([
-      this.prisma.lead.count({ where: { companyId, branchId } }),
-      this.prisma.callLog.count({ where: { companyId, branchId } }),
-      this.prisma.branchDocument.count({ where: { companyId, branchId } }),
-    ]);
-    return { contactsCount, callLogsCount, documentsCount };
+    const [contactsCount, callLogsCount, documentsCount, agentsCount] =
+      await Promise.all([
+        this.prisma.uploadedContact.count({
+          where: { companyId, branchIds: { has: branchId } },
+        }),
+        this.prisma.callLog.count({ where: { companyId, branchId } }),
+        this.prisma.branchDocument.count({ where: { companyId, branchId } }),
+        this.prisma.aiAgent.count({ where: { companyId, branchId } }),
+      ]);
+    return { contactsCount, callLogsCount, documentsCount, agentsCount };
+  }
+
+  findAgents(companyId: string, branchId: string) {
+    return this.prisma.aiAgent.findMany({
+      where: { companyId, branchId },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   create(companyId: string, data: Prisma.BranchCreateWithoutCompanyInput) {
@@ -120,8 +147,8 @@ export class BranchesRepository extends BaseRepository {
     after?: string,
   ) {
     const cursor = after ? decodeIdCursor(after) : undefined;
-    return this.prisma.lead.findMany({
-      where: { companyId, branchId },
+    return this.prisma.uploadedContact.findMany({
+      where: { companyId, branchIds: { has: branchId } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit,
       ...(cursor ? { cursor: { id: cursor.id }, skip: 1 } : {}),
@@ -139,6 +166,9 @@ export class BranchesRepository extends BaseRepository {
       where: { companyId, branchId },
       orderBy: [{ startedAt: "desc" }, { id: "desc" }],
       take: limit,
+      include: {
+        lead: { select: { firstName: true, lastName: true, phone: true } },
+      },
       ...(cursor ? { cursor: { id: cursor.id }, skip: 1 } : {}),
     });
   }

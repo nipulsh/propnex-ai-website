@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 type ContactPhonesTableProps = {
   contacts: ContactPhone[];
   onDelete: (contact: ContactPhone) => void;
+  emptyMessage?: string;
 };
 
 function displayValue(value: string | null): string {
@@ -20,6 +21,7 @@ function displayValue(value: string | null): string {
 export function ContactPhonesTable({
   contacts,
   onDelete,
+  emptyMessage = "No phone numbers yet. Add a number or upload a CSV to get started.",
 }: ContactPhonesTableProps) {
   const selectedIds = useContactPhonesStore((s) => s.selectedIds);
   const toggleSelect = useContactPhonesStore((s) => s.toggleSelect);
@@ -55,6 +57,7 @@ export function ContactPhonesTable({
             <th className="px-5 py-3 font-medium">Email</th>
             <th className="px-5 py-3 font-medium">Address</th>
             <th className="px-5 py-3 font-medium">Mobile Number</th>
+            <th className="px-5 py-3 font-medium">Branches</th>
             <th className="px-5 py-3 font-medium text-right">Actions</th>
           </tr>
         </thead>
@@ -62,11 +65,10 @@ export function ContactPhonesTable({
           {contacts.length === 0 ? (
             <tr>
               <td
-                colSpan={6}
+                colSpan={7}
                 className="px-5 py-8 text-center text-propnex-muted"
               >
-                No phone numbers yet. Add a number or upload a CSV to get
-                started.
+                {emptyMessage}
               </td>
             </tr>
           ) : (
@@ -100,6 +102,22 @@ export function ContactPhonesTable({
                   </td>
                   <td className="px-5 py-3 align-top font-mono font-medium text-foreground">
                     {formatPhoneDisplay(contact.phone)}
+                  </td>
+                  <td className="px-5 py-3 align-top">
+                    {contact.branches.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {contact.branches.map((branch) => (
+                          <span
+                            key={branch.id}
+                            className="rounded-md border border-propnex-border bg-propnex-bg px-1.5 py-0.5 text-xs text-foreground"
+                          >
+                            {branch.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-propnex-muted">—</span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-right align-top">
                     <Button

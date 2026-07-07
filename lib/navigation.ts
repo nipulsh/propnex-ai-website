@@ -98,6 +98,11 @@ const NAV_BACK_ROUTES: { pattern: RegExp; href: string; label: string }[] = [
     label: "Back to Library",
   },
   {
+    pattern: /^\/agents\/library\/[^/]+$/,
+    href: "/agents/library",
+    label: "Back to Library",
+  },
+  {
     pattern: /^\/agents\/library$/,
     href: "/agents",
     label: "Back to Agents",

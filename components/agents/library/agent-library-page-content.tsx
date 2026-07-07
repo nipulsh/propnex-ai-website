@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Crown, Search } from "lucide-react";
+import { Crown, Loader2, Search } from "lucide-react";
 
 import { LibraryTemplateCard } from "@/components/agents/library/library-template-card";
 import { TemplatePreviewDialog } from "@/components/agents/library/template-preview-dialog";
@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 export function AgentLibraryPageContent() {
   const router = useRouter();
-  const { templates, error } = useAgentLibraryGraphQL();
+  const { templates, isLoading, error } = useAgentLibraryGraphQL();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [previewTemplate, setPreviewTemplate] =
@@ -87,7 +87,11 @@ export function AgentLibraryPageContent() {
         </div>
       </div>
 
-      {error ? (
+      {isLoading ? (
+        <div className="flex min-h-[320px] items-center justify-center py-16">
+          <Loader2 className="size-5 animate-spin text-propnex-muted" />
+        </div>
+      ) : error ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-propnex-border bg-propnex-panel/50 px-6 py-16 text-center">
           <p className="text-sm text-destructive">{error}</p>
         </div>

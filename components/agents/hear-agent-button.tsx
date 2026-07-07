@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,18 @@ export function HearAgentButton({ agent, className }: HearAgentButtonProps) {
       window.speechSynthesis.speak(utterance);
     }
   }, [agent.demoAudioUrl, agent.firstMessage, isPlaying, stopPlayback]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
+      window.speechSynthesis?.cancel();
+      releaseAgentPlayback(stopPlayback);
+    };
+  }, [stopPlayback]);
 
   return (
     <Button

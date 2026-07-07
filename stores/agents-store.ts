@@ -27,6 +27,7 @@ type AgentsStore = {
   statusFilter: AgentStatusFilter;
   categoryFilter: AgentCategoryFilter;
   typeFilter: AgentTypeFilter;
+  branchFilter: string;
   showFilters: boolean;
   currentPage: number;
   setAgents: (agents: Agent[]) => void;
@@ -37,6 +38,7 @@ type AgentsStore = {
   setStatusFilter: (value: AgentStatusFilter) => void;
   setCategoryFilter: (value: AgentCategoryFilter) => void;
   setTypeFilter: (value: AgentTypeFilter) => void;
+  setBranchFilter: (value: string) => void;
   toggleFilters: () => void;
   setPage: (page: number) => void;
   setAgentEnabled: (id: string, enabled: boolean) => void;
@@ -57,6 +59,7 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
   statusFilter: "all",
   categoryFilter: "all",
   typeFilter: "all",
+  branchFilter: "all",
   showFilters: false,
   currentPage: 1,
 
@@ -78,6 +81,7 @@ export const useAgentsStore = create<AgentsStore>((set, get) => ({
   setCategoryFilter: (value) =>
     set({ categoryFilter: value, currentPage: 1 }),
   setTypeFilter: (value) => set({ typeFilter: value, currentPage: 1 }),
+  setBranchFilter: (value) => set({ branchFilter: value, currentPage: 1 }),
   toggleFilters: () => set((s) => ({ showFilters: !s.showFilters })),
   setPage: (page) => set({ currentPage: Math.max(1, page) }),
 

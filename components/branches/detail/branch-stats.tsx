@@ -1,12 +1,12 @@
 "use client";
 
-import { FileText, PhoneCall, Users } from "lucide-react";
+import { Bot, FileText, PhoneCall, Users } from "lucide-react";
 
 import { StatCard } from "@/components/call-details/stat-card";
 import type { BranchNode } from "@/lib/graphql/queries";
 import { cn } from "@/lib/utils";
 
-type TabKey = "contacts" | "call-logs" | "documents" | "activity";
+type TabKey = "contacts" | "call-logs" | "documents" | "activity" | "agents";
 
 type BranchStatsProps = {
   branch: BranchNode;
@@ -38,10 +38,16 @@ export function BranchStats({ branch, onTabSelect }: BranchStatsProps) {
       icon: FileText,
       tab: "documents",
     },
+    {
+      title: "Agents",
+      value: branch.agentsCount.toLocaleString(),
+      icon: Bot,
+      tab: "agents",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
         <button
           key={card.title}

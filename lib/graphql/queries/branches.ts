@@ -39,6 +39,7 @@ export type BranchNode = {
   contactsCount: number;
   callLogsCount: number;
   documentsCount: number;
+  agentsCount: number;
   lastActivityAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -60,7 +61,6 @@ export type BranchContactNode = {
   lastName: string | null;
   email: string | null;
   phone: string | null;
-  temperature: string | null;
   createdAt: string | null;
 };
 
@@ -70,6 +70,8 @@ export type BranchCallLogNode = {
   status: string;
   durationSeconds: number;
   startedAt: string;
+  leadPhone: string | null;
+  leadName: string | null;
 };
 
 export type BranchDocumentNode = {
@@ -87,6 +89,21 @@ export type BranchActivityNode = {
   summary: string;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+};
+
+export type BranchAgentNode = {
+  id: string;
+  name: string;
+  type: string;
+  category: string | null;
+  status: string;
+  environment: string;
+  enabled: boolean;
+  demoAudioUrl: string | null;
+  branchId: string | null;
+  systemPrompt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type BranchDetailResult = {
@@ -111,6 +128,7 @@ const BRANCH_FIELDS = `
   contactsCount
   callLogsCount
   documentsCount
+  agentsCount
   lastActivityAt
   createdAt
   updatedAt
@@ -158,7 +176,6 @@ export const BRANCH_CONTACTS_QUERY = `
         lastName
         email
         phone
-        temperature
         createdAt
       }
     }
@@ -174,6 +191,8 @@ export const BRANCH_CALL_LOGS_QUERY = `
         status
         durationSeconds
         startedAt
+        leadPhone
+        leadName
       }
     }
   }
@@ -189,6 +208,27 @@ export const BRANCH_DOCUMENTS_QUERY = `
         mimeType
         sizeBytes
         createdAt
+      }
+    }
+  }
+`;
+
+export const BRANCH_AGENTS_QUERY = `
+  query BranchAgents($branchId: ID!) {
+    branches {
+      agents(branchId: $branchId) {
+        id
+        name
+        type
+        category
+        status
+        environment
+        enabled
+        demoAudioUrl
+        branchId
+        systemPrompt
+        createdAt
+        updatedAt
       }
     }
   }

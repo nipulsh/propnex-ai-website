@@ -12,6 +12,7 @@ import { useCachedPagePoll } from "@/hooks/use-cached-page-poll";
 
 export function useAgentLibraryGraphQL() {
   const [templates, setTemplates] = useState<AgentLibraryTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const applyPageData = useCallback((data: AgentLibraryListResult) => {
@@ -30,9 +31,10 @@ export function useAgentLibraryGraphQL() {
     fetchPage,
     onData: applyPageData,
     onError: (message) => setError(message),
+    onLoading: setIsLoading,
   });
 
-  return { templates, error, reload };
+  return { templates, isLoading, error, reload };
 }
 
 export function useAgentLibraryTemplate(slug: string) {

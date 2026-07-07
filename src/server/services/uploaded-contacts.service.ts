@@ -1,6 +1,7 @@
 import { AppError, NotFoundError } from "@/server/lib/errors";
 import { cacheService } from "@/server/cache/cache.service";
 import prisma from "@/server/lib/prisma";
+import { BranchesRepository } from "@/server/repositories/branches.repository";
 import {
   UploadedContactsRepository,
   type UploadedContactCreateInput,
@@ -17,6 +18,7 @@ function mapUploadedContact(row: {
   name: string | null;
   email: string | null;
   address: string | null;
+  branchIds: string[];
   createdAt: Date;
 }) {
   return {
@@ -25,13 +27,18 @@ function mapUploadedContact(row: {
     name: row.name,
     email: row.email,
     address: row.address,
+    branchIds: row.branchIds,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
+type ImportedContactRow = UploadedContactCreateInput & {
+  branchNames?: string[];
+};
+
 function normalizeImportedContact(
-  contact: UploadedContactCreateInput,
-): UploadedContactCreateInput | null {
+  contact: ImportedContactRow,
+): (UploadedContactCreateInput & { branchNames: string[] }) | null {
   const normalized = normalizeStoredContactPhone(contact.phone);
   if (!normalized) {
     return null;
@@ -42,11 +49,15 @@ function normalizeImportedContact(
     name: contact.name?.trim() || null,
     email: contact.email?.trim() || null,
     address: contact.address?.trim() || null,
+    branchNames: (contact.branchNames ?? [])
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0),
   };
 }
 
 export class UploadedContactsService {
   private readonly repo = new UploadedContactsRepository(prisma);
+  private readonly branchesRepo = new BranchesRepository(prisma);
 
   async list(ctx: TenantContext) {
     tenantService.requirePermission(ctx, PERMISSIONS.LEADS_READ);
@@ -75,13 +86,12 @@ export class UploadedContactsService {
     return mapUploadedContact(row);
   }
 
-  async importContacts(
-    ctx: TenantContext,
-    contacts: UploadedContactCreateInput[],
-  ) {
+  async importContacts(ctx: TenantContext, contacts: ImportedContactRow[]) {
     tenantService.requirePermission(ctx, PERMISSIONS.LEADS_WRITE);
 
-    const validContacts: UploadedContactCreateInput[] = [];
+    const normalizedRows: Array<
+      UploadedContactCreateInput & { branchNames: string[] }
+    > = [];
     let invalid = 0;
     const seen = new Set<string>();
 
@@ -95,8 +105,35 @@ export class UploadedContactsService {
         continue;
       }
       seen.add(normalized.phone);
-      validContacts.push(normalized);
+      normalizedRows.push(normalized);
     }
+
+    const branches = await this.branchesRepo.findAllNames(ctx.companyId);
+    const branchByName = new Map(
+      branches.map((branch) => [branch.name.trim().toLowerCase(), branch.id]),
+    );
+    const unmatchedBranches = new Set<string>();
+
+    const validContacts: UploadedContactCreateInput[] = normalizedRows.map(
+      (row) => {
+        const branchIds: string[] = [];
+        for (const name of row.branchNames) {
+          const branchId = branchByName.get(name.toLowerCase());
+          if (branchId) {
+            branchIds.push(branchId);
+          } else {
+            unmatchedBranches.add(name);
+          }
+        }
+        return {
+          phone: row.phone,
+          name: row.name,
+          email: row.email,
+          address: row.address,
+          branchIds: [...new Set(branchIds)],
+        };
+      },
+    );
 
     const { created, skipped } = await this.repo.createMany(
       ctx.companyId,
@@ -107,7 +144,12 @@ export class UploadedContactsService {
       await cacheService.invalidateUploadedContactPages(ctx.companyId);
     }
 
-    return { created, skipped, invalid };
+    return {
+      created,
+      skipped,
+      invalid,
+      unmatchedBranches: [...unmatchedBranches],
+    };
   }
 
   async delete(ctx: TenantContext, id: string) {

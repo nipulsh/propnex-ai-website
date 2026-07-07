@@ -75,6 +75,7 @@ export function parsePhonesFromText(
       name: null,
       email: null,
       address: null,
+      branchNames: [],
     });
   }
 

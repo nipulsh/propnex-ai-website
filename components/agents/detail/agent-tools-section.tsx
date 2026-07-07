@@ -18,8 +18,12 @@ type AgentToolsSectionProps = {
   agent: Agent;
 };
 
+const EMPTY_TOOLS: AgentToolAssignment[] = [];
+
 export function AgentToolsSection({ agent }: AgentToolsSectionProps) {
-  const tools = useAgentToolsStore((s) => s.toolsByAgent[agent.id] ?? []);
+  const tools = useAgentToolsStore(
+    (s) => s.toolsByAgent[agent.id] ?? EMPTY_TOOLS,
+  );
   const isLoading = useAgentToolsStore((s) => s.isLoading);
   const isSaving = useAgentToolsStore((s) => s.isSaving);
   const isTesting = useAgentToolsStore((s) => s.isTesting);

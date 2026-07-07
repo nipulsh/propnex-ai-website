@@ -46,6 +46,7 @@ type AiAgent {
   scorecards: JSON
   monitors: JSON
   demoAudioUrl: String
+  branchId: ID
   createdAt: String!
   updatedAt: String!
 }
@@ -67,6 +68,7 @@ input CreateAgentInput {
   monitors: JSON
   demoAudioUrl: String
   libraryEntryId: ID
+  branchId: ID
 }
 
 input UpdateAgentInput {
@@ -87,6 +89,7 @@ input UpdateAgentInput {
   scorecards: JSON
   monitors: JSON
   demoAudioUrl: String
+  branchId: ID
 }
 
 type AgentsMutations {
@@ -142,6 +145,8 @@ type UploadedContact {
   name: String
   email: String
   address: String
+  branchIds: [ID!]!
+  branches: [Branch!]!
   createdAt: String!
 }
 
@@ -150,6 +155,7 @@ input ImportedContactInput {
   name: String
   email: String
   address: String
+  branchNames: [String!]
 }
 
 type UploadedContactsQueries {
@@ -160,6 +166,7 @@ type UploadedContactImportResult {
   created: Int!
   skipped: Int!
   invalid: Int!
+  unmatchedBranches: [String!]!
 }
 
 type UploadedContactsMutations {

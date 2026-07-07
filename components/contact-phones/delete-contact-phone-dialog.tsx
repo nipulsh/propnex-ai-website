@@ -35,8 +35,13 @@ export function DeleteContactPhoneDialog({
     onConfirm();
   }
 
+  function handleOpenChange(next: boolean) {
+    if (isDeleting) return;
+    onOpenChange(next);
+  }
+
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/50 supports-backdrop-filter:backdrop-blur-xs" />
         <DialogPrimitive.Popup className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-propnex-border bg-propnex-panel p-6 shadow-lg">
@@ -55,7 +60,8 @@ export function DeleteContactPhoneDialog({
               </div>
             </div>
             <DialogPrimitive.Close
-              className="rounded-lg p-1 text-propnex-muted transition-colors hover:bg-propnex-bg hover:text-foreground"
+              disabled={isDeleting}
+              className="rounded-lg p-1 text-propnex-muted transition-colors hover:bg-propnex-bg hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
               aria-label="Close"
             >
               <XIcon className="size-4" />
@@ -66,7 +72,7 @@ export function DeleteContactPhoneDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={isDeleting}
               className="h-11 flex-1 border-propnex-border bg-propnex-bg"
             >

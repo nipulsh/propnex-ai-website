@@ -242,6 +242,7 @@ export const resolvers = {
           name?: string | null;
           email?: string | null;
           address?: string | null;
+          branchNames?: string[];
         }>;
       },
       ctx: TenantContext,
@@ -366,6 +367,11 @@ export const resolvers = {
       args: { branchId: string; limit?: number },
       ctx: TenantContext,
     ) => branchesService.getActivities(ctx, args.branchId, args.limit),
+    agents: (
+      _: unknown,
+      args: { branchId: string },
+      ctx: TenantContext,
+    ) => branchesService.getAgents(ctx, args.branchId),
   },
 
   BranchesMutations: {
@@ -427,6 +433,17 @@ export const resolvers = {
       employeesService.resendInvite(ctx, args.id),
     cancelInvite: (_: unknown, args: { id: string }, ctx: TenantContext) =>
       employeesService.cancelInvite(ctx, args.id),
+  },
+
+  UploadedContact: {
+    branches: (
+      parent: { branchIds?: string[] | null },
+      _: unknown,
+      ctx: TenantContext,
+    ) =>
+      Promise.all(
+        (parent.branchIds ?? []).map((id) => ctx.loaders.branch.load(id)),
+      ).then((branches) => branches.filter((branch) => branch !== null)),
   },
 
   CallLog: {

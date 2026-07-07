@@ -3,12 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bot } from "lucide-react";
+import { Bot, Settings2 } from "lucide-react";
 
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { DisableAgentDialog } from "@/components/agents/disable-agent-dialog";
 import { HearAgentButton } from "@/components/agents/hear-agent-button";
 import { useSideNotification } from "@/components/common/side-notification";
+import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
 import type { Agent } from "@/lib/agents-data";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -95,8 +96,7 @@ export function AgentCard({ agent }: AgentCardProps) {
     } catch (err) {
       notify({
         type: "error",
-        message:
-          err instanceof Error ? err.message : "Unable to update agent.",
+        message: err instanceof Error ? err.message : "Unable to update agent.",
       });
     } finally {
       setIsToggling(false);
@@ -173,8 +173,18 @@ export function AgentCard({ agent }: AgentCardProps) {
 
           <LeadSummaryCard />
 
-          <div onClick={(e) => e.stopPropagation()}>
-            <HearAgentButton agent={agent} className="w-full" />
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+            <HearAgentButton agent={agent} className="flex-1" />
+            <Button
+              nativeButton={false}
+              render={<Link href={`/agents/${agent.id}`} />}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-propnex-border bg-propnex-panel text-xs"
+            >
+              <Settings2 className="size-3.5" />
+              Configure
+            </Button>
           </div>
         </div>
       </article>
