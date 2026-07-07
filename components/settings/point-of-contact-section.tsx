@@ -170,10 +170,13 @@ export function PointOfContactSection() {
             id="poc-email"
             type="email"
             value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            disabled={!canEdit || isSaving}
+            readOnly
+            disabled
             placeholder="contact@company.com"
           />
+          <p className="text-xs text-propnex-muted">
+            Set when you linked your Contract ID and cannot be changed.
+          </p>
         </div>
         <div className="space-y-2">
           <label htmlFor="poc-phone" className="text-xs text-propnex-muted">

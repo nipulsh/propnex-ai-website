@@ -8,9 +8,7 @@ import { normalizeContractId } from "@/server/lib/contract-id";
 import {
   AppError,
   ConflictError,
-  ForbiddenError,
   NotFoundError,
-  ValidationError,
 } from "@/server/lib/errors";
 import prisma from "@/server/lib/prisma";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
@@ -143,19 +141,6 @@ export class ContractService {
       throw new AppError("User email is required", "INVALID_USER", 400);
     }
 
-    const designatedOwnerEmail = company.contact?.email?.trim();
-    if (!designatedOwnerEmail) {
-      throw new ValidationError(
-        "This company has no designated owner email. Contact PropNex support.",
-      );
-    }
-
-    if (primaryEmail.toLowerCase() !== designatedOwnerEmail.toLowerCase()) {
-      throw new ForbiddenError(
-        "This Contract ID can only be linked by the designated owner email.",
-      );
-    }
-
     const ownerDisplayName = [clerkUser.firstName, clerkUser.lastName]
       .filter(Boolean)
       .join(" ")
@@ -244,7 +229,7 @@ export class ContractService {
         where: { companyId: company.id },
         create: {
           companyId: company.id,
-          name: ownerDisplayName || designatedOwnerEmail.split("@")[0] || "Owner",
+          name: ownerDisplayName || primaryEmail.split("@")[0] || "Owner",
           email: primaryEmail.toLowerCase(),
           phone: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
         },
