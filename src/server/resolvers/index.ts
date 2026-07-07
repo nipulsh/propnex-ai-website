@@ -446,6 +446,17 @@ export const resolvers = {
       ).then((branches) => branches.filter((branch) => branch !== null)),
   },
 
+  UploadedContact: {
+    branches: (
+      parent: { branchIds?: string[] | null },
+      _: unknown,
+      ctx: TenantContext,
+    ) =>
+      Promise.all(
+        (parent.branchIds ?? []).map((id) => ctx.loaders.branch.load(id)),
+      ).then((branches) => branches.filter((branch) => branch !== null)),
+  },
+
   CallLog: {
     lead: (parent: { leadId?: string | null }, _: unknown, ctx: TenantContext) =>
       parent.leadId ? ctx.loaders.lead.load(parent.leadId) : null,
