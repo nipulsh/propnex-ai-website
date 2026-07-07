@@ -40,6 +40,9 @@ export class IntegrationsService {
   private readonly repo = new IntegrationsRepository(prisma);
 
   async list(ctx: TenantContext) {
+    if (ctx.branchAccess.type === "SELECTED") {
+      return [];
+    }
     tenantService.requirePermission(ctx, PERMISSIONS.INTEGRATIONS_READ);
     return this.repo.findAll(ctx.companyId);
   }

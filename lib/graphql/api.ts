@@ -49,6 +49,9 @@ import {
   UPDATE_BRANCH_AI_MUTATION,
   BULK_UPDATE_BRANCHES_MUTATION,
   ARCHIVE_BRANCH_MUTATION,
+  RESEND_BRANCH_INVITATION_MUTATION,
+  CANCEL_BRANCH_INVITATION_MUTATION,
+  GENERATE_NEW_BRANCH_INVITATION_MUTATION,
   type BranchesConnectionResult,
   type BranchDetailResult,
   type BranchContactNode,
@@ -437,3 +440,38 @@ export const fetchHomeDashboard = fetchHomePage;
 
 /** @deprecated Use fetchAgentsList */
 export const fetchAgentsPage = fetchAgentsList;
+
+export async function resendBranchInvitation(branchId: string) {
+  return gqlRequest<{ branches: { resendInvitation: BranchNode } }>(
+    RESEND_BRANCH_INVITATION_MUTATION,
+    { branchId },
+  );
+}
+
+export async function cancelBranchInvitation(branchId: string) {
+  return gqlRequest<{ branches: { cancelInvitation: BranchNode } }>(
+    CANCEL_BRANCH_INVITATION_MUTATION,
+    { branchId },
+  );
+}
+
+export async function generateNewBranchInvitation(branchId: string) {
+  return gqlRequest<{ branches: { generateNewInvitation: BranchNode } }>(
+    GENERATE_NEW_BRANCH_INVITATION_MUTATION,
+    { branchId },
+  );
+}
+
+import { BRANCH_DASHBOARD_QUERY, type BranchDashboardResult } from "./queries/home";
+
+export async function fetchBranchDashboardPage(
+  branchId: string,
+  dateFrom?: string,
+  dateTo?: string,
+) {
+  return gqlRequest<BranchDashboardResult>(BRANCH_DASHBOARD_QUERY, {
+    branchId,
+    dateFrom,
+    dateTo,
+  });
+}

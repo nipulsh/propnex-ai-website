@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCallDetailStore } from "@/stores/call-detail-store";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/use-permissions";
 
 type QuickActionsPanelProps = {
   className?: string;
@@ -32,10 +33,15 @@ export function QuickActionsPanel({
   className,
   variant = "sidebar",
 }: QuickActionsPanelProps) {
+  const { role, branchAccessType, isLoading } = usePermissions();
+  const isBranchAdmin = !isLoading && role === "ADMIN" && branchAccessType === "SELECTED";
+
   const setOutcome = useCallDetailStore((s) => s.setOutcome);
   const setReactivationEnabled = useCallDetailStore(
     (s) => s.setReactivationEnabled,
   );
+
+  if (isBranchAdmin) return null;
 
   const handleAction = (id: (typeof actions)[number]["id"]) => {
     switch (id) {

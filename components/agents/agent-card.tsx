@@ -96,8 +96,7 @@ export function AgentCard({ agent }: AgentCardProps) {
     } catch (err) {
       notify({
         type: "error",
-        message:
-          err instanceof Error ? err.message : "Unable to update agent.",
+        message: err instanceof Error ? err.message : "Unable to update agent.",
       });
     } finally {
       setIsToggling(false);
@@ -174,10 +173,7 @@ export function AgentCard({ agent }: AgentCardProps) {
 
           <LeadSummaryCard />
 
-          <div
-            className="flex gap-2"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             <HearAgentButton agent={agent} className="flex-1" />
             <Button
               nativeButton={false}

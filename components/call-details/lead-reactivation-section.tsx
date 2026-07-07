@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { REACTIVATION_CAMPAIGNS } from "@/lib/call-detail-data";
 import { useCallDetailStore } from "@/stores/call-detail-store";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const TIMELINE_OPTIONS = [
   { value: "3-days", label: "3 Days" },
@@ -17,6 +18,9 @@ const TIMELINE_OPTIONS = [
 ];
 
 export function LeadReactivationSection() {
+  const { role, branchAccessType, isLoading } = usePermissions();
+  const isBranchAdmin = !isLoading && role === "ADMIN" && branchAccessType === "SELECTED";
+
   const reactivation = useCallDetailStore((s) => s.reactivation);
   const setReactivationEnabled = useCallDetailStore(
     (s) => s.setReactivationEnabled,
@@ -30,6 +34,8 @@ export function LeadReactivationSection() {
   const setReactivationNotes = useCallDetailStore(
     (s) => s.setReactivationNotes,
   );
+
+  if (isBranchAdmin) return null;
 
   return (
     <DetailSection

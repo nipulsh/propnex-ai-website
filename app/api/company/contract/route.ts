@@ -21,7 +21,13 @@ export async function GET() {
       const invitedMembership = await prisma.companyMember.findFirst({
         where: { userId: dbUser.id, status: "INVITED" },
       });
-      if (invitedMembership) {
+      const pendingBranchInvite = await prisma.branchInvitation.findFirst({
+        where: {
+          email: { equals: dbUser.email, mode: "insensitive" },
+          status: "PENDING",
+        },
+      });
+      if (invitedMembership || pendingBranchInvite) {
         await reconcileInviteMembershipOnLogin(userId, orgId);
       }
     }

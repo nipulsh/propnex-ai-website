@@ -10,8 +10,12 @@ import {
   formatCallTime,
 } from "@/lib/call-logs-data";
 import { useCallDetailStore } from "@/stores/call-detail-store";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export function InternalNotesSection() {
+  const { role, branchAccessType, isLoading } = usePermissions();
+  const isBranchAdmin = !isLoading && role === "ADMIN" && branchAccessType === "SELECTED";
+
   const notes = useCallDetailStore((s) => s.internalNotes);
   const addNote = useCallDetailStore((s) => s.addNote);
   const updateNote = useCallDetailStore((s) => s.updateNote);
@@ -46,31 +50,33 @@ export function InternalNotesSection() {
       description="Team-only notes visible to your organization."
     >
       <div className="rounded-xl border border-propnex-border bg-propnex-panel p-5">
-        <div className="mb-5 space-y-2">
-          <label
-            htmlFor="new-note"
-            className="text-[0.65rem] font-medium tracking-[0.12em] text-propnex-muted uppercase"
-          >
-            Add Note
-          </label>
-          <textarea
-            id="new-note"
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            rows={3}
-            placeholder="Write an internal note..."
-            className="w-full resize-none rounded-lg border border-propnex-border bg-propnex-bg px-3 py-2 text-sm text-foreground outline-none focus-visible:border-propnex-accent focus-visible:ring-2 focus-visible:ring-propnex-accent/30"
-          />
-          <Button
-            size="sm"
-            onClick={handleAdd}
-            disabled={!newNote.trim()}
-            className="gap-2"
-          >
-            <StickyNote className="size-4" />
-            Add Note
-          </Button>
-        </div>
+        {!isBranchAdmin && (
+          <div className="mb-5 space-y-2">
+            <label
+              htmlFor="new-note"
+              className="text-[0.65rem] font-medium tracking-[0.12em] text-propnex-muted uppercase"
+            >
+              Add Note
+            </label>
+            <textarea
+              id="new-note"
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              rows={3}
+              placeholder="Write an internal note..."
+              className="w-full resize-none rounded-lg border border-propnex-border bg-propnex-bg px-3 py-2 text-sm text-foreground outline-none focus-visible:border-propnex-accent focus-visible:ring-2 focus-visible:ring-propnex-accent/30"
+            />
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              disabled={!newNote.trim()}
+              className="gap-2"
+            >
+              <StickyNote className="size-4" />
+              Add Note
+            </Button>
+          </div>
+        )}
 
         {notes.length === 0 ? (
           <p className="py-6 text-center text-sm text-propnex-muted">
@@ -114,22 +120,24 @@ export function InternalNotesSection() {
                         {note.author} · {formatCallDate(note.createdAt)} at{" "}
                         {formatCallTime(note.createdAt)}
                       </p>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => startEdit(note.id, note.content)}
-                        >
-                          <Pencil className="size-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => deleteNote(note.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
+                      {!isBranchAdmin && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => startEdit(note.id, note.content)}
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => deleteNote(note.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

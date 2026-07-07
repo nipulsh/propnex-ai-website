@@ -27,13 +27,30 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
-  const { hasPermission, isLoading } = usePermissions();
+  const { hasPermission, isLoading, role, branchAccessType } = usePermissions();
 
-  const visibleNavItems = mainNavItems.filter(
-    (item) =>
+  const isBranchAdmin = !isLoading && role === "ADMIN" && branchAccessType === "SELECTED";
+
+  const visibleNavItems = mainNavItems.filter((item) => {
+    if (isBranchAdmin) {
+      return item.href === "/dashboard" || item.href === "/call-logs" || item.href === "/contact";
+    }
+    // Hide Contact Us for regular users (it is accessed from Settings or footer)
+    if (item.href === "/contact") {
+      return false;
+    }
+    return (
       !item.permission ||
-      (!isLoading && hasPermission(item.permission as Permission)),
-  );
+      (!isLoading && hasPermission(item.permission as Permission))
+    );
+  });
+
+  const visibleFooterItems = footerNavItems.filter(() => {
+    if (isBranchAdmin) {
+      return false;
+    }
+    return true;
+  });
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -80,24 +97,26 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="px-2 pb-4 group-data-[collapsible=icon]:px-0">
-        <SidebarSeparator className="mb-2 group-data-[collapsible=icon]:hidden" />
-        <SidebarMenu>
-          {footerNavItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                render={<Link href={item.href} />}
-                isActive={isActive(item.href)}
-                tooltip={item.title}
-                className="h-9 rounded-lg"
-              >
-                <item.icon />
-                <span>{item.title}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarFooter>
+      {visibleFooterItems.length > 0 && (
+        <SidebarFooter className="px-2 pb-4 group-data-[collapsible=icon]:px-0">
+          <SidebarSeparator className="mb-2 group-data-[collapsible=icon]:hidden" />
+          <SidebarMenu>
+            {visibleFooterItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  render={<Link href={item.href} />}
+                  isActive={isActive(item.href)}
+                  tooltip={item.title}
+                  className="h-9 rounded-lg"
+                >
+                  <item.icon />
+                  <span>{item.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
       <SidebarRail />
     </Sidebar>
   );

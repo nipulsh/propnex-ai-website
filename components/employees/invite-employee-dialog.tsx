@@ -53,7 +53,7 @@ export function InviteEmployeeDialog({
     value: value as UserRole,
     label: ROLE_LABELS[value],
   }));
-  const defaultRole = (assignableRoles[0] ?? "SALES") as UserRole;
+  const defaultRole = (assignableRoles[0] ?? "SALES") as InviteEmployeeInput["role"];
 
   const {
     register,

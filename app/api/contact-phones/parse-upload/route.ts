@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import {
-  requireAgentsRead,
   requireAgentsWrite,
 } from "@/lib/integrations/api-guard";
 import {
@@ -16,7 +15,7 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 const SERVER_EXTENSION_SET = new Set<string>(SERVER_PARSE_EXTENSIONS);
 
 export async function POST(request: Request) {
-  const { error } = await requireTenantContext();
+  const { error } = await requireAgentsWrite();
   if (error) return error;
 
   let formData: FormData;

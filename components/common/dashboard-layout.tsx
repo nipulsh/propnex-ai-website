@@ -1,13 +1,14 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 
 import { PermissionsProvider } from "@/components/permissions/permissions-provider";
 import { AppSidebar } from "@/components/common/app-sidebar";
 import { ContractGate } from "@/components/common/contract-gate";
 import { ContractStatusProvider } from "@/components/common/contract-status-provider";
 import { CreditsSync } from "@/components/common/credits-sync";
-import { SideNotificationProvider } from "@/components/common/side-notification";
+import { SideNotificationProvider, useSideNotification } from "@/components/common/side-notification";
 import { TopNav } from "@/components/common/top-nav";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
@@ -25,6 +26,28 @@ function isUngatedPath(pathname: string) {
   );
 }
 
+function DashboardNotificationManager() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { notify } = useSideNotification();
+
+  useEffect(() => {
+    if (searchParams.get("branch_invite_accepted") === "true") {
+      notify({
+        type: "success",
+        message: "Branch invitation accepted successfully! You have been assigned as the Branch Admin.",
+      });
+
+      // Clear the query parameter so the toast doesn't show on refresh
+      const url = new URL(window.location.href);
+      url.searchParams.delete("branch_invite_accepted");
+      router.replace(url.pathname + url.search);
+    }
+  }, [searchParams, notify, router]);
+
+  return null;
+}
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const ungated = isUngatedPath(pathname);
@@ -33,6 +56,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider className="h-screen overflow-hidden">
       <PermissionsProvider>
         <SideNotificationProvider>
+          <Suspense fallback={null}>
+            <DashboardNotificationManager />
+          </Suspense>
           <ContractStatusProvider>
             <CreditsSync />
             <AppSidebar />

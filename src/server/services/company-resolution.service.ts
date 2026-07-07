@@ -165,7 +165,13 @@ async function scheduleBackgroundReconciliation(
   const user = await tenantRepo.findUserByClerkId(clerkUserId);
   if (user) {
     const invitedMembership = await findInvitedMembership(user.id, orgId);
-    if (!invitedMembership) {
+    const pendingBranchInvite = await prisma.branchInvitation.findFirst({
+      where: {
+        email: { equals: user.email, mode: "insensitive" },
+        status: "PENDING",
+      },
+    });
+    if (!invitedMembership && !pendingBranchInvite) {
       return;
     }
   }
@@ -233,7 +239,16 @@ async function recoverTenant(
     ? await findInvitedMembership(user.id, orgId)
     : null;
 
-  if (options?.forceReconcile || invitedMembership) {
+  const pendingBranchInvite = user
+    ? await prisma.branchInvitation.findFirst({
+        where: {
+          email: { equals: user.email, mode: "insensitive" },
+          status: "PENDING",
+        },
+      })
+    : null;
+
+  if (options?.forceReconcile || invitedMembership || pendingBranchInvite) {
     await reconcileInviteMembershipOnLogin(clerkUserId, orgId);
   }
 
