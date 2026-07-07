@@ -133,20 +133,38 @@ function randomItem<T>(items: T[]): T {
 
 export const callLogs: CallLog[] = [];
 
-export function formatCallDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(timestamp);
+export function formatCallDate(
+  timestamp: number | string | Date | null | undefined,
+): string {
+  if (!timestamp) return "—";
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return "—";
+  }
 }
 
-export function formatCallTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  }).format(timestamp);
+export function formatCallTime(
+  timestamp: number | string | Date | null | undefined,
+): string {
+  if (!timestamp) return "—";
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  } catch {
+    return "—";
+  }
 }
 
 export function formatDuration(seconds: number): string {

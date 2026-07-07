@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import type { BranchStatus, Prisma } from "@prisma/client";
 
 import { NotFoundError, ValidationError } from "@/server/lib/errors";
@@ -11,6 +12,8 @@ import type { TenantContext } from "@/server/types/context";
 import { PERMISSIONS } from "@/server/types/permissions";
 import { branchAccessService } from "@/server/services/branch-access.service";
 import { tenantService } from "@/server/services/tenant.service";
+import { clerkOrgLib } from "@/lib/clerk/organization";
+import { getBranchInviteRedirectUrl } from "@/lib/app-url";
 
 type BranchRow = Awaited<
   ReturnType<BranchesRepository["findById"]>
@@ -19,25 +22,41 @@ type BranchRow = Awaited<
 function mapBranch(
   row: NonNullable<BranchRow>,
   counts?: { contactsCount: number; callLogsCount: number; documentsCount: number },
+  invitationEmailSent?: boolean,
 ) {
+  const r = row as any;
   return {
-    id: row.id,
-    name: row.name,
-    status: row.status,
-    address: row.address,
-    phone: row.phone,
-    email: row.email,
-    notes: row.notes,
-    customFields: row.customFields,
-    aiEnabled: row.aiEnabled,
-    systemPrompt: row.systemPrompt,
-    aiConfig: row.aiConfig,
+    id: r.id,
+    name: r.name,
+    status: r.status,
+    address: r.address,
+    phone: r.phone,
+    email: r.email,
+    notes: r.notes,
+    customFields: r.customFields,
+    aiEnabled: r.aiEnabled,
+    systemPrompt: r.systemPrompt,
+    aiConfig: r.aiConfig,
     contactsCount: counts?.contactsCount ?? 0,
     callLogsCount: counts?.callLogsCount ?? 0,
     documentsCount: counts?.documentsCount ?? 0,
-    lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
+    lastActivityAt: r.lastActivityAt?.toISOString() ?? null,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+    invitationEmailSent: typeof invitationEmailSent === "boolean" ? invitationEmailSent : null,
+    invitation: r.invitation
+      ? {
+          id: r.invitation.id,
+          email: r.invitation.email,
+          token: r.invitation.token,
+          status: r.invitation.status,
+          createdAt: r.invitation.createdAt.toISOString(),
+          updatedAt: r.invitation.updatedAt.toISOString(),
+          sentAt: r.invitation.sentAt.toISOString(),
+          acceptedAt: r.invitation.acceptedAt?.toISOString() ?? null,
+          expiresAt: r.invitation.expiresAt.toISOString(),
+        }
+      : null,
   };
 }
 
@@ -121,6 +140,70 @@ export class BranchesService {
       summary: `Branch "${row.name}" created`,
       actorId: ctx.userId,
     });
+
+    let invitationEmailSent = false;
+    const emailVal = input.email?.trim().toLowerCase();
+
+    if (emailVal) {
+      const company = await prisma.company.findUnique({
+        where: { id: ctx.companyId },
+      });
+      if (!company) throw new NotFoundError("Company not found");
+      const clerkOrganizationId = await clerkOrgLib.getActiveClerkOrganizationId(company, {
+        createdByClerkUserId: ctx.clerkUserId,
+      });
+
+      // Revoke any existing invitations in Clerk for this email address to avoid duplicates
+      await clerkOrgLib.removeClerkOrganizationAccess({
+        organizationId: clerkOrganizationId,
+        email: emailVal,
+        requestingUserId: ctx.clerkUserId,
+      });
+
+      // Generate the token before sending the Clerk invitation so the redirect
+      // URL embedded in the email already points at /invitations/branch/{token}.
+      // This ensures the user lands on the acceptance page and the
+      // acceptInvitation server action fires — which is the only path that
+      // sets BranchInvitation.status = ACCEPTED.
+      const token = randomUUID();
+
+      const clerkInvite = await clerkOrgLib.sendClerkOrganizationInvitation({
+        organizationId: clerkOrganizationId,
+        email: emailVal,
+        role: "ADMIN",
+        inviterUserId: ctx.clerkUserId,
+        redirectUrl: getBranchInviteRedirectUrl(token),
+        metadata: {
+          propnexRole: "ADMIN",
+          branchAccessType: "SELECTED",
+          branchIds: [row.id],
+          jobTitle: "Branch Admin",
+          inviteName: row.name,
+        },
+      });
+
+      const expiresAt = clerkInvite.expiresAt;
+
+      await prisma.branchInvitation.create({
+        data: {
+          companyId: ctx.companyId,
+          branchId: row.id,
+          email: emailVal,
+          token,
+          expiresAt,
+          clerkInvitationId: clerkInvite.invitationId,
+          clerkOrganizationId,
+        },
+      });
+
+      invitationEmailSent = true;
+
+      // Reload row so the invitation is populated
+      const reloaded = await this.repo.findById(ctx.companyId, row.id);
+      if (reloaded) {
+        return mapBranch(reloaded, undefined, invitationEmailSent);
+      }
+    }
 
     return mapBranch(row);
   }
@@ -347,6 +430,181 @@ export class BranchesService {
       metadata: row.metadata,
       createdAt: row.createdAt.toISOString(),
     }));
+  }
+
+  async resendInvitation(ctx: TenantContext, branchId: string) {
+    tenantService.requirePermission(ctx, PERMISSIONS.BRANCHES_WRITE);
+    const branch = await this.repo.findById(ctx.companyId, branchId);
+    if (!branch) throw new NotFoundError("Branch not found");
+
+    const invitation = await prisma.branchInvitation.findUnique({
+      where: { branchId },
+    });
+    if (!invitation) throw new ValidationError("No invitation exists for this branch.");
+
+    const company = await prisma.company.findUnique({
+      where: { id: ctx.companyId },
+    });
+    if (!company) throw new NotFoundError("Company not found");
+    const clerkOrganizationId = await clerkOrgLib.getActiveClerkOrganizationId(company, {
+      createdByClerkUserId: ctx.clerkUserId,
+    });
+
+    // Revoke old Clerk invitation
+    if (invitation.clerkInvitationId && clerkOrganizationId.startsWith("org_")) {
+      await clerkOrgLib.revokeClerkOrganizationInvitation({
+        organizationId: clerkOrganizationId,
+        invitationId: invitation.clerkInvitationId,
+        requestingUserId: ctx.clerkUserId,
+      });
+    }
+
+    // Rotate the token so the old link is invalidated and the new email points
+    // directly at /invitations/branch/{newToken}.
+    const newToken = randomUUID();
+
+    const clerkInvite = await clerkOrgLib.sendClerkOrganizationInvitation({
+      organizationId: clerkOrganizationId,
+      email: invitation.email,
+      role: "ADMIN",
+      inviterUserId: ctx.clerkUserId,
+      redirectUrl: getBranchInviteRedirectUrl(newToken),
+      metadata: {
+        propnexRole: "ADMIN",
+        branchAccessType: "SELECTED",
+        branchIds: [branchId],
+        jobTitle: "Branch Admin",
+        inviteName: branch.name,
+      },
+    });
+
+    await prisma.branchInvitation.update({
+      where: { id: invitation.id },
+      data: {
+        token: newToken,
+        sentAt: new Date(),
+        expiresAt: clerkInvite.expiresAt,
+        status: "PENDING",
+        acceptedAt: null,
+        clerkInvitationId: clerkInvite.invitationId,
+        clerkOrganizationId,
+      },
+    });
+
+    const reloaded = await this.repo.findById(ctx.companyId, branchId);
+    if (!reloaded) throw new NotFoundError("Branch not found");
+    return mapBranch(reloaded, undefined, true);
+  }
+
+  async cancelInvitation(ctx: TenantContext, branchId: string) {
+    tenantService.requirePermission(ctx, PERMISSIONS.BRANCHES_WRITE);
+    const invitation = await prisma.branchInvitation.findUnique({
+      where: { branchId },
+    });
+    if (!invitation) throw new ValidationError("No invitation exists for this branch.");
+
+    const company = await prisma.company.findUnique({
+      where: { id: ctx.companyId },
+    });
+    if (!company) throw new NotFoundError("Company not found");
+    const clerkOrganizationId = await clerkOrgLib.getActiveClerkOrganizationId(company, {
+      createdByClerkUserId: ctx.clerkUserId,
+    });
+
+    // Revoke Clerk invitation
+    if (invitation.clerkInvitationId && clerkOrganizationId.startsWith("org_")) {
+      await clerkOrgLib.revokeClerkOrganizationInvitation({
+        organizationId: clerkOrganizationId,
+        invitationId: invitation.clerkInvitationId,
+        requestingUserId: ctx.clerkUserId,
+      });
+    }
+
+    await prisma.branchInvitation.update({
+      where: { id: invitation.id },
+      data: { status: "CANCELLED" },
+    });
+
+    const reloaded = await this.repo.findById(ctx.companyId, branchId);
+    if (!reloaded) throw new NotFoundError("Branch not found");
+    return mapBranch(reloaded);
+  }
+
+  async generateNewInvitation(ctx: TenantContext, branchId: string) {
+    tenantService.requirePermission(ctx, PERMISSIONS.BRANCHES_WRITE);
+    const branch = await this.repo.findById(ctx.companyId, branchId);
+    if (!branch) throw new NotFoundError("Branch not found");
+    if (!branch.email) throw new ValidationError("Branch has no email address configured.");
+
+    const company = await prisma.company.findUnique({
+      where: { id: ctx.companyId },
+    });
+    if (!company) throw new NotFoundError("Company not found");
+    const clerkOrganizationId = await clerkOrgLib.getActiveClerkOrganizationId(company, {
+      createdByClerkUserId: ctx.clerkUserId,
+    });
+
+    const oldInvitation = await prisma.branchInvitation.findUnique({
+      where: { branchId },
+    });
+
+    // Revoke old Clerk invitation
+    if (oldInvitation?.clerkInvitationId && clerkOrganizationId.startsWith("org_")) {
+      await clerkOrgLib.revokeClerkOrganizationInvitation({
+        organizationId: clerkOrganizationId,
+        invitationId: oldInvitation.clerkInvitationId,
+        requestingUserId: ctx.clerkUserId,
+      });
+    }
+
+    // Generate token before sending so the Clerk email redirect URL is already
+    // correct when the invited user clicks it.
+    const token = randomUUID();
+
+    const clerkInvite = await clerkOrgLib.sendClerkOrganizationInvitation({
+      organizationId: clerkOrganizationId,
+      email: branch.email.trim().toLowerCase(),
+      role: "ADMIN",
+      inviterUserId: ctx.clerkUserId,
+      redirectUrl: getBranchInviteRedirectUrl(token),
+      metadata: {
+        propnexRole: "ADMIN",
+        branchAccessType: "SELECTED",
+        branchIds: [branchId],
+        jobTitle: "Branch Admin",
+        inviteName: branch.name,
+      },
+    });
+
+    const expiresAt = clerkInvite.expiresAt;
+
+    await prisma.branchInvitation.upsert({
+      where: { branchId },
+      create: {
+        companyId: ctx.companyId,
+        branchId,
+        email: branch.email.trim().toLowerCase(),
+        token,
+        status: "PENDING",
+        expiresAt,
+        clerkInvitationId: clerkInvite.invitationId,
+        clerkOrganizationId,
+      },
+      update: {
+        email: branch.email.trim().toLowerCase(),
+        token,
+        status: "PENDING",
+        expiresAt,
+        sentAt: new Date(),
+        acceptedAt: null,
+        clerkInvitationId: clerkInvite.invitationId,
+        clerkOrganizationId,
+      },
+    });
+
+    const reloaded = await this.repo.findById(ctx.companyId, branchId);
+    if (!reloaded) throw new NotFoundError("Branch not found");
+    return mapBranch(reloaded, undefined, true);
   }
 }
 

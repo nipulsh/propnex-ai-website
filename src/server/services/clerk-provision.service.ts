@@ -334,6 +334,23 @@ async function resolveCompanyForClerkOrgActivation(
     }
   }
 
+  const branchInvitation = await prisma.branchInvitation.findFirst({
+    where: {
+      clerkOrganizationId,
+      email: { equals: userEmail, mode: "insensitive" },
+      status: { in: ["PENDING", "ACCEPTED"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (branchInvitation) {
+    const fromBranchInvite = await prisma.company.findUnique({
+      where: { id: branchInvitation.companyId },
+    });
+    if (fromBranchInvite) {
+      return fromBranchInvite;
+    }
+  }
+
   const invitedMembership = await prisma.companyMember.findFirst({
     where: { userId, status: "INVITED" },
     include: { company: true },
@@ -398,6 +415,24 @@ export async function activateMembershipFromClerkOrg(
         branchAccessType = pendingInvite.branchAccessType;
         branchIds = pendingInvite.branchIds;
       }
+    } else {
+      const pendingBranchInvite = await prisma.branchInvitation.findFirst({
+        where: {
+          companyId: company.id,
+          email: { equals: user.email, mode: "insensitive" },
+          status: { in: ["PENDING", "ACCEPTED"] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (pendingBranchInvite) {
+        if (!metadata?.propnexRole) {
+          finalRole = "ADMIN";
+        }
+        if (!metadata?.branchAccessType) {
+          branchAccessType = "SELECTED";
+          branchIds = [pendingBranchInvite.branchId];
+        }
+      }
     }
   }
 
@@ -406,27 +441,31 @@ export async function activateMembershipFromClerkOrg(
   });
   const wasAlreadyActive = existingMembership?.status === "ACTIVE";
 
-  const membership = await prisma.companyMember.upsert({
-    where: {
-      companyId_userId: { companyId: company.id, userId: user.id },
-    },
-    create: {
-      companyId: company.id,
-      userId: user.id,
-      role: finalRole,
-      status: "ACTIVE",
-      jobTitle: metadata?.jobTitle ?? null,
-      branchAccessType,
-      joinedAt: new Date(),
-    },
-    update: {
-      role: finalRole,
-      status: "ACTIVE",
-      jobTitle: metadata?.jobTitle ?? undefined,
-      branchAccessType,
-      joinedAt: new Date(),
-    },
-  });
+  let membership;
+  if (existingMembership) {
+    membership = await prisma.companyMember.update({
+      where: { id: existingMembership.id },
+      data: {
+        role: finalRole,
+        status: "ACTIVE",
+        jobTitle: metadata?.jobTitle ?? undefined,
+        branchAccessType,
+        joinedAt: new Date(),
+      },
+    });
+  } else {
+    membership = await prisma.companyMember.create({
+      data: {
+        companyId: company.id,
+        userId: user.id,
+        role: finalRole,
+        status: "ACTIVE",
+        jobTitle: metadata?.jobTitle ?? null,
+        branchAccessType,
+        joinedAt: new Date(),
+      },
+    });
+  }
 
   await applyBranchAccessFromInvitation(
     membership.id,
@@ -441,6 +480,18 @@ export async function activateMembershipFromClerkOrg(
       status: "PENDING",
     },
     data: { status: "ACCEPTED" },
+  });
+
+  await prisma.branchInvitation.updateMany({
+    where: {
+      companyId: company.id,
+      email: { equals: user.email, mode: "insensitive" },
+      status: "PENDING",
+    },
+    data: {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    },
   });
 
   if (isPendingClerkUserId(user.clerkUserId)) {
@@ -605,6 +656,62 @@ async function activateInvitedMembershipForCompany(
   );
 }
 
+/**
+ * Reconciles BranchInvitation rows that are still PENDING for a user who has
+ * already become an active member via the branch acceptance page.
+ *
+ * This handles the case where:
+ * - The user accepted via /invitations/branch/{token} (which sets CompanyMember
+ *   to ACTIVE directly), but the branchInvitation.updateMany inside
+ *   activateMembershipFromClerkOrg was never reached because there was no
+ *   INVITED CompanyMember row to trigger the reconciliation path.
+ * - Webhooks are disabled, so the organizationMembership.created event never
+ *   fired activateMembershipFromClerkOrg.
+ */
+async function reconcilePendingBranchInvitations(
+  user: User,
+  clerkUserId: string,
+  orgId?: string | null,
+): Promise<void> {
+  const pendingBranchInvitations = await prisma.branchInvitation.findMany({
+    where: {
+      email: { equals: user.email, mode: "insensitive" },
+      status: "PENDING",
+    },
+    select: { id: true, companyId: true, clerkOrganizationId: true },
+  });
+
+  if (pendingBranchInvitations.length === 0) {
+    return;
+  }
+
+  for (const branchInvite of pendingBranchInvitations) {
+    // Only mark ACCEPTED if the user is already an active member of this company.
+    // This prevents accepting invitations for companies they haven't joined yet.
+    const activeMembership = await prisma.companyMember.findFirst({
+      where: { companyId: branchInvite.companyId, userId: user.id, status: "ACTIVE" },
+    });
+    if (!activeMembership) {
+      continue;
+    }
+
+    await prisma.branchInvitation.update({
+      where: { id: branchInvite.id },
+      data: {
+        status: "ACCEPTED",
+        acceptedAt: new Date(),
+      },
+    });
+
+    logResolutionEvent("clerk:reconcile:branch-invitation-accepted", {
+      clerkUserId,
+      orgId,
+      branchInvitationId: branchInvite.id,
+      companyId: branchInvite.companyId,
+    });
+  }
+}
+
 async function reconcileInviteMembershipOnLoginInner(
   clerkUserId: string,
   orgId?: string | null,
@@ -618,7 +725,14 @@ async function reconcileInviteMembershipOnLoginInner(
   const invitedMembership = await prisma.companyMember.findFirst({
     where: { userId: user.id, status: "INVITED" },
   });
-  if (!invitedMembership) {
+  const pendingBranchInvite = await prisma.branchInvitation.findFirst({
+    where: {
+      email: { equals: user.email, mode: "insensitive" },
+      status: "PENDING",
+    },
+  });
+  if (!invitedMembership && !pendingBranchInvite) {
+    await reconcilePendingBranchInvitations(user, clerkUserId, orgId);
     return;
   }
 
@@ -636,11 +750,26 @@ async function reconcileInviteMembershipOnLoginInner(
         orgId,
       );
     }
+    const pendingBranchInvites = await prisma.branchInvitation.findMany({
+      where: {
+        email: { equals: user.email, mode: "insensitive" },
+        status: "PENDING",
+      },
+      select: { companyId: true },
+    });
+    for (const branchInv of pendingBranchInvites) {
+      await activateInvitedMembershipForCompany(
+        branchInv.companyId,
+        clerkUserId,
+        user,
+        orgId,
+      );
+    }
     recordReconciliationDuration(Math.round(performance.now() - start));
     logResolutionEvent("clerk:reconcile:fallback", {
       clerkUserId,
       orgId,
-      invitedCount: invitedMemberships.length,
+      invitedCount: invitedMemberships.length + pendingBranchInvites.length,
     });
     return;
   }

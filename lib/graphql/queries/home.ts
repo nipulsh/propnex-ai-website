@@ -106,3 +106,82 @@ export type HomePageResult = {
     }[];
   };
 };
+
+export const BRANCH_DASHBOARD_QUERY = `
+  query BranchDashboard($branchId: ID!, $dateFrom: String, $dateTo: String) {
+    branches {
+      byId(id: $branchId) {
+        id
+        name
+        status
+        aiEnabled
+        lastActivityAt
+      }
+    }
+    callLogs {
+      recent(limit: 10) {
+        id
+        startedAt
+        direction
+        status
+        durationSeconds
+        lead {
+          firstName
+          lastName
+        }
+      }
+    }
+    analytics {
+      summary(granularity: DAILY, dateFrom: $dateFrom, dateTo: $dateTo) {
+        totalCalls
+        connectedCalls
+        conversionRate
+      }
+    }
+    leads {
+      temperatureBreakdown {
+        hot
+        warm
+        cold
+        total
+      }
+    }
+  }
+`;
+
+export type BranchDashboardResult = {
+  branches: {
+    byId: {
+      id: string;
+      name: string;
+      status: string;
+      aiEnabled: boolean;
+      lastActivityAt: string | null;
+    } | null;
+  };
+  callLogs: {
+    recent: {
+      id: string;
+      startedAt: string;
+      direction: string;
+      status: string;
+      durationSeconds: number;
+      lead: { firstName: string | null; lastName: string | null } | null;
+    }[];
+  };
+  analytics: {
+    summary: {
+      totalCalls: number;
+      connectedCalls: number;
+      conversionRate: number;
+    };
+  };
+  leads: {
+    temperatureBreakdown: {
+      hot: number;
+      warm: number;
+      cold: number;
+      total: number;
+    };
+  };
+};

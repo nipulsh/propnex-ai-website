@@ -391,6 +391,21 @@ export const resolvers = {
     ) => branchesService.bulkUpdate(ctx, args.input as never),
     archive: (_: unknown, args: { id: string }, ctx: TenantContext) =>
       branchesService.archive(ctx, args.id),
+    resendInvitation: (
+      _: unknown,
+      args: { branchId: string },
+      ctx: TenantContext,
+    ) => branchesService.resendInvitation(ctx, args.branchId),
+    cancelInvitation: (
+      _: unknown,
+      args: { branchId: string },
+      ctx: TenantContext,
+    ) => branchesService.cancelInvitation(ctx, args.branchId),
+    generateNewInvitation: (
+      _: unknown,
+      args: { branchId: string },
+      ctx: TenantContext,
+    ) => branchesService.generateNewInvitation(ctx, args.branchId),
   },
 
   EmployeesQueries: {

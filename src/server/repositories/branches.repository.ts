@@ -55,6 +55,9 @@ export class BranchesRepository extends BaseRepository {
       where: this.buildWhere(companyId, filter, scopeWhere),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
+      include: {
+        invitation: true,
+      },
       ...(cursor
         ? {
             cursor: { id: cursor.id },
@@ -73,6 +76,9 @@ export class BranchesRepository extends BaseRepository {
   findById(companyId: string, id: string) {
     return this.prisma.branch.findFirst({
       where: { id, companyId },
+      include: {
+        invitation: true,
+      },
     });
   }
 
@@ -90,6 +96,9 @@ export class BranchesRepository extends BaseRepository {
       data: {
         ...data,
         company: { connect: { id: companyId } },
+      },
+      include: {
+        invitation: true,
       },
     });
   }

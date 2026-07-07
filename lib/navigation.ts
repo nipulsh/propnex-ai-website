@@ -79,6 +79,12 @@ export const mainNavItems: NavItem[] = [
     icon: Wrench,
     permission: "integrations:read",
   },
+  {
+    title: "Contact Us",
+    href: "/contact",
+    icon: HelpCircle,
+    permission: "billing:read",
+  },
 ];
 
 export const footerNavItems: NavItem[] = [

@@ -24,6 +24,18 @@ export const VIEWER_ROLE_QUERY = `
   }
 `;
 
+export type BranchInvitationNode = {
+  id: string;
+  email: string;
+  token: string;
+  status: "PENDING" | "ACCEPTED" | "EXPIRED" | "CANCELLED";
+  createdAt: string;
+  updatedAt: string;
+  sentAt: string;
+  acceptedAt: string | null;
+  expiresAt: string;
+};
+
 export type BranchNode = {
   id: string;
   name: string;
@@ -42,6 +54,8 @@ export type BranchNode = {
   lastActivityAt: string | null;
   createdAt: string;
   updatedAt: string;
+  invitationEmailSent: boolean | null;
+  invitation: BranchInvitationNode | null;
 };
 
 export type BranchesConnectionResult = {
@@ -114,6 +128,18 @@ const BRANCH_FIELDS = `
   lastActivityAt
   createdAt
   updatedAt
+  invitationEmailSent
+  invitation {
+    id
+    email
+    token
+    status
+    createdAt
+    updatedAt
+    sentAt
+    acceptedAt
+    expiresAt
+  }
 `;
 
 export const BRANCHES_PAGE_QUERY = `
@@ -232,6 +258,30 @@ export const ARCHIVE_BRANCH_MUTATION = `
   mutation ArchiveBranch($id: ID!) {
     branches {
       archive(id: $id) {${BRANCH_FIELDS}}
+    }
+  }
+`;
+
+export const RESEND_BRANCH_INVITATION_MUTATION = `
+  mutation ResendBranchInvitation($branchId: ID!) {
+    branches {
+      resendInvitation(branchId: $branchId) {${BRANCH_FIELDS}}
+    }
+  }
+`;
+
+export const CANCEL_BRANCH_INVITATION_MUTATION = `
+  mutation CancelBranchInvitation($branchId: ID!) {
+    branches {
+      cancelInvitation(branchId: $branchId) {${BRANCH_FIELDS}}
+    }
+  }
+`;
+
+export const GENERATE_NEW_BRANCH_INVITATION_MUTATION = `
+  mutation GenerateNewBranchInvitation($branchId: ID!) {
+    branches {
+      generateNewInvitation(branchId: $branchId) {${BRANCH_FIELDS}}
     }
   }
 `;
