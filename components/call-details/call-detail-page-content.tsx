@@ -22,12 +22,17 @@ import { Button } from "@/components/ui/button";
 import { useCallDetailGraphQL } from "@/hooks/use-call-detail-graphql";
 import { usePageStatusNotification } from "@/hooks/use-page-status-notification";
 import { useCallDetailStore } from "@/stores/call-detail-store";
+import { usePermissions } from "@/hooks/use-permissions";
+import { cn } from "@/lib/utils";
 
 type CallDetailPageContentProps = {
   callId: string;
 };
 
 export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
+  const { role, branchAccessType, isLoading: isPermsLoading } = usePermissions();
+  const isBranchAdmin = !isPermsLoading && role === "ADMIN" && branchAccessType === "SELECTED";
+
   const { detail, isLoading, error, reload } = useCallDetailGraphQL(callId);
   const hydrate = useCallDetailStore((s) => s.hydrate);
   const reset = useCallDetailStore((s) => s.reset);
@@ -81,9 +86,9 @@ export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
       <CallAiSummary summary={detail.aiSummary} />
       <CallDetailOverview detail={detailWithOutcome} />
 
-      <QuickActionsPanel variant="mobile" />
+      {!isBranchAdmin && <QuickActionsPanel variant="mobile" />}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
+      <div className={cn("grid grid-cols-1 gap-6", !isBranchAdmin && "lg:grid-cols-[1fr_300px]")}>
         <div className="flex min-w-0 flex-col gap-6">
           <CallRecordingPlayer recording={detail.recording} />
           <div id="call-transcript">
@@ -106,11 +111,13 @@ export function CallDetailPageContent({ callId }: CallDetailPageContentProps) {
           <LeadHistorySection history={detail.leadHistory} />
         </div>
 
-        <div className="hidden lg:block">
-          <div className="sticky top-6">
-            <QuickActionsPanel />
+        {!isBranchAdmin && (
+          <div className="hidden lg:block">
+            <div className="sticky top-6">
+              <QuickActionsPanel />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

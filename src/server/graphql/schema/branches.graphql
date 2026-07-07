@@ -17,6 +17,8 @@ type Branch {
   lastActivityAt: String
   createdAt: String!
   updatedAt: String!
+  invitationEmailSent: Boolean
+  invitation: BranchInvitation
 }
 
 type BranchEdge {
@@ -136,4 +138,26 @@ type BranchesMutations {
   updateAi(id: ID!, input: UpdateBranchAiInput!): Branch!
   bulkUpdate(input: BulkBranchUpdateInput!): BulkBranchUpdateResult!
   archive(id: ID!): Branch!
+  resendInvitation(branchId: ID!): Branch!
+  cancelInvitation(branchId: ID!): Branch!
+  generateNewInvitation(branchId: ID!): Branch!
+}
+
+enum BranchInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+type BranchInvitation {
+  id: ID!
+  email: String!
+  token: String!
+  status: BranchInvitationStatus!
+  createdAt: String!
+  updatedAt: String!
+  sentAt: String!
+  acceptedAt: String
+  expiresAt: String!
 }

@@ -63,7 +63,7 @@ export function CreateBranchDialog({
 
     setIsSaving(true);
     try {
-      await createBranch({
+      const res = await createBranch({
         name: trimmed,
         address: address.trim() || null,
         phone: phone.trim() || null,
@@ -72,7 +72,21 @@ export function CreateBranchDialog({
         status,
         aiEnabled,
       });
-      onNotify(`Branch "${trimmed}" created.`, "success");
+      
+      const createdBranch = res?.branches?.create;
+      const branchEmail = createdBranch?.email;
+      const isSent = createdBranch?.invitationEmailSent;
+
+      if (branchEmail) {
+        if (isSent) {
+          onNotify(`Branch created successfully. An invitation email has been sent to ${branchEmail}.`, "success");
+        } else {
+          onNotify(`Branch created successfully, but the invitation email could not be delivered. Please try again using "Resend Invitation."`, "error");
+        }
+      } else {
+        onNotify(`Branch "${trimmed}" created.`, "success");
+      }
+
       handleOpenChange(false);
       onCreated();
     } catch (err) {

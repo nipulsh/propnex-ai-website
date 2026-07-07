@@ -157,6 +157,7 @@ async function createOrganizationInvitationAttempt(params: {
   metadata: ClerkInviteMetadata;
   inviterUserId?: string;
   expiresInDays?: number;
+  redirectUrl?: string;
 }) {
   const client = await clerkClient();
   return client.organizations.createOrganizationInvitation({
@@ -165,7 +166,7 @@ async function createOrganizationInvitationAttempt(params: {
     role: mapUserRoleToClerkInviteRole(params.role),
     expiresInDays: params.expiresInDays ?? 7,
     inviterUserId: params.inviterUserId,
-    redirectUrl: getInviteAcceptRedirectUrl(),
+    redirectUrl: params.redirectUrl ?? getInviteAcceptRedirectUrl(),
     publicMetadata: params.metadata,
   });
 }
@@ -177,6 +178,8 @@ export async function sendClerkOrganizationInvitation(params: {
   metadata: ClerkInviteMetadata;
   inviterUserId?: string;
   expiresInDays?: number;
+  /** Override the post-acceptance redirect URL embedded in the Clerk email. */
+  redirectUrl?: string;
 }): Promise<{ invitationId: string; expiresAt: Date }> {
   if (params.inviterUserId) {
     await ensureClerkOrganizationMember({
@@ -371,3 +374,10 @@ export async function findClerkPendingInvitationId(params: {
     return null;
   }
 }
+
+export const clerkOrgLib = {
+  getActiveClerkOrganizationId,
+  sendClerkOrganizationInvitation,
+  revokeClerkOrganizationInvitation,
+  removeClerkOrganizationAccess,
+};

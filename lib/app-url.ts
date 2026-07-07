@@ -8,3 +8,14 @@ export function getAppOrigin(): string {
 export function getInviteAcceptRedirectUrl(): string {
   return `${getAppOrigin()}/dashboard`;
 }
+
+/**
+ * Branch invitation redirect target.
+ * Points the Clerk email link directly at the custom acceptance page so
+ * the acceptInvitation server action runs and BranchInvitation.status is
+ * updated to ACCEPTED. Without this, Clerk would redirect to /dashboard and
+ * the acceptance page — and its DB transaction — would never be reached.
+ */
+export function getBranchInviteRedirectUrl(token: string): string {
+  return `${getAppOrigin()}/invitations/branch/${token}`;
+}
