@@ -8,6 +8,9 @@ export type ViewerRoleResult = {
     permissions: string[];
     branchAccessType: "ALL" | "SELECTED";
     branchIds: string[];
+    company: {
+      name: string;
+    };
   };
 };
 
@@ -20,6 +23,27 @@ export const VIEWER_ROLE_QUERY = `
       permissions
       branchAccessType
       branchIds
+      company {
+        name
+      }
+    }
+  }
+`;
+
+export type ViewerBranchNameResult = {
+  branches: {
+    byId: {
+      name: string;
+    } | null;
+  };
+};
+
+export const VIEWER_BRANCH_NAME_QUERY = `
+  query ViewerBranchName($id: ID!) {
+    branches {
+      byId(id: $id) {
+        name
+      }
     }
   }
 `;

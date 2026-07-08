@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { fetchViewerRole } from "@/lib/graphql/api";
+import { fetchViewerBranchName, fetchViewerRole } from "@/lib/graphql/api";
 import {
   type Permission,
   type UserRole,
@@ -43,6 +43,8 @@ export type PermissionsContextValue = {
   permissions: string[];
   branchAccessType: BranchAccessType;
   branchIds: string[];
+  companyName: string | null;
+  branchName: string | null;
   access: AccessContext | null;
   hasPermission: (permission: Permission) => boolean;
   hasAnyPermission: (permissions: Permission[]) => boolean;
@@ -80,10 +82,16 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [branchAccessType, setBranchAccessType] =
     useState<BranchAccessType>("ALL");
   const [branchIds, setBranchIds] = useState<string[]>([]);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [branchName, setBranchName] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+
     fetchViewerRole()
-      .then((res) => {
+      .then(async (res) => {
+        if (!active) return;
+
         const viewer = res.viewer;
         setUserId(viewer.id);
         setMembershipId(viewer.membershipId);
@@ -91,16 +99,45 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         setPermissions(viewer.permissions ?? []);
         setBranchAccessType(viewer.branchAccessType ?? "ALL");
         setBranchIds(viewer.branchIds ?? []);
+        setCompanyName(viewer.company?.name ?? null);
+        setBranchName(null);
+
+        const branchId =
+          viewer.branchAccessType === "SELECTED" ? viewer.branchIds?.[0] : null;
+
+        if (branchId) {
+          try {
+            const branchRes = await fetchViewerBranchName(branchId);
+            if (active) {
+              setBranchName(branchRes.branches.byId?.name ?? null);
+            }
+          } catch {
+            if (active) {
+              setBranchName(null);
+            }
+          }
+        }
       })
       .catch(() => {
+        if (!active) return;
         setUserId(null);
         setMembershipId(null);
         setRole(null);
         setPermissions([]);
         setBranchAccessType("ALL");
         setBranchIds([]);
+        setCompanyName(null);
+        setBranchName(null);
       })
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const access = useMemo<AccessContext | null>(() => {
@@ -142,6 +179,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       permissions,
       branchAccessType,
       branchIds,
+      companyName,
+      branchName,
       access,
       hasPermission: hasPermissionFn,
       hasAnyPermission: hasAnyPermissionFn,
@@ -176,6 +215,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       permissions,
       branchAccessType,
       branchIds,
+      companyName,
+      branchName,
       access,
       hasPermissionFn,
       hasAnyPermissionFn,
@@ -213,6 +254,8 @@ export function useOptionalPermissions(): PermissionsContextValue {
       permissions: [],
       branchAccessType: "ALL",
       branchIds: [],
+      companyName: null,
+      branchName: null,
       access: null,
       hasPermission: () => false,
       hasAnyPermission: () => false,

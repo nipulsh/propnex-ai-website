@@ -1,9 +1,26 @@
+const LOCAL_DEFAULT =
+  "mongodb://localhost:27017/propnex-main?replicaSet=rs0";
+
+function resolveDatabaseUrl(): string {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (isProduction) {
+    return process.env.DATABASE_URL ?? process.env.DATABASE_URL_ATLAS ?? "";
+  }
+
+  return (
+    process.env.DATABASE_URL_LOCAL ??
+    process.env.DATABASE_URL ??
+    LOCAL_DEFAULT
+  );
+}
+
 /**
  * Ensures MongoDB driver timeouts are set so connection failures fail fast
  * instead of blocking GraphQL context for the default ~30s.
  */
 export function getDatabaseUrl(): string {
-  const url = process.env.DATABASE_URL;
+  const url = resolveDatabaseUrl();
   if (!url) {
     return "";
   }

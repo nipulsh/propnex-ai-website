@@ -19,21 +19,31 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { usePermissions } from "@/hooks/use-permissions";
 import { getNavBackLink } from "@/lib/navigation";
-import { ROLE_LABELS, type UserRole } from "@/lib/permissions";
 import { useUsageStore } from "@/stores/usage-store";
 
 export function TopNav() {
   const pathname = usePathname();
   const backLink = getNavBackLink(pathname);
   const { isLoaded, user } = useUser();
-  const { role, isLoading: roleLoading } = usePermissions();
+  const {
+    role,
+    isLoading: roleLoading,
+    branchAccessType,
+    companyName,
+    branchName,
+  } = usePermissions();
   const remainingCredits = useUsageStore((s) => s.remainingCredits);
   const creditsHydrated = useUsageStore((s) => s.creditsHydrated);
 
   const email = user?.primaryEmailAddress?.emailAddress;
   const displayName = user?.fullName ?? email ?? "Account";
-  const roleLabel =
-    roleLoading ? "…" : role ? (ROLE_LABELS[role as UserRole] ?? role) : null;
+  const isBranchAdmin =
+    !roleLoading && role === "ADMIN" && branchAccessType === "SELECTED";
+  const orgLabel = roleLoading
+    ? "…"
+    : isBranchAdmin
+      ? (branchName ?? "…")
+      : companyName;
 
   const initials = displayName
     .split(" ")
@@ -68,8 +78,8 @@ export function TopNav() {
               <p className="truncate text-sm font-medium text-foreground">
                 {isLoaded ? (email ?? displayName) : "Loading…"}
               </p>
-              {roleLabel ? (
-                <p className="truncate text-xs text-propnex-muted">{roleLabel}</p>
+              {orgLabel ? (
+                <p className="truncate text-xs text-propnex-muted">{orgLabel}</p>
               ) : null}
             </div>
           </Link>

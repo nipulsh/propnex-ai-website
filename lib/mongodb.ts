@@ -1,15 +1,17 @@
 import { MongoClient, type Db } from "mongodb";
 
+import { getDatabaseUrl } from "@/server/lib/database-url";
+
 const globalForMongo = globalThis as unknown as {
   mongoClient: MongoClient | undefined;
   mongoClientPromise: Promise<MongoClient> | undefined;
 };
 
 function getMongoUri(): string {
-  const uri = process.env.DATABASE_URL ?? process.env.MONGODB_URI;
+  const uri = getDatabaseUrl();
   if (!uri) {
     throw new Error(
-      "Missing DATABASE_URL or MONGODB_URI environment variable.",
+      "Missing DATABASE_URL_LOCAL (dev) or DATABASE_URL (production) environment variable.",
     );
   }
   return uri;
