@@ -115,8 +115,9 @@ export function ContractIdSection() {
       <div>
         <h3 className="text-sm font-medium text-foreground">Contract ID</h3>
         <p className="mt-1 text-xs text-propnex-muted">
-          Link the Contract ID provided by PropNex using the owner email account
-          registered for your company. Admin accounts cannot claim a Contract ID.
+          Enter the Contract ID provided by PropNex. The first account to
+          validate and link it becomes the company owner. The Contract ID cannot
+          be changed after linking.
         </p>
       </div>
 

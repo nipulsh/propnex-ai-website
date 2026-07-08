@@ -1,5 +1,7 @@
 # PropNex Main Website — Architecture
 
+> **See also:** [PropNex Platform Architecture](../../docs/PLATFORM-ARCHITECTURE.md) — unified mind map, database schema, API connections, and headers across main website, admin panel, and shared MongoDB.
+
 ## Overview
 
 The PropNex main website is a **Next.js 16 (App Router)** full-stack application that serves as the primary tenant-facing dashboard for the PropNex AI calling platform. It combines a React UI, a GraphQL API, REST endpoints, Server Actions, and Clerk-based authentication all in a single Node.js process. It runs on port `3000` by default.

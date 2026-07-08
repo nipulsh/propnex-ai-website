@@ -8,9 +8,7 @@ import { normalizeContractId } from "@/server/lib/contract-id";
 import {
   AppError,
   ConflictError,
-  ForbiddenError,
   NotFoundError,
-  ValidationError,
 } from "@/server/lib/errors";
 import prisma from "@/server/lib/prisma";
 import { TenantRepository } from "@/server/repositories/tenant.repository";
@@ -119,6 +117,16 @@ export class ContractService {
       throw new AppError("Invalid Contract ID format", "INVALID_FORMAT", 400);
     }
 
+    const existingUser = await tenantRepo.findUserByClerkId(clerkUserId);
+    if (existingUser) {
+      const activeMembership = await prisma.companyMember.findFirst({
+        where: { userId: existingUser.id, status: "ACTIVE" },
+      });
+      if (activeMembership) {
+        throw new ConflictError("You have already linked a Contract ID");
+      }
+    }
+
     const existingLinked = await tenantRepo.findCompanyByOwnerUserId(clerkUserId);
     if (existingLinked) {
       throw new ConflictError("You have already linked a Contract ID");
@@ -132,7 +140,9 @@ export class ContractService {
       throw new NotFoundError("Invalid Contract ID");
     }
 
-    if (company.ownerUserId != null) {
+    const isDemo = company.isDemo;
+
+    if (!isDemo && company.ownerUserId != null) {
       throw new ConflictError("This Contract ID has already been linked");
     }
 
@@ -143,29 +153,18 @@ export class ContractService {
       throw new AppError("User email is required", "INVALID_USER", 400);
     }
 
-    const designatedOwnerEmail = company.contact?.email?.trim();
-    if (!designatedOwnerEmail) {
-      throw new ValidationError(
-        "This company has no designated owner email. Contact PropNex support.",
-      );
-    }
-
-    if (primaryEmail.toLowerCase() !== designatedOwnerEmail.toLowerCase()) {
-      throw new ForbiddenError(
-        "This Contract ID can only be linked by the designated owner email.",
-      );
-    }
-
     const ownerDisplayName = [clerkUser.firstName, clerkUser.lastName]
       .filter(Boolean)
       .join(" ")
       .trim();
 
-    const clerkOrganizationId = await resolveClerkOrganizationId(
-      clerkUserId,
-      company.name,
-      company.clerkOrganizationId,
-    );
+    const clerkOrganizationId = isDemo
+      ? (company.clerkOrganizationId ?? localClerkOrganizationId(clerkUserId))
+      : await resolveClerkOrganizationId(
+          clerkUserId,
+          company.name,
+          company.clerkOrganizationId,
+        );
 
     const dbUser = await tenantRepo.upsertUser({
       clerkUserId,
@@ -187,18 +186,20 @@ export class ContractService {
         throw new NotFoundError("Invalid Contract ID");
       }
 
-      if (freshCompany.ownerUserId != null) {
+      if (!isDemo && freshCompany.ownerUserId != null) {
         throw new ConflictError("This Contract ID has already been linked");
       }
 
-      const userAlreadyLinked = await tx.company.findFirst({
-        where: { ownerUserId: clerkUserId },
-      });
-      if (userAlreadyLinked) {
-        throw new ConflictError("You have already linked a Contract ID");
+      if (!isDemo) {
+        const userAlreadyLinked = await tx.company.findFirst({
+          where: { ownerUserId: clerkUserId },
+        });
+        if (userAlreadyLinked) {
+          throw new ConflictError("You have already linked a Contract ID");
+        }
       }
 
-      if (!freshCompany.clerkOrganizationId) {
+      if (!isDemo && !freshCompany.clerkOrganizationId) {
         await tx.company.update({
           where: { id: company.id },
           data: { clerkOrganizationId },
@@ -225,35 +226,39 @@ export class ContractService {
         },
       });
 
-      const claimResult = await tx.company.updateMany({
-        where: {
-          id: company.id,
-          OR: [{ ownerUserId: null }, { ownerUserId: { isSet: false } }],
-        },
-        data: {
-          ownerUserId: clerkUserId,
-          claimedAt,
-        },
-      });
+      if (!isDemo) {
+        const claimResult = await tx.company.updateMany({
+          where: {
+            id: company.id,
+            OR: [{ ownerUserId: null }, { ownerUserId: { isSet: false } }],
+          },
+          data: {
+            ownerUserId: clerkUserId,
+            claimedAt,
+          },
+        });
 
-      if (claimResult.count === 0) {
-        throw new ConflictError("This Contract ID has already been linked");
+        if (claimResult.count === 0) {
+          throw new ConflictError("This Contract ID has already been linked");
+        }
       }
 
-      await tx.companyContact.upsert({
-        where: { companyId: company.id },
-        create: {
-          companyId: company.id,
-          name: ownerDisplayName || designatedOwnerEmail.split("@")[0] || "Owner",
-          email: primaryEmail.toLowerCase(),
-          phone: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
-        },
-        update: {
-          name: ownerDisplayName || undefined,
-          email: primaryEmail.toLowerCase(),
-          phone: clerkUser.phoneNumbers[0]?.phoneNumber ?? undefined,
-        },
-      });
+      if (!isDemo) {
+        await tx.companyContact.upsert({
+          where: { companyId: company.id },
+          create: {
+            companyId: company.id,
+            name: ownerDisplayName || primaryEmail.split("@")[0] || "Owner",
+            email: primaryEmail.toLowerCase(),
+            phone: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
+          },
+          update: {
+            name: ownerDisplayName || undefined,
+            email: primaryEmail.toLowerCase(),
+            phone: clerkUser.phoneNumbers[0]?.phoneNumber ?? undefined,
+          },
+        });
+      }
 
       return {
         contractId: freshCompany.contractId,
@@ -265,7 +270,7 @@ export class ContractService {
     await ensureCreditBalance(result.companyId);
     await cacheService.invalidateSettingsPages(result.companyId);
 
-    if (clerkOrganizationId.startsWith("org_")) {
+    if (!isDemo && clerkOrganizationId.startsWith("org_")) {
       await ensureClerkOrganizationMember({
         organizationId: clerkOrganizationId,
         userId: clerkUserId,

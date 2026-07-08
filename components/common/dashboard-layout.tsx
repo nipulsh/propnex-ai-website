@@ -5,6 +5,10 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 
 import { PermissionsProvider } from "@/components/permissions/permissions-provider";
 import { AppSidebar } from "@/components/common/app-sidebar";
+import {
+  SidebarNavigationLoader,
+  SidebarNavigationProvider,
+} from "@/components/common/sidebar-navigation-provider";
 import { ContractGate } from "@/components/common/contract-gate";
 import { ContractStatusProvider } from "@/components/common/contract-status-provider";
 import { CreditsSync } from "@/components/common/credits-sync";
@@ -54,23 +58,26 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider className="h-screen overflow-hidden">
-      <PermissionsProvider>
-        <SideNotificationProvider>
-          <Suspense fallback={null}>
-            <DashboardNotificationManager />
-          </Suspense>
-          <ContractStatusProvider>
-            <CreditsSync />
-            <AppSidebar />
-            <SidebarInset className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-              <TopNav />
-              <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                {ungated ? children : <ContractGate>{children}</ContractGate>}
-              </main>
-            </SidebarInset>
-          </ContractStatusProvider>
-        </SideNotificationProvider>
-      </PermissionsProvider>
+      <SidebarNavigationProvider>
+        <PermissionsProvider>
+          <SideNotificationProvider>
+            <Suspense fallback={null}>
+              <DashboardNotificationManager />
+            </Suspense>
+            <ContractStatusProvider>
+              <CreditsSync />
+              <AppSidebar />
+              <SidebarInset className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+                <TopNav />
+                <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <SidebarNavigationLoader />
+                  {ungated ? children : <ContractGate>{children}</ContractGate>}
+                </main>
+              </SidebarInset>
+            </ContractStatusProvider>
+          </SideNotificationProvider>
+        </PermissionsProvider>
+      </SidebarNavigationProvider>
     </SidebarProvider>
   );
 }

@@ -339,6 +339,8 @@ model Company {
   primaryUseCase      PrimaryUseCase?
   callVolume          CallVolumeRange?
   settings            Json             @default("{}")
+  /// Demo tenant for client trials; hidden from admin panel and reusable contract ID.
+  isDemo              Boolean          @default(false)
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
@@ -380,6 +382,7 @@ model Company {
 
   @@index([status])
   @@index([clerkOrganizationId])
+  @@index([isDemo])
 }
 
 model User {

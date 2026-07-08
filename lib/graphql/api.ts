@@ -60,7 +60,9 @@ import {
   type BranchAgentNode,
   type BranchNode,
   VIEWER_ROLE_QUERY,
+  VIEWER_BRANCH_NAME_QUERY,
   type ViewerRoleResult,
+  type ViewerBranchNameResult,
   EMPLOYEES_PAGE_QUERY,
   EMPLOYEE_DETAIL_QUERY,
   INVITE_EMPLOYEE_MUTATION,
@@ -252,6 +254,10 @@ export async function bulkDeleteUploadedContacts(ids: string[]) {
 
 export async function fetchViewerRole() {
   return gqlRequest<ViewerRoleResult>(VIEWER_ROLE_QUERY);
+}
+
+export async function fetchViewerBranchName(branchId: string) {
+  return gqlRequest<ViewerBranchNameResult>(VIEWER_BRANCH_NAME_QUERY, { id: branchId });
 }
 
 export type BranchFilterInput = {

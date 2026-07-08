@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { BrandLogo } from "@/components/common/brand-logo";
+import { useSidebarNavigation } from "@/components/common/sidebar-navigation-provider";
 import { usePermissions } from "@/hooks/use-permissions";
 import { footerNavItems, mainNavItems } from "@/lib/navigation";
 import type { Permission } from "@/lib/permissions";
@@ -25,7 +26,8 @@ import {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const { isNavigating, navigatingTo, navigateTo } = useSidebarNavigation();
   const isCollapsed = state === "collapsed";
   const { hasPermission, isLoading, role, branchAccessType } = usePermissions();
 
@@ -57,6 +59,44 @@ export function AppSidebar() {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
+  const handleNavigate = (href: string) => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+    navigateTo(href);
+  };
+
+  const renderNavButton = (
+    item: (typeof visibleNavItems)[number] | (typeof visibleFooterItems)[number],
+    options?: { activeClassName?: string },
+  ) => {
+    const active = isActive(item.href);
+    const isTarget = navigatingTo === item.href;
+
+    return (
+      <SidebarMenuButton
+        type="button"
+        onClick={() => handleNavigate(item.href)}
+        disabled={isNavigating}
+        isActive={active}
+        tooltip={item.title}
+        className={cn(
+          "h-9 rounded-lg",
+          active && "bg-sidebar-accent font-medium",
+          active && !isCollapsed && options?.activeClassName,
+          isNavigating && "cursor-not-allowed",
+        )}
+      >
+        {isTarget ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <item.icon />
+        )}
+        <span>{item.title}</span>
+      </SidebarMenuButton>
+    );
+  };
+
   return (
     <Sidebar collapsible="icon" className="border-sidebar-border">
       <SidebarHeader
@@ -74,22 +114,10 @@ export function AppSidebar() {
             <SidebarMenu>
               {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    render={<Link href={item.href} />}
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                    className={cn(
-                      "h-9 rounded-lg",
-                      isActive(item.href) &&
-                        "bg-sidebar-accent font-medium",
-                      isActive(item.href) &&
-                        !isCollapsed &&
-                        "border-l-2 border-primary pl-[calc(0.5rem-2px)]",
-                    )}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
+                  {renderNavButton(item, {
+                    activeClassName:
+                      "border-l-2 border-primary pl-[calc(0.5rem-2px)]",
+                  })}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -103,15 +131,7 @@ export function AppSidebar() {
           <SidebarMenu>
             {visibleFooterItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  render={<Link href={item.href} />}
-                  isActive={isActive(item.href)}
-                  tooltip={item.title}
-                  className="h-9 rounded-lg"
-                >
-                  <item.icon />
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
+                {renderNavButton(item)}
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
