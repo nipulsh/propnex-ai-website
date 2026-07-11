@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, Search, Settings2, Trash2, Upload } from "lucide-react";
+import {
+  BarChart3,
+  FileText,
+  Search,
+  Settings2,
+  Trash2,
+  Upload,
+} from "lucide-react";
 
 import {
   fetchBranchAgents,
@@ -425,6 +432,7 @@ export function BranchRelatedTab({
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Duration</th>
                     <th className="px-4 py-3 font-medium">Started</th>
+                    <th className="px-4 py-3 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -452,6 +460,15 @@ export function BranchRelatedTab({
                       </td>
                       <td className="px-4 py-3 text-propnex-muted">
                         {formatDate(log.startedAt)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          href={`/call-logs/${log.id}`}
+                          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-propnex-border bg-propnex-panel px-2.5 text-xs font-medium text-propnex-accent transition-colors hover:bg-propnex-accent/10"
+                        >
+                          <BarChart3 className="size-3.5" />
+                          View Analytics
+                        </Link>
                       </td>
                     </tr>
                   ))}
