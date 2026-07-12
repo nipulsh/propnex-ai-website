@@ -7,10 +7,6 @@ import { schema } from "@/server/graphql/server";
 
 const isDev = process.env.NODE_ENV !== "production";
 
-type NextRouteContext = {
-  params: Promise<Record<string, string>>;
-};
-
 function useGraphQLDebugPlugin() {
   return {
     onRequest({ request }: { request: Request }) {
@@ -53,16 +49,14 @@ function useGraphQLDebugPlugin() {
   };
 }
 
-export const yoga = createYoga<NextRouteContext>({
+export const yoga = createYoga({
   schema,
-  graphqlEndpoint: "/api/graphql",
-  // Use Next.js native Response so route handlers pass Next's instanceof check.
-  fetchAPI: { Response },
+  graphqlEndpoint: "/graphql",
   landingPage: isDev,
-  context: async (initialContext) => {
+  context: async ({ request }: { request: Request }) => {
     gqlDebug("context:create:start");
     try {
-      const ctx = await createGraphQLContext();
+      const ctx = await createGraphQLContext(request);
       gqlDebug("context:create:done", {
         companyId: ctx.companyId,
         userId: ctx.userId,

@@ -1,28 +1,20 @@
 import { yoga } from "@/server/graphql/yoga";
 
-type NextRouteContext = {
-  params: Promise<Record<string, string>>;
-};
-
 export async function executeGraphQLFromRequest<T>(
   request: Request,
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<T> {
-  const url = new URL("/api/graphql", request.url);
-  const cookie = request.headers.get("cookie");
+  const authorization = request.headers.get("authorization");
 
-  const response = await yoga.fetch(
-    new Request(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(cookie ? { cookie } : {}),
-      },
-      body: JSON.stringify({ query, variables }),
-    }),
-    { params: Promise.resolve({}) } as NextRouteContext,
-  );
+  const response = await yoga.fetch("http://backend.local/graphql", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(authorization ? { authorization } : {}),
+    },
+    body: JSON.stringify({ query, variables }),
+  });
 
   if (!response.ok) {
     throw new Error(`GraphQL request failed with status ${response.status}`);

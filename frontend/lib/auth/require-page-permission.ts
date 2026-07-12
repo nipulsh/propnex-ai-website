@@ -3,32 +3,37 @@ import { auth } from "@clerk/nextjs/server";
 
 import type { Permission } from "@/lib/permissions";
 import { getRequiredPermissionForPath } from "@/lib/route-permissions";
-import { resolveTenantContext } from "@/lib/api/tenant-context";
+import { fetchViewerRole } from "@/lib/graphql/api";
+import { isAuthRequiredError } from "@/lib/graphql/auth-error";
 import {
   ctxHasPermission,
   type AccessContext,
 } from "@/lib/permissions-policy";
 
-function tenantToAccess(
-  ctx: NonNullable<Awaited<ReturnType<typeof resolveTenantContext>>>,
-): AccessContext {
-  return {
-    membershipId: ctx.membershipId,
-    userId: ctx.userId,
-    role: ctx.role as AccessContext["role"],
-    permissions: ctx.permissions,
-    branchAccessType: ctx.branchAccess.type,
-    branchIds: ctx.branchAccess.branchIds,
-  };
+async function resolveViewerContext(): Promise<AccessContext | null> {
+  try {
+    const { viewer } = await fetchViewerRole();
+    return {
+      membershipId: viewer.membershipId,
+      userId: viewer.id,
+      role: viewer.role as AccessContext["role"],
+      permissions: viewer.permissions,
+      branchAccessType: viewer.branchAccessType,
+      branchIds: viewer.branchIds,
+    };
+  } catch (error) {
+    if (isAuthRequiredError(error)) return null;
+    throw error;
+  }
 }
 
 export async function requirePagePermission(permission: Permission) {
-  const ctx = await resolveTenantContext();
+  const ctx = await resolveViewerContext();
   if (!ctx) {
     redirect("/sign-in");
   }
 
-  if (!ctxHasPermission(tenantToAccess(ctx), permission)) {
+  if (!ctxHasPermission(ctx, permission)) {
     redirect("/unauthorized");
   }
 
@@ -47,17 +52,16 @@ export async function requirePageAccess(pathname: string) {
       redirect("/sign-in");
     }
     // Still try to resolve tenant context if available, but don't block if missing
-    const ctx = await resolveTenantContext();
-    return ctx;
+    return resolveViewerContext();
   }
 
   // For gated routes, require a valid tenant context (linked contract ID).
-  const ctx = await resolveTenantContext();
+  const ctx = await resolveViewerContext();
   if (!ctx) {
     redirect("/sign-in");
   }
 
-  if (ctx.role === "ADMIN" && ctx.branchAccess.type === "SELECTED") {
+  if (ctx.role === "ADMIN" && ctx.branchAccessType === "SELECTED") {
     const allowedPatterns = [
       /^\/dashboard\/?$/,
       /^\/call-logs(\/|$)/,
@@ -73,7 +77,7 @@ export async function requirePageAccess(pathname: string) {
   if (
     required !== undefined &&
     !/^\/contact\/?$/.test(pathname) &&
-    !ctxHasPermission(tenantToAccess(ctx), required)
+    !ctxHasPermission(ctx, required)
   ) {
     redirect("/unauthorized");
   }

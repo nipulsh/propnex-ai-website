@@ -4,10 +4,7 @@ import {
   type BillingContactRequestInput,
   validateBillingContactRequest,
 } from "@/lib/billing-contact";
-import { createGraphQLContext } from "@/server/graphql/context";
-import { tenantService } from "@/server/services/tenant.service";
-import { eventsService } from "@/server/services/events.service";
-import { PERMISSIONS } from "@/server/types/permissions";
+import { backendFetch } from "@/lib/api/backend-client";
 
 export type SubmitBillingContactResult =
   | { success: true; requestId: string }
@@ -22,28 +19,19 @@ export async function submitBillingContactRequest(
   }
 
   try {
-    const ctx = await createGraphQLContext();
-    tenantService.requirePermission(ctx, PERMISSIONS.BILLING_READ);
-    const event = await eventsService.emit(ctx, {
-      type: "BILLING_ALERT",
-      entityType: "billing_contact_request",
-      title: `Billing request: ${input.intent}`,
-      payload: {
-        intent: input.intent,
-        quantity: input.quantity,
-        phone: input.phone?.trim() || null,
-        notes: input.notes?.trim() || null,
-        submittedAt: new Date().toISOString(),
-      },
+    const res = await backendFetch("/events/billing-contact", {
+      method: "POST",
+      body: JSON.stringify(input),
     });
+    const data = (await res.json()) as { requestId?: string; error?: string };
 
-    return { success: true, requestId: event.id };
+    if (!res.ok) {
+      return { success: false, error: data.error ?? "Unable to submit your request right now." };
+    }
+
+    return { success: true, requestId: data.requestId! };
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to submit your request right now.";
     console.error("submitBillingContactRequest failed:", error);
-    return { success: false, error: message };
+    return { success: false, error: "Unable to submit your request right now." };
   }
 }

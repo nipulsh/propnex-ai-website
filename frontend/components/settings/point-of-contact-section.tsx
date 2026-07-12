@@ -7,6 +7,7 @@ import { useSideNotification } from "@/components/common/side-notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePermissions } from "@/hooks/use-permissions";
+import { apiFetch } from "@/lib/api/client-fetch";
 import { PERMISSIONS } from "@/lib/permissions";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -77,7 +78,7 @@ export function PointOfContactSection() {
 
     setIsSaving(true);
     try {
-      const response = await fetch("/api/company/contact", {
+      const response = await apiFetch("/company/contact", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

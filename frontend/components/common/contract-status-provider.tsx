@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { apiFetch } from "@/lib/api/client-fetch";
+
 type ContractStatusValue =
   | { linked: false; contractId: null; claimedAt: null }
   | { linked: true; contractId: string; claimedAt: string | null };
@@ -31,7 +33,7 @@ export function ContractStatusProvider({ children }: { children: ReactNode }) {
   const fetchStatus = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/company/contract");
+      const response = await apiFetch("/company/contract");
       if (!response.ok) {
         setStatus({ linked: false, contractId: null, claimedAt: null });
         return;

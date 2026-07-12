@@ -1,17 +1,18 @@
-import { auth } from "@clerk/nextjs/server";
-
 import { gqlDebug, gqlDebugTimed, gqlLogError } from "@/server/graphql/debug";
 import { UnauthorizedError } from "@/server/lib/errors";
 import { buildTenantContext } from "@/server/lib/tenant-context-builder";
+import { extractBearerToken, verifyClerkToken } from "@/server/lib/verify-request";
 import {
   resolveAuthenticatedTenant,
   type ResolutionCache,
 } from "@/server/services/company-resolution.service";
 import type { GraphQLContext } from "@/server/types/context";
 
-export async function createGraphQLContext(): Promise<GraphQLContext> {
+export async function createGraphQLContext(request: Request): Promise<GraphQLContext> {
   return gqlDebugTimed("context:total", async () => {
-    const { userId, orgId } = await gqlDebugTimed("context:auth", () => auth());
+    const { userId, orgId } = await gqlDebugTimed("context:auth", () =>
+      verifyClerkToken(extractBearerToken(request.headers.get("authorization"))),
+    );
     gqlDebug("context:auth", {
       hasUserId: Boolean(userId),
       hasOrgId: Boolean(orgId),

@@ -5,7 +5,7 @@ import type {
   MemberStatus,
   UserRole,
 } from "@prisma/client";
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@/server/lib/clerk-client";
 
 import {
   getActiveClerkOrganizationId,

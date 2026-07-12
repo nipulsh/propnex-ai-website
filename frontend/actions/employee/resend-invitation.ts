@@ -1,8 +1,7 @@
 "use server";
 
-import { createGraphQLContext } from "@/server/graphql/context";
-import { isAppError } from "@/server/lib/errors";
-import { employeesService } from "@/server/services/employees.service";
+import { resendEmployeeInvite } from "@/lib/graphql/api";
+import { graphqlErrorMessage } from "@/lib/graphql/auth-error";
 
 export type ResendInvitationResult =
   | { success: true; employeeId: string }
@@ -12,15 +11,9 @@ export async function resendInvitation(
   employeeId: string,
 ): Promise<ResendInvitationResult> {
   try {
-    const ctx = await createGraphQLContext();
-    const employee = await employeesService.resendInvite(ctx, employeeId);
-    return { success: true, employeeId: employee.id };
+    const result = await resendEmployeeInvite(employeeId);
+    return { success: true, employeeId: result.employees.resendInvite.id };
   } catch (error) {
-    if (isAppError(error)) {
-      return { success: false, error: error.message };
-    }
-    const message =
-      error instanceof Error ? error.message : "Unable to resend invitation.";
-    return { success: false, error: message };
+    return { success: false, error: graphqlErrorMessage(error, "Unable to resend invitation.") };
   }
 }

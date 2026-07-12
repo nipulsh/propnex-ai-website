@@ -7,6 +7,7 @@ import { CreateSpreadsheetDialog } from "@/components/integrations/create-spread
 import { ColumnMappingEditor } from "@/components/integrations/column-mapping-editor";
 import { SyncControls } from "@/components/integrations/sync-controls";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api/client-fetch";
 import { spreadsheetWebViewLink } from "@/lib/integrations/google/constants";
 import type { ColumnMapping, WorkspaceIntegration } from "@/lib/integrations/types";
 import { cn } from "@/lib/utils";
@@ -65,8 +66,8 @@ export function GoogleSheetsDetailPanel({
         return;
       }
       try {
-        const res = await fetch(
-          `/api/integrations/google/sheets/headers?spreadsheetId=${config.spreadsheetId}&worksheetName=${encodeURIComponent(config.worksheetName)}`,
+        const res = await apiFetch(
+          `/integrations/google/sheets/headers?spreadsheetId=${config.spreadsheetId}&worksheetName=${encodeURIComponent(config.worksheetName)}`,
         );
         if (!res.ok) return;
         const data = (await res.json()) as { headers: string[] };

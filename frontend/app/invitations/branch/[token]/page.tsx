@@ -1,41 +1,49 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { AlertCircle, CheckCircle, ShieldAlert, UserPlus, LogIn, ArrowRight } from "lucide-react";
-import prisma from "@/server/lib/prisma";
 import { Button } from "@/components/ui/button";
+import { backendFetch } from "@/lib/api/backend-client";
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
 type Params = Promise<{ token: string }>;
+
+type PublicInvitation = {
+  status: "not_found" | "pending" | "accepted" | "cancelled" | "expired";
+  email?: string;
+  branchName?: string;
+  companyName?: string;
+  expiresAt?: string;
+};
+
+async function fetchInvitation(token: string): Promise<PublicInvitation> {
+  const res = await fetch(`${API_URL}/public/branch-invitations/${token}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return { status: "not_found" };
+  return res.json();
+}
 
 export default async function BranchInvitationPage(props: { params: Params }) {
   const { token } = await props.params;
 
-  // 1. Fetch the invitation
-  const invitation = await prisma.branchInvitation.findUnique({
-    where: { token },
-    include: {
-      branch: true,
-      company: true,
-    },
-  });
+  const invitation = await fetchInvitation(token);
 
-  const now = new Date();
-  const isExpired = invitation ? invitation.expiresAt <= now : false;
-
-  // 2. Validate invitation
-  if (!invitation || invitation.status !== "PENDING" || isExpired) {
+  // Validate invitation
+  if (invitation.status !== "pending") {
     let errorTitle = "Invalid Invitation";
     let errorDesc = "This invitation token is invalid, has been cancelled, or does not exist.";
 
-    if (invitation && invitation.status === "ACCEPTED") {
+    if (invitation.status === "accepted") {
       errorTitle = "Invitation Already Accepted";
       errorDesc = "This invitation has already been accepted and cannot be reused.";
-    } else if (invitation && invitation.status === "CANCELLED") {
+    } else if (invitation.status === "cancelled") {
       errorTitle = "Invitation Cancelled";
       errorDesc = "This invitation has been cancelled by the administrator.";
-    } else if (isExpired) {
+    } else if (invitation.status === "expired") {
       errorTitle = "Invitation Expired";
-      errorDesc = `This invitation expired on ${invitation?.expiresAt.toLocaleDateString()}. Please contact your administrator to generate a new invitation.`;
+      errorDesc = `This invitation expired on ${invitation.expiresAt ? new Date(invitation.expiresAt).toLocaleDateString() : "an earlier date"}. Please contact your administrator to generate a new invitation.`;
     }
 
     return (
@@ -54,7 +62,7 @@ export default async function BranchInvitationPage(props: { params: Params }) {
     );
   }
 
-  // 3. Check authentication status
+  // Check authentication status
   const { userId } = await auth();
 
   if (!userId) {
@@ -70,7 +78,7 @@ export default async function BranchInvitationPage(props: { params: Params }) {
               You're Invited
             </h1>
             <p className="text-sm text-propnex-muted mt-2">
-              To manage the <strong className="text-foreground">{invitation.branch.name}</strong> branch in {invitation.company.name} (PropNex AI)
+              To manage the <strong className="text-foreground">{invitation.branchName}</strong> branch in {invitation.companyName} (PropNex AI)
             </p>
           </div>
 
@@ -100,11 +108,11 @@ export default async function BranchInvitationPage(props: { params: Params }) {
     );
   }
 
-  // 4. Authenticated - verify email
+  // Authenticated - verify email
   const clerkUser = await currentUser();
   const userEmail = clerkUser?.emailAddresses[0]?.emailAddress;
 
-  if (!userEmail || userEmail.toLowerCase() !== invitation.email.toLowerCase()) {
+  if (!userEmail || userEmail.toLowerCase() !== invitation.email?.toLowerCase()) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
         <div className="w-full max-w-md rounded-xl border border-destructive/30 bg-propnex-panel p-6 shadow-xl">
@@ -133,115 +141,19 @@ export default async function BranchInvitationPage(props: { params: Params }) {
     );
   }
 
-  // 5. Authenticated & email matches - show accept screen
+  // Authenticated & email matches - show accept screen
   async function acceptInvitation() {
     "use server";
-    const { userId: actionUserId } = await auth();
-    if (!actionUserId) throw new Error("Unauthorized");
 
-    const activeClerkUser = await currentUser();
-    const activeEmail = activeClerkUser?.emailAddresses[0]?.emailAddress;
-    if (!activeEmail) throw new Error("Email not found");
-
-    if (activeEmail.toLowerCase() !== invitation!.email.toLowerCase()) {
-      throw new Error("Mismatched email");
-    }
-
-    // Acceptance transaction
-    await prisma.$transaction(async (tx) => {
-      // Re-verify status under lock
-      const current = await tx.branchInvitation.findUnique({
-        where: { id: invitation!.id },
-      });
-      if (!current || current.status !== "PENDING") {
-        throw new Error("Invitation is no longer pending");
-      }
-
-      // Mark invitation as ACCEPTED
-      await tx.branchInvitation.update({
-        where: { id: invitation!.id },
-        data: {
-          status: "ACCEPTED",
-          acceptedAt: new Date(),
-        },
-      });
-
-      // Find user by email (case-insensitive check) to avoid duplicates
-      let dbUser = await tx.user.findFirst({
-        where: { email: { equals: activeEmail, mode: "insensitive" } },
-      });
-
-      if (dbUser) {
-        // Link clerkUserId if missing or temporary
-        if (dbUser.clerkUserId !== actionUserId) {
-          dbUser = await tx.user.update({
-            where: { id: dbUser.id },
-            data: { clerkUserId: actionUserId, status: "ACTIVE" },
-          });
-        }
-      } else {
-        // Create user in DB
-        dbUser = await tx.user.create({
-          data: {
-            clerkUserId: actionUserId,
-            email: activeEmail,
-            firstName: activeClerkUser?.firstName,
-            lastName: activeClerkUser?.lastName,
-            imageUrl: activeClerkUser?.imageUrl,
-            status: "ACTIVE",
-          },
-        });
-      }
-
-      // Upsert CompanyMember
-      const member = await tx.companyMember.upsert({
-        where: {
-          companyId_userId: { companyId: invitation!.companyId, userId: dbUser.id },
-        },
-        create: {
-          companyId: invitation!.companyId,
-          userId: dbUser.id,
-          role: "ADMIN",
-          branchAccessType: "SELECTED",
-          status: "ACTIVE",
-          joinedAt: new Date(),
-        },
-        update: {
-          role: "ADMIN",
-          branchAccessType: "SELECTED",
-          status: "ACTIVE",
-          joinedAt: new Date(),
-        },
-      });
-
-      // Link member to branch
-      await tx.memberBranchAccess.upsert({
-        where: {
-          memberId_branchId: { memberId: member.id, branchId: invitation!.branchId },
-        },
-        create: {
-          memberId: member.id,
-          branchId: invitation!.branchId,
-        },
-        update: {},
-      });
+    const res = await backendFetch(`/public/branch-invitations/${token}/accept`, {
+      method: "POST",
     });
 
-    // Add user to Clerk organization programmatically
-    if (invitation!.company.clerkOrganizationId && !invitation!.company.clerkOrganizationId.startsWith("local:")) {
-      const client = await clerkClient();
-      try {
-        await client.organizations.createOrganizationMembership({
-          organizationId: invitation!.company.clerkOrganizationId,
-          userId: actionUserId,
-          role: "org:admin",
-        });
-      } catch (err) {
-        console.error("[Clerk Org Invite Error]", err);
-      }
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error ?? "Unable to accept invitation");
     }
 
-    // Redirect to dashboard with parameter
     redirect("/dashboard?branch_invite_accepted=true");
   }
 
@@ -255,7 +167,7 @@ export default async function BranchInvitationPage(props: { params: Params }) {
           Accept Invitation
         </h1>
         <p className="text-sm text-propnex-muted mt-2">
-          Join <strong className="text-foreground">{invitation.company.name}</strong> as the administrator for the <strong className="text-foreground">{invitation.branch.name}</strong> branch.
+          Join <strong className="text-foreground">{invitation.companyName}</strong> as the administrator for the <strong className="text-foreground">{invitation.branchName}</strong> branch.
         </p>
 
         <div className="rounded-lg bg-propnex-bg/50 border border-propnex-border p-4 my-6 text-sm">

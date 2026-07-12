@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { apiFetch } from "@/lib/api/client-fetch";
 import { isGoogleIntegration } from "@/lib/integrations/google/constants";
 import type {
   CalendarOption,
@@ -68,7 +69,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
     set({ isLoading: true });
     try {
       const data = await parseJson<{ integrations: WorkspaceIntegration[] }>(
-        await fetch("/api/integrations"),
+        await apiFetch("/integrations"),
       );
       set({ integrations: data.integrations, isLoading: false });
     } catch (e) {
@@ -88,7 +89,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
     if (isGoogleIntegration(id)) {
       set({ isConnecting: true, banner: null });
       try {
-        const res = await fetch("/api/integrations/google/connect", {
+        const res = await apiFetch("/integrations/google/connect", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ integrationId: id }),
@@ -133,7 +134,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
     set({ isConnecting: true, banner: null });
     try {
       const data = await parseJson<{ integration: WorkspaceIntegration }>(
-        await fetch(`/api/integrations/${id}/connect`, { method: "POST" }),
+        await apiFetch(`/integrations/${id}/connect`, { method: "POST" }),
       );
       set((s) => ({
         integrations: s.integrations.map((i) =>
@@ -158,7 +159,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
     set({ isSaving: true, banner: null });
     try {
       const data = await parseJson<{ integration: WorkspaceIntegration }>(
-        await fetch(`/api/integrations/${id}/disconnect`, { method: "POST" }),
+        await apiFetch(`/integrations/${id}/disconnect`, { method: "POST" }),
       );
       set((s) => ({
         integrations: s.integrations.map((i) =>
@@ -183,7 +184,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
     set({ isSyncing: true, banner: null });
     try {
       const data = await parseJson<{ integration: WorkspaceIntegration }>(
-        await fetch("/api/integrations/google/sheets/sync", { method: "POST" }),
+        await apiFetch("/integrations/google/sheets/sync", { method: "POST" }),
       );
       set((s) => ({
         integrations: s.integrations.map((i) =>
@@ -207,7 +208,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
   fetchSpreadsheets: async () => {
     try {
       const data = await parseJson<{ spreadsheets: SpreadsheetOption[] }>(
-        await fetch("/api/integrations/google/sheets/spreadsheets"),
+        await apiFetch("/integrations/google/sheets/spreadsheets"),
       );
       set({ spreadsheets: data.spreadsheets });
     } catch {
@@ -217,7 +218,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
 
   createSpreadsheet: async (name, columns = []) => {
     const data = await parseJson<{ spreadsheet: SpreadsheetOption }>(
-      await fetch("/api/integrations/google/sheets/spreadsheets", {
+      await apiFetch("/integrations/google/sheets/spreadsheets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, columns }),
@@ -232,8 +233,8 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
       spreadsheets: SpreadsheetOption[];
       integration: WorkspaceIntegration;
     }>(
-      await fetch(
-        `/api/integrations/google/sheets/spreadsheets?spreadsheetId=${encodeURIComponent(spreadsheetId)}`,
+      await apiFetch(
+        `/integrations/google/sheets/spreadsheets?spreadsheetId=${encodeURIComponent(spreadsheetId)}`,
         { method: "DELETE" },
       ),
     );
@@ -253,8 +254,8 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
   fetchWorksheets: async (spreadsheetId) => {
     try {
       const data = await parseJson<{ worksheets: WorksheetOption[] }>(
-        await fetch(
-          `/api/integrations/google/sheets/worksheets?spreadsheetId=${spreadsheetId}`,
+        await apiFetch(
+          `/integrations/google/sheets/worksheets?spreadsheetId=${spreadsheetId}`,
         ),
       );
       set({ worksheets: data.worksheets });
@@ -267,7 +268,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
     set({ isSaving: true, banner: null });
     try {
       const data = await parseJson<{ integration: WorkspaceIntegration }>(
-        await fetch("/api/integrations/google/sheets/config", {
+        await apiFetch("/integrations/google/sheets/config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(config),
@@ -294,7 +295,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
   fetchSyncHistory: async () => {
     try {
       const data = await parseJson<{ history: SyncHistoryEntry[] }>(
-        await fetch("/api/integrations/google/sheets/sync-history"),
+        await apiFetch("/integrations/google/sheets/sync-history"),
       );
       set({ syncHistory: data.history });
     } catch {
@@ -305,7 +306,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
   fetchCalendars: async () => {
     try {
       const data = await parseJson<{ calendars: CalendarOption[] }>(
-        await fetch("/api/integrations/google/calendar/calendars"),
+        await apiFetch("/integrations/google/calendar/calendars"),
       );
       set({ calendars: data.calendars });
     } catch {
@@ -317,7 +318,7 @@ export const useIntegrationsStore = create<IntegrationsStore>((set, get) => ({
     set({ isSaving: true, banner: null });
     try {
       const data = await parseJson<{ integration: WorkspaceIntegration }>(
-        await fetch("/api/integrations/google/calendar/config", {
+        await apiFetch("/integrations/google/calendar/config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(config),

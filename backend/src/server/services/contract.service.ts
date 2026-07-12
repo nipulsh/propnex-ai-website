@@ -1,4 +1,4 @@
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@/server/lib/clerk-client";
 
 import { ensureClerkOrganizationMember } from "@/lib/clerk/organization";
 import { cacheService } from "@/server/cache/cache.service";

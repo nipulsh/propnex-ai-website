@@ -8,6 +8,7 @@ import { useContractStatus } from "@/components/common/contract-status-provider"
 import { useSideNotification } from "@/components/common/side-notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiFetch } from "@/lib/api/client-fetch";
 
 type ContractStatus =
   | { linked: false }
@@ -25,7 +26,7 @@ export function ContractIdSection() {
   const fetchStatus = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/company/contract");
+      const response = await apiFetch("/company/contract");
       const data = (await response.json()) as ContractStatus & { error?: string };
 
       if (!response.ok) {
@@ -57,7 +58,7 @@ export function ContractIdSection() {
 
     setIsLinking(true);
     try {
-      const response = await fetch("/api/company/contract/link", {
+      const response = await apiFetch("/company/contract/link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contractId: value }),

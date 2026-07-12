@@ -1,13 +1,12 @@
 "use server";
 
+import { inviteEmployee } from "@/lib/graphql/api";
+import { graphqlErrorMessage } from "@/lib/graphql/auth-error";
 import {
   formatInviteEmployeeErrors,
   inviteEmployeeSchema,
   type InviteEmployeeInput,
 } from "@/lib/validations/invite-employee";
-import { createGraphQLContext } from "@/server/graphql/context";
-import { isAppError } from "@/server/lib/errors";
-import { employeesService } from "@/server/services/employees.service";
 
 export type SendInvitationResult =
   | { success: true; employeeId: string }
@@ -26,8 +25,7 @@ export async function sendInvitation(
   }
 
   try {
-    const ctx = await createGraphQLContext();
-    const employee = await employeesService.invite(ctx, {
+    const result = await inviteEmployee({
       name: parsed.data.name,
       email: parsed.data.email,
       jobTitle: parsed.data.jobTitle,
@@ -39,13 +37,8 @@ export async function sendInvitation(
           : undefined,
     });
 
-    return { success: true, employeeId: employee.id };
+    return { success: true, employeeId: result.employees.invite.id };
   } catch (error) {
-    if (isAppError(error)) {
-      return { success: false, error: error.message };
-    }
-    const message =
-      error instanceof Error ? error.message : "Unable to send invitation.";
-    return { success: false, error: message };
+    return { success: false, error: graphqlErrorMessage(error, "Unable to send invitation.") };
   }
 }

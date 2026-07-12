@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api/client-fetch";
 import {
   buildStoredContactPhone,
   DEFAULT_CONTACT_PHONE_COUNTRY,
@@ -182,7 +183,7 @@ export async function parsePhonesFromUploadFile(
     formData.append("defaultCountry", options.defaultCountry);
   }
 
-  const response = await fetch("/api/contact-phones/parse-upload", {
+  const response = await apiFetch("/contact-phones/parse-upload", {
     method: "POST",
     body: formData,
   });

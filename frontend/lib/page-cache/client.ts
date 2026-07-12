@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api/client-fetch";
 import {
   AuthRequiredError,
   markGraphQLAuthBlocked,
@@ -46,9 +47,9 @@ export async function fetchCachedPage<T>(
   }
 
   const query = searchParams.toString();
-  const url = `/api/page-cache/${pageKey}${query ? `?${query}` : ""}`;
+  const url = `/page-cache/${pageKey}${query ? `?${query}` : ""}`;
 
-  const response = await fetch(url, { credentials: "include" });
+  const response = await apiFetch(url);
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as {
       error?: string;

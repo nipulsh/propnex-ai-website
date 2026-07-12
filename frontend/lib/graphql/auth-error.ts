@@ -47,3 +47,14 @@ export function throwIfAuthBlocked(): void {
     throw new AuthRequiredError();
   }
 }
+
+/** Extracts a user-presentable message from a gqlRequest failure. */
+export function graphqlErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ClientError) {
+    return error.response.errors?.[0]?.message ?? fallback;
+  }
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+  return fallback;
+}

@@ -1,8 +1,7 @@
 "use server";
 
-import { createGraphQLContext } from "@/server/graphql/context";
-import { isAppError } from "@/server/lib/errors";
-import { employeesService } from "@/server/services/employees.service";
+import { cancelEmployeeInvite } from "@/lib/graphql/api";
+import { graphqlErrorMessage } from "@/lib/graphql/auth-error";
 
 export type CancelInvitationResult =
   | { success: true }
@@ -12,15 +11,9 @@ export async function cancelInvitation(
   employeeId: string,
 ): Promise<CancelInvitationResult> {
   try {
-    const ctx = await createGraphQLContext();
-    await employeesService.cancelInvite(ctx, employeeId);
+    await cancelEmployeeInvite(employeeId);
     return { success: true };
   } catch (error) {
-    if (isAppError(error)) {
-      return { success: false, error: error.message };
-    }
-    const message =
-      error instanceof Error ? error.message : "Unable to cancel invitation.";
-    return { success: false, error: message };
+    return { success: false, error: graphqlErrorMessage(error, "Unable to cancel invitation.") };
   }
 }

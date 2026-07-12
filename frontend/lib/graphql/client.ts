@@ -6,25 +6,13 @@ import {
   markGraphQLAuthBlocked,
   throwIfAuthBlocked,
 } from "@/lib/graphql/auth-error";
+import { getClerkClientToken } from "@/lib/clerk-client-token";
 
 const DEFAULT_FETCH_TIMEOUT_MS = 60_000;
 
-function toOrigin(base: string): string {
-  return base.startsWith("http") ? base : `https://${base}`;
-}
-
 function getGraphQLEndpoint() {
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}/api/graphql`;
-  }
-
-  // On Vercel, prefer the auto-injected hostname over a localhost build-time URL.
-  if (process.env.VERCEL_URL) {
-    return `${toOrigin(process.env.VERCEL_URL)}/api/graphql`;
-  }
-
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  return `${toOrigin(base)}/api/graphql`;
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  return `${base.replace(/\/$/, "")}/graphql`;
 }
 
 function createFetchWithTimeout(timeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
@@ -45,12 +33,22 @@ function createFetchWithTimeout(timeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
 
 export function createGraphQLClient() {
   return new GraphQLClient(getGraphQLEndpoint(), {
-    credentials: "include",
     fetch: createFetchWithTimeout(),
   });
 }
 
 export const graphqlClient = createGraphQLClient();
+
+/** Backend auth is Bearer-token only now — resolve the current Clerk token per call. */
+async function getAuthToken(): Promise<string | null> {
+  if (typeof window !== "undefined") {
+    return getClerkClientToken();
+  }
+
+  const { auth } = await import("@clerk/nextjs/server");
+  const { getToken } = await auth();
+  return getToken();
+}
 
 export async function gqlRequest<T>(
   query: string,
@@ -58,8 +56,14 @@ export async function gqlRequest<T>(
 ): Promise<T> {
   throwIfAuthBlocked();
 
+  const token = await getAuthToken();
+
   try {
-    return await graphqlClient.request<T>(query, variables);
+    return await graphqlClient.request<T>(
+      query,
+      variables,
+      token ? { Authorization: `Bearer ${token}` } : {},
+    );
   } catch (error) {
     if (isUnauthorizedClientError(error)) {
       markGraphQLAuthBlocked();

@@ -1,5 +1,5 @@
 import type { BranchAccessType, CallVolumeRange, Company, PrimaryUseCase, User, UserRole } from "@prisma/client";
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@/server/lib/clerk-client";
 
 import { getUserMetadata } from "@/lib/user-metadata";
 import {

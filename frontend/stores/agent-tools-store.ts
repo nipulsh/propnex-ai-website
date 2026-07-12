@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { apiFetch } from "@/lib/api/client-fetch";
 import type { AgentToolAssignment, AgentToolId } from "@/lib/tools/types";
 
 type Banner = { type: "success" | "error"; message: string };
@@ -43,7 +44,7 @@ export const useAgentToolsStore = create<AgentToolsStore>((set) => ({
     set({ isLoading: true });
     try {
       const data = await parseJson<{ tools: AgentToolAssignment[] }>(
-        await fetch(`/api/agents/${agentId}/tools`),
+        await apiFetch(`/agents/${agentId}/tools`),
       );
       set((s) => ({
         toolsByAgent: { ...s.toolsByAgent, [agentId]: data.tools },
@@ -64,7 +65,7 @@ export const useAgentToolsStore = create<AgentToolsStore>((set) => ({
     set({ isSaving: true, banner: null });
     try {
       const data = await parseJson<{ tool: AgentToolAssignment }>(
-        await fetch(`/api/agents/${agentId}/tools/${toolId}`, {
+        await apiFetch(`/agents/${agentId}/tools/${toolId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ enabled }),
@@ -94,7 +95,7 @@ export const useAgentToolsStore = create<AgentToolsStore>((set) => ({
     set({ isSaving: true, banner: null });
     try {
       const data = await parseJson<{ tool: AgentToolAssignment }>(
-        await fetch(`/api/agents/${agentId}/tools/${toolId}`, {
+        await apiFetch(`/agents/${agentId}/tools/${toolId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(update),
@@ -126,7 +127,7 @@ export const useAgentToolsStore = create<AgentToolsStore>((set) => ({
     set({ isTesting: true, banner: null });
     try {
       const data = await parseJson<{ tool: AgentToolAssignment; testResult: string }>(
-        await fetch(`/api/agents/${agentId}/tools/${toolId}`, {
+        await apiFetch(`/agents/${agentId}/tools/${toolId}`, {
           method: "POST",
         }),
       );

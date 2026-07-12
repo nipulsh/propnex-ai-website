@@ -6,7 +6,7 @@ import { requirePageAccess } from "@/lib/auth/require-page-permission";
 
 export default async function ContactPage() {
   const ctx = await requirePageAccess("/contact");
-  const isBranchAdmin = ctx && ctx.role === "ADMIN" && ctx.branchAccess.type === "SELECTED";
+  const isBranchAdmin = ctx && ctx.role === "ADMIN" && ctx.branchAccessType === "SELECTED";
 
   return (
     <Suspense fallback={null}>

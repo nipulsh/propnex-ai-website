@@ -1,4 +1,4 @@
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@/server/lib/clerk-client";
 
 import { GOOGLE_OAUTH_SCOPES } from "@/lib/integrations/google/constants";
 
